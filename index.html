@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#060611;--bg-card:#0d0d1a;--bg-hover:#161630;--border:#1a1a35;--border-focus:#2d2d55;--text:#e2e2f0;--text-dim:#7070a0;--text-muted:#404068;--green:#22df8a;--green-bg:rgba(34,223,138,.08);--red:#ff4466;--red-bg:rgba(255,68,102,.08);--blue:#5588ff;--blue-bg:rgba(85,136,255,.08);--amber:#ffaa22;--amber-bg:rgba(255,170,34,.08);--purple:#aa66ff;--purple-bg:rgba(170,102,255,.08);--cyan:#22dddd}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-height:100vh}
+.bg-mesh{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 600px 400px at 20% 10%,rgba(34,223,138,.04),transparent),radial-gradient(ellipse 500px 500px at 80% 80%,rgba(85,136,255,.04),transparent),radial-gradient(ellipse 400px 300px at 50% 50%,rgba(170,102,255,.03),transparent)}
+.scanline{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.015;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,.03) 2px,rgba(255,255,255,.03) 4px)}
+.wrap{position:relative;z-index:1;max-width:1320px;margin:0 auto;padding:20px 16px}
+header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding-bottom:16px;margin-bottom:0;border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:10px}.brand-mark{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,var(--green),var(--blue));display:grid;place-items:center;font-weight:800;font-size:16px;color:var(--bg)}
+.brand h1{font-size:17px;font-weight:700;letter-spacing:-.5px}.brand small{color:var(--text-dim);font-size:11px}
+.hdr-r{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}.ts{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-dim)}
+.sync-status{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid var(--border)}
+.tab-bar{display:flex;gap:0;padding:0;margin-bottom:24px;overflow-x:auto;-webkit-overflow-scrolling:touch}.tab-bar::-webkit-scrollbar{display:none}
+.tab-btn{padding:12px 22px;border:none;background:none;color:var(--text-muted);font-family:'Sora';font-size:13px;font-weight:500;cursor:pointer;transition:.2s;border-bottom:2px solid transparent;white-space:nowrap}
+.tab-btn:hover{color:var(--text-dim)}.tab-btn.active{color:var(--green);border-bottom-color:var(--green)}.tab-content{display:none}.tab-content.active{display:block}
+.btn{padding:7px 14px;border-radius:7px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);cursor:pointer;font-family:'Sora';font-size:12px;font-weight:500;transition:.2s;display:inline-flex;align-items:center;gap:5px}
+.btn:hover{background:var(--bg-hover);border-color:var(--border-focus)}.btn-g{background:var(--green);color:var(--bg);border-color:var(--green);font-weight:600}.btn-g:hover{background:#1bc97a}
+.btn-sm{padding:5px 10px;font-size:11px}.btn-r{background:var(--red-bg);color:var(--red);border-color:rgba(255,68,102,.2)}
+.fx-strip{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;padding:10px 16px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;font-family:'IBM Plex Mono',monospace;font-size:12px}
+.fx-p{display:flex;gap:6px;align-items:center}.fx-p .l{color:var(--text-muted)}.fx-p .v{color:var(--text-dim);font-weight:500}
+.hero{text-align:center;padding:36px 16px;margin-bottom:28px;border-radius:18px;background:linear-gradient(180deg,rgba(34,223,138,.04) 0%,transparent 100%);border:1px solid rgba(34,223,138,.08);position:relative}
+.hero::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:60%;height:1px;background:linear-gradient(90deg,transparent,rgba(34,223,138,.3),transparent)}
+.hero-lbl{font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:2.5px;margin-bottom:6px}
+.hero-val{font-family:'IBM Plex Mono',monospace;font-size:clamp(36px,7vw,64px);font-weight:700;letter-spacing:-2px;background:linear-gradient(135deg,var(--green),#44ddaa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1.15;margin-bottom:10px}
+.hero-sub{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-dim)}
+.sg{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:24px}
+.stock{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;transition:.25s}.stock:hover{border-color:var(--border-focus);transform:translateY(-1px)}
+.s-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.s-tk{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:700;display:flex;align-items:center;gap:8px}
+.tag{font-size:9px;padding:2px 7px;border-radius:5px;font-weight:600;letter-spacing:.5px;font-family:'IBM Plex Mono',monospace}
+.tag-usd{background:var(--blue-bg);color:var(--blue)}.tag-cad{background:var(--amber-bg);color:var(--amber)}.tag-gbp{background:var(--purple-bg);color:var(--purple)}
+.s-nm{font-size:12px;color:var(--text-dim);margin-top:1px}.s-chg{text-align:right;font-family:'IBM Plex Mono',monospace}.s-chg .pct{font-size:14px;font-weight:600}.s-chg .abs{font-size:11px}
+.s-pr{font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:600;margin:8px 0}.s-pr .cur{font-size:14px;color:var(--text-dim);font-weight:400}
+.s-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:14px;border-top:1px solid var(--border)}
+.ml{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px}.mv{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500}
+.up{color:var(--green)}.dn{color:var(--red)}
+.cg{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;margin-bottom:16px}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px}
+.card h3{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;font-weight:500}
+.ch{position:relative;width:100%}.ch-s{height:260px}.ch-l{height:360px}
+.tbl-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border)}table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--bg-hover);color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:600;padding:12px 14px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--border)}
+td{padding:10px 14px;border-bottom:1px solid var(--border);font-family:'IBM Plex Mono',monospace;font-size:12px;white-space:nowrap}tr:last-child td{border-bottom:none}tr:hover td{background:var(--bg-hover)}
+.tbl-foot td{background:var(--bg-hover);font-weight:600;border-top:2px solid var(--border-focus)}
+.sum-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px}
+.sum-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center}
+.sum-lbl{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.sum-val{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600}
+.media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-bottom:24px}
+.m-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;transition:.2s}.m-card:hover{border-color:var(--border-focus)}
+.m-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;gap:10px}
+.m-card-title{font-size:14px;font-weight:600;line-height:1.3;flex:1}.m-card-rating{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:700;white-space:nowrap}
+.m-card-meta{font-size:11px;color:var(--text-dim);margin-bottom:8px;line-height:1.5}
+.m-card-opinion{font-size:12px;color:var(--text-dim);line-height:1.6;border-top:1px solid var(--border);padding-top:8px;margin-top:4px}
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:20px}
+.filter-bar input,.filter-bar select{padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:12px;outline:none}
+.filter-bar input:focus,.filter-bar select:focus{border-color:var(--green)}.filter-bar input{flex:1;min-width:200px}.filter-bar select{min-width:120px}
+.gym-form{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:24px;padding:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px}
+.gym-form .fg{margin-bottom:0;flex:1;min-width:120px}
+.gym-form label{display:block;font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;font-weight:500}
+.gym-form input{width:100%;padding:8px 10px;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;outline:none}
+.gym-form input:focus{border-color:var(--green)}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);z-index:100;place-items:center}.overlay.open{display:grid}
+.modal{background:var(--bg-card);border:1px solid var(--border);border-radius:18px;padding:28px;width:92%;max-width:520px;animation:pop .25s ease;max-height:90vh;overflow-y:auto}
+@keyframes pop{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:none}}
+.modal h2{font-size:18px;margin-bottom:4px}.modal p{color:var(--text-dim);font-size:13px;margin-bottom:18px}
+.fg{margin-bottom:14px}.fg label{display:block;font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;font-weight:500}
+.fg input,.fg select,.fg textarea{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:14px;outline:none;transition:.2s}
+.fg textarea{font-size:12px;min-height:60px;resize:vertical}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--green)}.m-btns{display:flex;gap:8px;margin-top:20px}.m-btns .btn{flex:1;justify-content:center;padding:10px}
+.toast{position:fixed;bottom:20px;right:20px;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:200;animation:pop .3s ease;font-family:'Sora'}
+.toast-ok{background:var(--green);color:var(--bg)}.toast-err{background:var(--red);color:#fff}
+
+  @media(max-width:640px){
+    .sg,.cg{grid-template-columns:1fr}.hero-val{font-size:32px}
+    .fx-strip{flex-direction:column;gap:6px}header{flex-direction:column;align-items:flex-start}
+    .tab-btn{padding:10px 14px;font-size:12px}.media-grid{grid-template-columns:1fr}
+    .sum-grid{grid-template-columns:1fr 1fr}
+    .modal{width:96%;max-width:none;padding:20px;border-radius:14px}
+    .m-card{padding:14px}
+    .s-meta{grid-template-columns:1fr 1fr;gap:6px}
+    .filter-bar{flex-direction:column}.filter-bar input,.filter-bar select{width:100%;min-width:0}
+    .gym-form{flex-direction:column}.gym-form .fg{min-width:0}
+    .tbl-wrap{font-size:11px}td,th{padding:8px 10px}
+    .hdr-r{width:100%;justify-content:space-between}
+    .btn{padding:8px 16px;font-size:13px}
+    .m-card-title{font-size:15px}
+    .m-card-opinion{font-size:13px}
+  }
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="bg-mesh"></div><div class="scanline"></div>
+<div class="wrap">
+<header>
+<div class="brand"><div class="brand-mark">C</div><div><h1>Dashboard</h1><small>Personal tracker</small></div></div>
+<div class="hdr-r"><div class="live-dot" id="dot"></div><span class="ts" id="ts">Loading...</span>
+<span class="sync-status" id="syncStatus" style="color:var(--text-muted)">Local</span>
+<button class="btn" onclick="refreshPortfolio()">&#x21bb;</button>
+<button class="btn" id="btnAuth" onclick="authThenAction('none')">&#x1F512; Login</button></div>
+</header>
+<div class="tab-bar" id="tabBar">
+<button class="tab-btn active" data-tab="portfolio">Portfolio</button>
+<button class="tab-btn" data-tab="trades">Closed Trades</button>
+<button class="tab-btn" data-tab="gym">Gym</button>
+<button class="tab-btn" data-tab="books">Books</button>
+<button class="tab-btn" data-tab="movies">Movies</button>
+<button class="tab-btn" data-tab="series">Series</button>
+</div>
+
+<div class="tab-content active" id="tab-portfolio">
+<div class="fx-strip"><div class="fx-p"><span class="l">USD/EUR</span><span class="v" id="fxU">--</span></div><div class="fx-p"><span class="l">CAD/EUR</span><span class="v" id="fxC">--</span></div><div class="fx-p"><span class="l">GBP/EUR</span><span class="v" id="fxG">--</span></div><div class="fx-p"><span class="l">Auto-refresh</span><span class="v">60s</span></div></div>
+<div class="hero"><div class="hero-lbl">Portfolio Value</div><div class="hero-val" id="hVal">---,-- &euro;</div><div id="hRoi"></div><div class="hero-sub" id="hSub"></div></div>
+<div style="display:flex;justify-content:flex-end;margin-bottom:16px;gap:8px" id="portfolioEditWrap"><button class="btn btn-sm btn-g" id="btnAddHolding" onclick="authThenAction('addHolding')" style="display:none">+ Add Position</button></div>
+<div class="sg" id="sGrid"></div>
+<div class="cg"><div class="card"><h3>Allocation</h3><div class="ch ch-s"><canvas id="cD"></canvas></div></div><div class="card"><h3>Value Breakdown (EUR)</h3><div class="ch ch-s"><canvas id="cB"></canvas></div></div></div>
+<!-- NEW: Historical chart + Monthly returns -->
+<div class="cg"><div class="card" style="grid-column:1/-1"><h3>Invested vs Portfolio Value</h3><div class="ch ch-l"><canvas id="cHistory"></canvas></div></div></div>
+<div class="card" style="margin-bottom:24px"><h3>Monthly Returns</h3>
+<div class="tbl-wrap" id="monthlyTable"></div>
+<div id="monthlyPag" style="display:flex;justify-content:center;gap:8px;margin-top:12px"></div></div>
+</div>
+
+<div class="tab-content" id="tab-trades">
+<div class="sum-grid" id="tradesSummary"></div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px"><h3 style="font-size:14px;font-weight:600">Closed Positions</h3><button class="btn btn-sm btn-g" onclick="authThenAction('addTrade')" id="btnAddTrade" style="display:none">+ Add Trade</button></div>
+<div class="tbl-wrap" id="tradesTable"></div>
+<div class="cg" style="margin-top:20px"><div class="card"><h3>Net P&amp;L by Position</h3><div class="ch ch-s"><canvas id="cTrades"></canvas></div></div><div class="card"><h3>Capital Deployed vs Returned</h3><div class="ch ch-s"><canvas id="cCapital"></canvas></div></div></div>
+</div>
+
+<div class="tab-content" id="tab-gym">
+<div class="gym-form" id="gymForm" style="display:none"><div class="fg"><label>Date</label><input type="date" id="gymDate"></div><div class="fg"><label>Weight (kg)</label><input type="number" id="gymWeight" step="0.1" placeholder="78.5"></div><div class="fg"><label>Body Fat (%)</label><input type="number" id="gymBf" step="0.1" placeholder="15.0"></div><button class="btn btn-g" onclick="addGymEntry()" style="height:38px;align-self:flex-end">Add</button></div>
+<div class="card" style="margin-bottom:20px"><h3>Weight &amp; Body Fat Progress</h3><div class="ch ch-l"><canvas id="cGym"></canvas></div></div>
+<div class="tbl-wrap" id="gymTable"></div>
+</div>
+
+<div class="tab-content" id="tab-books">
+<div class="sum-grid" id="booksSummary"></div>
+<div class="filter-bar"><input type="text" id="booksSearch" placeholder="Search title, author..." oninput="renderBooks()">
+<select id="booksSort" onchange="renderBooks()"><option value="default">Original order</option><option value="rating-desc">My rating (high)</option><option value="gr-desc">Goodreads (high)</option><option value="pages-desc">Pages (most)</option><option value="pages-asc">Pages (fewest)</option><option value="title">Title A-Z</option></select>
+<select id="booksFilter" onchange="renderBooks()"><option value="all">All</option><option value="rated">Rated</option><option value="unrated">Not rated</option></select>
+<button class="btn btn-sm btn-g" onclick="authThenAction('addBook')" id="btnAddBook" style="display:none">+ Add</button></div>
+<div class="media-grid" id="booksGrid"></div>
+</div>
+
+<div class="tab-content" id="tab-movies">
+<div class="sum-grid" id="moviesSummary"></div>
+<div class="filter-bar"><input type="text" id="moviesSearch" placeholder="Search title, director, actor..." oninput="renderMovies()">
+<select id="moviesSort" onchange="renderMovies()"><option value="default">Original order</option><option value="fa-desc">Filmaffinity (high)</option><option value="my-desc">My rating (high)</option><option value="year-desc">Year (newest)</option><option value="year-asc">Year (oldest)</option><option value="dur-desc">Duration (longest)</option><option value="dur-asc">Duration (shortest)</option><option value="title">Title A-Z</option></select>
+<select id="moviesFilter" onchange="renderMovies()"><option value="all">All</option><option value="rated">Rated</option><option value="unrated">Not rated</option></select>
+<button class="btn btn-sm btn-g" onclick="authThenAction('addMovie')" id="btnAddMovie" style="display:none">+ Add</button></div>
+<div class="media-grid" id="moviesGrid"></div>
+</div>
+
+<div class="tab-content" id="tab-series">
+<div class="sum-grid" id="seriesSummary"></div>
+<div class="filter-bar"><input type="text" id="seriesSearch" placeholder="Search title, platform..." oninput="renderSeries()">
+<select id="seriesSort" onchange="renderSeries()"><option value="default">Original order</option><option value="rating-desc">My rating (high)</option><option value="imdb-desc">IMDB (high)</option><option value="title">Title A-Z</option></select>
+<select id="seriesFilter" onchange="renderSeries()"><option value="all">All</option><option value="finished">Finished</option><option value="watching">Want to finish</option><option value="dropped">Dropped</option><option value="notstarted">Not started</option></select>
+<button class="btn btn-sm btn-g" onclick="authThenAction('addSeries')" id="btnAddSeries" style="display:none">+ Add</button></div>
+<div class="media-grid" id="seriesGrid"></div>
+</div>
+</div>
+
+<div class="overlay" id="ov" onclick="if(event.target===this)closeModal()"><div class="modal" id="mod"></div></div>
+<div class="overlay" id="authOv" onclick="if(event.target===this)this.classList.remove('open')"><div class="modal" style="max-width:340px"><h2>Authenticate</h2><p>Enter password to edit.</p><div class="fg"><input type="password" id="authPw" placeholder="Password" onkeydown="if(event.key==='Enter')checkAuth()"></div><div class="m-btns"><button class="btn" onclick="document.getElementById('authOv').classList.remove('open')">Cancel</button><button class="btn btn-g" onclick="checkAuth()">Enter</button></div><div id="authErr" style="color:var(--red);font-size:12px;margin-top:8px;display:none">Wrong password</div></div></div>
+</div>
+
+<script>
+
+// ============================================================
+//  PASSWORD HASH (obfuscation, not real security)
+// ============================================================
+async function sha256(msg){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(msg));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+const PW_HASH='3b45022ab36728cdae12e709e945bba267c50ee8a91e6e4388539a8e03a3fdcd';
+
+// ============================================================
+//  GOOGLE DRIVE SYNC
+// ============================================================
+const SYNC_URL = 'https://script.google.com/macros/s/AKfycbyWUy-SpQFdJZnI1TWeL68pu5gdax4Tj6ZHg_pSY-R2HWzaHB4KDZo44se5vMdu_8xV/exec';
+
+async function fetchDataFromCloud(){
+  try{
+    const controller = new AbortController();
+    setTimeout(()=>controller.abort(), 20000);
+    const res = await fetch(SYNC_URL + '?action=getData&t=' + Date.now(), {signal:controller.signal});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const text = await res.text();
+    console.log('Cloud GET response:', text.substring(0,200));
+    if(!text || text==='{}' || text==='No URL' || text==='Blocked'){
+      _cloudReady = (text !== 'No URL' && text !== 'Blocked');
+      updateSyncStatus(_cloudReady ? 'ok' : 'local');
+      return false;
+    }
+    const j = JSON.parse(text);
+    if(j && j.holdings){
+      _cloudReady = true;
+      const hadLocalHistory = (D.history && D.history.length) || 0;
+      loadDataFromObj(j, true);
+      const merged = buildDataObj();
+      localStorage.setItem('db_data', JSON.stringify(merged));
+      // If merge added local entries the cloud didn't have, push back
+      if(hadLocalHistory && D.history.length > (j.history||[]).length){
+        pushDataToCloud();
+      }
+      updateSyncStatus('ok');
+      return true;
+    }
+    _cloudReady = true;
+    return false;
+  }catch(e){console.warn('Cloud fetch failed:',e.name,e.message);updateSyncStatus(e.name==='AbortError'?'local':'err');return false}
+}
+
+async function pushDataToCloud(){
+  try{
+    const dataStr = JSON.stringify(buildDataObj());
+    // Send hash instead of plaintext — GAS must compare against this hash
+    const payload = JSON.stringify({password:PW_HASH, data:dataStr});
+    let text = '';
+    try{
+      const res = await fetch(SYNC_URL, {
+        method:'POST',
+        redirect:'follow',
+        headers:{'Content-Type':'text/plain'},
+        body:payload
+      });
+      text = await res.text();
+      console.log('Cloud POST status:', res.status, 'response:', text.substring(0,300));
+    }catch(fetchErr){
+      console.warn('POST fetch error (verifying):', fetchErr.message);
+      return await _verifySync();
+    }
+    const j = _parseGASResponse(text);
+    if(j){
+      if(j.error){console.warn('Cloud sync:',j.error);toast('Sync: '+j.error,'err');updateSyncStatus('err');return false}
+      toast('Synced','ok');updateSyncStatus('ok');return true;
+    }
+    console.warn('POST response not JSON, verifying...', text.substring(0,120));
+    return await _verifySync();
+  }catch(e){console.warn('Cloud push:',e.name,e.message);toast('Sync failed','err');updateSyncStatus('err');return false}
+}
+
+function _parseGASResponse(text){
+  try{return JSON.parse(text)}catch(e){}
+  const m = text.match(/\{[^]*\}/);
+  if(m){try{return JSON.parse(m[0])}catch(e){}}
+  return null;
+}
+
+async function _verifySync(){
+  try{
+    await new Promise(r=>setTimeout(r,1200));
+    const res = await fetch(SYNC_URL+'?action=getData&t='+Date.now());
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const j = JSON.parse(await res.text());
+    if(j && j.holdings){toast('Synced','ok');updateSyncStatus('ok');return true}
+  }catch(e){console.warn('Verify failed:',e)}
+  toast('Sync failed','err');updateSyncStatus('err');return false;
+}
+
+function buildDataObj(){
+  return {holdings:D.holdings, cash:D.cash, totalInvested:D.totalInvested, closedTrades:D.closedTrades, history:D.history, gym:D.gym, books:D.books, movies:D.movies, series:D.series};
+}
+
+let _cloudReady = false;
+async function saveAndSync(){
+  localStorage.setItem('db_data', JSON.stringify(buildDataObj()));
+  if(_authed) await pushDataToCloud();
+}
+
+function updateSyncStatus(state){
+  const el=document.getElementById('syncStatus');
+  if(state==='ok'){el.textContent='Synced';el.style.color='var(--green)';el.style.borderColor='rgba(34,223,138,.3)'}
+  else if(state==='local'){el.textContent='Local';el.style.color='var(--text-dim)';el.style.borderColor='var(--border)'}
+  else if(state==='err'){el.textContent='Sync error';el.style.color='var(--amber)';el.style.borderColor='rgba(255,170,34,.3)'}
+  else{el.textContent='';el.style.borderColor='var(--border)'}
+}
+
+// ============================================================
+//  DATA
+//  NOTE: books/movies/series FALLBACK is empty — full data
+//  comes from cloud sync. Paste your original arrays back here
+//  if you need offline fallback for those sections.
+// ============================================================
+const FALLBACK = {"holdings": [{"ticker": "AMR", "name": "Alpha Metallurgical Resources", "shares": 70, "currency": "USD", "exchange": "NYSE", "color": "#5588ff", "entryPrice": 172.64, "dividends": 0}, {"ticker": "TOT.TO", "name": "Total Energy Services", "shares": 2000, "currency": "CAD", "exchange": "TSX", "color": "#ffaa22", "entryPrice": 11.7, "dividends": 0}, {"ticker": "MPE.L", "name": "MP Evans Group", "shares": 1000, "currency": "GBP", "exchange": "LSE", "color": "#aa66ff", "entryPrice": 11.02, "dividends": 0}, {"ticker": "BQE.V", "name": "BQE Water", "shares": 625, "currency": "CAD", "exchange": "TSXV", "color": "#22dddd", "entryPrice": 67.5, "dividends": 0}, {"ticker": "SPSY.L", "name": "Spectra Systems", "shares": 4131, "currency": "GBP", "exchange": "AIM", "color": "#22df8a", "entryPrice": 1.385, "dividends": 0}, {"ticker": "NTBR.L", "name": "Northern Bear", "shares": 14996, "currency": "GBP", "exchange": "AIM", "color": "#ff4466", "entryPrice": 1.084, "dividends": 0}], "cash": 245, "totalInvested": 58150, "closedTrades": [{"ticker": "A3M", "name": "Atresmedia", "currency": "EUR", "color": "#e8594a", "totalShares": 1000, "avgBuy": 4.4166, "sellPrice": 6.08, "dividends": 0, "lots": "896@4.415 + 90@4.43 + 10@4.415 + 4@4.485"}, {"ticker": "ACT", "name": "Alzchem Group", "currency": "EUR", "color": "#3ba0d8", "totalShares": 100, "avgBuy": 61.708, "sellPrice": 164.6, "dividends": 135, "lots": "14@64.80 + 4@64.60 + 7@64.20 + 9@64.00 + 66@60.30"}, {"ticker": "REP", "name": "Repsol", "currency": "EUR", "color": "#006eb8", "totalShares": 1000, "avgBuy": 10.6482, "sellPrice": 17.51, "dividends": 944.63, "lots": "500@9.656 + 35@12.39 + 1@12.43 + 33@12.045 + 51@11.63 + 40@11.665 + 90@11.42 + 1@11.32 + 9@11.405 + 15@11.405 + 33@11.41 + 35@11.385 + 89@11.205 + 1@11.575 + 14@11.735 + 2@11.315 + 11@12.135 + 15@12.56 + 15@12.33 + 10@12.65"}, {"ticker": "FUR", "name": "Fugro", "currency": "EUR", "color": "#ff8c00", "totalShares": 500, "avgBuy": 12.46, "sellPrice": 12.15, "dividends": 318.75, "lots": "100@12.41 + 300@12.42 + 100@12.63"}, {"ticker": "AMR*", "name": "Alpha Met. Resources (closed)", "currency": "USD", "color": "#4477cc", "totalShares": 49, "avgBuy": 118.8239, "sellPrice": 236.8714, "dividends": 0, "lots": "40@119.07 + 9@117.73, sold 25@231.9 + 24@242.05"}, {"ticker": "TOT*", "name": "Total Energy Services (closed)", "currency": "CAD", "color": "#cc8800", "totalShares": 500, "avgBuy": 11.7, "sellPrice": 20.12, "dividends": 0, "lots": "500@11.70 (portfolio avg), sold 500@20.12"}, {"ticker": "MPE*", "name": "MP Evans Group (closed)", "currency": "GBP", "color": "#8844cc", "totalShares": 500, "avgBuy": 11.02, "sellPrice": 14.8, "dividends": 0, "lots": "500@11.02 (portfolio avg), sold 300@14.9 + 200@14.65"}, {"ticker": "TWC", "name": "TWC Enterprises", "currency": "CAD", "color": "#667788", "totalShares": 400, "avgBuy": 17.5, "sellPrice": 18.5, "dividends": 0, "lots": "400@17.5, sold 400@18.5"}], "history": [], "gym": [{"date": "2026-01-24", "weight": 78.1, "bf": 15.9}, {"date": "2026-02-01", "weight": 76.45, "bf": 15.2}, {"date": "2026-02-15", "weight": 77.2, "bf": 15.5}, {"date": "2026-03-01", "weight": 76.9, "bf": 15.4}, {"date": "2026-03-15", "weight": 74.4, "bf": 14.2}], "books": [{"title": "Principles for Dealing with the Changing World Order: Why Nations Succeed and Fail", "grRating": 4.28, "pages": 576, "author": "Ray Dalio", "year": "2021", "opinion": "Muy bueno,  toca economía/geopolitica bastante por encima. Tiene ideas muy guays. No creo que merezca la pena releermelo en unos años porque está muy enfocado en la actualidad.", "myRating": 4.5}, {"title": "Juego de tronos", "grRating": 4.44, "pages": 835, "author": "George R.R Martin", "year": "1996", "opinion": "Muy bueno, la primera temporada de la serie es un calco, pero me gusta un poco más el libro", "myRating": 4.5}, {"title": "Dune", "grRating": 4.28, "pages": 658, "author": "Frank Herbert", "year": "1965", "opinion": "Me gustó bastante, pero podría ser un poco más dinámico en algunas partes. La historia y el mundo son de 10.", "myRating": 4.25}, {"title": "El arte the la guerra", "grRating": 3.95, "pages": 90, "author": "Sun Tzu", "year": "401 B.C", "opinion": "Sin más. Se lee muy rápido, pero tampoco me parece nada del otro mundo.", "myRating": 3}, {"title": "The little book of valuation", "grRating": 3.98, "pages": 295, "author": "Aswath Damodaran", "year": "2011", "opinion": "Los capítulos 3 y 4 son los más útiles de largo. A partir de ahí el libro es un poco redundante. Pero aún así merece mucho la pena.", "myRating": 4.25}, {"title": "One Up On Wall Street", "grRating": 4.28, "pages": 304, "author": "Peter Lynch", "year": "1988", "opinion": "Da gusto leer este libro, es muy divertido. Tiene buenas ideas, es muy fácil leer y me gustó mucho como introducción al stock picking. Aún así no lo volvería a leer en bastante tiempo porque son ideas que no creo que necesite refrescar.", "myRating": 4.5}, {"title": "Principles: Life and Work", "grRating": 4.11, "pages": 593, "author": "Ray Dalio", "year": "2017", "opinion": "Tiene varias ideas interesantes pero es súper repetitivo, le sobran muchas páginas.", "myRating": 3.5}, {"title": "La républica", "grRating": 3.96, "pages": 416, "author": "Platon", "year": "380 B.C", "opinion": "", "myRating": null}, {"title": "Una breve historia del tiempo", "grRating": 4.21, "pages": 226, "author": "Stephen Hawking", "year": "1988", "opinion": "", "myRating": null}, {"title": "1984", "grRating": 4.19, "pages": 368, "author": "George Orwell", "year": "1949", "opinion": "El final está muy bien y el libro en general me gustó. No es una obra maestra, pero es entretenido y el tema que trata me gusta.", "myRating": 4}, {"title": "Guerra y paz", "grRating": 4.16, "pages": 1392, "author": "Leo Tolstoy", "year": "1869", "opinion": "", "myRating": null}, {"title": "Crimen y castigo", "grRating": 4.27, "pages": 671, "author": "Fyodor Dostoevsky", "year": "1866", "opinion": "", "myRating": null}, {"title": "A clash of kings", "grRating": 4.42, "pages": 1009, "author": "George R.R Martin", "year": "1998", "opinion": "", "myRating": null}, {"title": "The intelligent investor", "grRating": 4.24, "pages": 623, "author": "Benjamin Graham", "year": "1949", "opinion": "Algunos capítulos bastante ladrillo, aún así algunos son bastante interesantes. Se nota que es viejo pero aún así me gustó leerlo.", "myRating": 4}, {"title": "Thinking, Fast and Slow", "grRating": 4.18, "pages": 500, "author": "Daniel Kahneman", "year": "2011", "opinion": "Es un libro que merece la pena leer y es interesante. Pero se hace muy ladrillo a veces.", "myRating": 4.25}, {"title": "El padrino", "grRating": 4.39, "pages": 448, "author": "Mario Puzo", "year": "1969", "opinion": "", "myRating": null}, {"title": "Liquid Modernity", "grRating": 4.12, "pages": 240, "author": "Zygmunt Bauman", "year": "1999", "opinion": "", "myRating": null}, {"title": "Influence: The Psychology of Persuasion", "grRating": 4.22, "pages": 450, "author": "Robert B. Cialdini", "year": "1984", "opinion": "Pensaba que iba a ser muy de pajillero y acabó siendo mi libro favorito probablemente (tal vez soy un pajillero).", "myRating": 5}, {"title": "The Essays of Warren Buffett: Lessons for Corporate America", "grRating": 4.32, "pages": 256, "author": "Warren Buffet", "year": "1998", "opinion": "", "myRating": null}, {"title": "Common Stocks and Uncommon Profits", "grRating": 4.14, "pages": 320, "author": "Philip A. Fisher", "year": "1957", "opinion": "Me pareció un ladrillo, además las ideas hoy en día son bastante \"sentido común\".", "myRating": 2}, {"title": "Poor Charlie's Almanack", "grRating": 4.42, "pages": 512, "author": "Charles T. Munger", "year": "2005", "opinion": "De lo mejor que leí, tengo que volver a leerlo de vez en cuando.", "myRating": 5}, {"title": "Fortune's Formula", "grRating": 4.18, "pages": 386, "author": "William Poundstone", "year": "2006", "opinion": "", "myRating": null}, {"title": "Predictably Irrational", "grRating": 4.12, "pages": 247, "author": "Dan Ariely", "year": "2008", "opinion": "", "myRating": null}, {"title": "A Theory of Cognitive Dissonance", "grRating": 4.03, "pages": 239, "author": "Leon Festinger", "year": "1957", "opinion": "", "myRating": null}, {"title": "A Storm of Swords", "grRating": 4.55, "pages": 1177, "author": "George R.R Martin", "year": "2000", "opinion": "", "myRating": null}, {"title": "The Dhandho Investor", "grRating": 4.23, "pages": 187, "author": "Mohnish Pabrai", "year": "2007", "opinion": "", "myRating": null}, {"title": "The Most Important Thing: Uncommon Sense for the Thoughtful Investor", "grRating": 4.33, "pages": 200, "author": "Howard Marks", "year": "2011", "opinion": "", "myRating": null}, {"title": "Richer, Wiser, Happier", "grRating": 4.53, "pages": 304, "author": "William Green", "year": "2021", "opinion": "", "myRating": null}, {"title": "The Selfish Gene", "grRating": 4.16, "pages": 360, "author": "Richard Dawkins", "year": "1976", "opinion": "", "myRating": null}, {"title": "No Two Alike: Human Nature and Human Individuality", "grRating": 4.13, "pages": 344, "author": "Judith Rich Harris", "year": "2006", "opinion": "", "myRating": null}, {"title": "The Nurture Assumption: Why Children Turn Out the Way They Do", "grRating": 4.14, "pages": 462, "author": "Judith Rich Harris, Steven Pinker", "year": "1998", "opinion": "", "myRating": null}, {"title": "The Age of Surveillance Capitalism", "grRating": 4.06, "pages": 691, "author": "Shoshana Zuboff", "year": "2018", "opinion": "", "myRating": null}, {"title": "Buffet & Munger Unscripted", "grRating": 4.52, "pages": 477, "author": "Alex W. Morris", "year": "2025", "opinion": "De lo mejor que leí.", "myRating": 5}, {"title": "Incognito", "grRating": 4.09, "pages": 290, "author": "David Eagleman", "year": "2011", "opinion": "", "myRating": null}, {"title": "Sapiens: A Brief History of Humankind", "grRating": 4.34, "pages": 512, "author": "Yuval Noah Harari", "year": "2011", "opinion": "", "myRating": null}, {"title": "Homo Deus: A History of Tomorrow", "grRating": 4.19, "pages": 450, "author": "Yuval Noah Harari", "year": "2015", "opinion": "", "myRating": null}, {"title": "The Brothers Karamazov", "grRating": 4.39, "pages": 796, "author": "Fyodor Dostoevsky", "year": "1880", "opinion": "", "myRating": null}, {"title": "The Gene: An Intimate History", "grRating": 4.35, "pages": 592, "author": "Siddhartha Mukherjee", "year": "2016", "opinion": "", "myRating": null}, {"title": "Behave: The Biology of Humans at Our Best and Worst", "grRating": 4.39, "pages": 790, "author": "Robert M. Sapolsky", "year": "2017", "opinion": "", "myRating": null}, {"title": "Flow: The Psychology of Optimal Experience", "grRating": 4.11, "pages": 303, "author": "Mihály Csíkszentmihályi", "year": "1990", "opinion": "", "myRating": null}, {"title": "The Myth of Sisyphus and Other Essays", "grRating": 4.22, "pages": 212, "author": "Albert Camus", "year": "1942", "opinion": "", "myRating": null}, {"title": "Guns, Germs, and Steel: The Fates of Human Societies", "grRating": 4.04, "pages": 498, "author": "Jared Diamond", "year": "1997", "opinion": "", "myRating": null}, {"title": "Prisoners of Geography: Ten Maps That Tell You Everything You Need to Know About Global Politics", "grRating": 4.19, "pages": 256, "author": "Tim Marshall", "year": "2015", "opinion": "", "myRating": null}, {"title": "The Structure of Scientific Revolutions", "grRating": 4.03, "pages": 226, "author": "Thomas S. Kuhn", "year": "1962", "opinion": "", "myRating": null}, {"title": "A Matter of Degrees", "grRating": 4.01, "pages": 320, "author": "Gino Segrè", "year": "2002", "opinion": "", "myRating": null}, {"title": "Ice Age", "grRating": 4.06, "pages": 112, "author": "John Gribbin, Mary Gribbin", "year": "2001", "opinion": "", "myRating": null}, {"title": "Deep Simplicity", "grRating": 3.97, "pages": 279, "author": "John Gribbin, Mary Gribbin", "year": "2008", "opinion": "", "myRating": null}, {"title": "Faraday, Maxwell, and the Electromagnetic Field: How Two Men Revolutionized Physics", "grRating": 4.27, "pages": 328, "author": "Nancy Forbes, Basil Mahon", "year": "2014", "opinion": "", "myRating": null}, {"title": "Man's Search for Meaning", "grRating": 4.37, "pages": 165, "author": "Viktor E. Frankl", "year": "1946", "opinion": "Es ameno, en general me gustó. Hay partes en las que divaga demasiado. Las páginas de \"La logoterapia como técnica\" (pág. 148) me parecen muy interesantes, es concepto obvio pero viene bien recordarlo de vez en cuando.", "myRating": 4}, {"title": "Post Office", "grRating": 3.93, "pages": 162, "author": "Charles Bukowski", "year": "1971", "opinion": "", "myRating": null}, {"title": "Benjamin Franklin", "grRating": 4.18, "pages": 864, "author": "Carl Van Doren", "year": "1938", "opinion": "", "myRating": null}, {"title": "The blind watchmaker", "grRating": 4.09, "pages": 466, "author": "Richard Dawkins", "year": "1986", "opinion": "", "myRating": null}, {"title": "The Warren Buffett Portfolio", "grRating": 4.24, "pages": 246, "author": "Robert G. Hagstrom", "year": "1999", "opinion": "", "myRating": null}, {"title": "Titan: The Life of John D. Rockefeller, Sr.", "grRating": 4.15, "pages": 832, "author": "Ron Chernow", "year": "1998", "opinion": "", "myRating": null}, {"title": "The Wealth and Poverty of Nations: Why Some Are So Rich and Some So Poor", "grRating": 3.96, "pages": 531, "author": "David S. Landes", "year": "1998", "opinion": "", "myRating": null}, {"title": "How the Scots Invented the Modern World: The True Story of How Western Europe's Poorest Nation Created our World & Everything in It", "grRating": 3.94, "pages": 480, "author": "Arthur Herman", "year": "2001", "opinion": "", "myRating": null}, {"title": "A Short History of Nearly Everything", "grRating": 4.22, "pages": 544, "author": "Bill Bryson", "year": "2003", "opinion": "", "myRating": null}], "movies": [{"title": "Unforgiven", "faRating": 8.2, "duration": "2h 11 min", "platform": "Movistar +", "director": "Clint Eastwood", "actors": "Morgan Freeman, Clint Eastwood", "year": 1992, "opinion": "No es mi favorita de Eastwood y el principio es algo lento. Aún así nice.", "myRating": null}, {"title": "Scarface", "faRating": 8.2, "duration": "2h 50 min", "platform": "Netflix", "director": "Brian de Palma", "actors": "Al Pacino", "year": 1983, "opinion": "Me gustó mucho, de las mejores que vi.", "myRating": null}, {"title": "Asesinos de la luna", "faRating": 7.1, "duration": "3h 26 min", "platform": "Ninguna aún", "director": "Scorsese", "actors": "Di Caprio, De Niro", "year": 2023, "opinion": "Es buena pero podría ser mucho más corta.", "myRating": null}, {"title": "El padrino 1", "faRating": 9, "duration": "2h 55 min", "platform": "Movistar +", "director": "Coppola", "actors": "Marlo Brando, Al Pacino, De Niro", "year": 1972, "opinion": "Buenisima, tengo que verla otra vez porque merece la pena.", "myRating": null}, {"title": "El padrino 2", "faRating": 8.9, "duration": "3h 22 min", "platform": "Movistar +", "director": "Coppola", "actors": "Al Pacino, De Niro", "year": 1974, "opinion": "Lo mismo que la primera, da gusto ver una peli tan buena.", "myRating": null}, {"title": "El padrino 3", "faRating": 7.9, "duration": "2h 42 min", "platform": "Movistar +", "director": "Coppola", "actors": "Al Pacino", "year": 1990, "opinion": "Un poco peor que las otras 2. El final probablemente sea el mejor, y de los que más me gustaron de pelis en general.", "myRating": null}, {"title": "Memento", "faRating": 7.9, "duration": "1h 53 min", "platform": "Movistar +", "director": "Nolan", "actors": "Guy Pearce", "year": 2000, "opinion": "Muy buena, igual al verla una segunda vez pierde un poco, pero original y muy bien pensada.", "myRating": null}, {"title": "Interstellar", "faRating": 7.9, "duration": "2h 49 min", "platform": "HBO", "director": "Nolan", "actors": "Matthew McConaughey, Matt Damon, Timothee Chalamet", "year": 2014, "opinion": "De las que menos me gustó de la lista. Personajes muy cliché/cuñados. La trama sin más, no es mi rollo.", "myRating": null}, {"title": "Kill Bill", "faRating": 7.6, "duration": "1h 51 min", "platform": "Ninguna", "director": "Tarantino", "actors": "Uma Thurman", "year": 2003, "opinion": "Muy diferente, mezcla un montón de géneros y lo hace muy bien. Si me apetece verme una de Tarantino es muy divertida.", "myRating": null}, {"title": "Kill Bill 2", "faRating": 7.7, "duration": "2h 17 min", "platform": "Ninguna", "director": "Tarantino", "actors": "Uma Thurman", "year": 2004, "opinion": "No la vería sin reverme la parte 1, pero es igual de buena.", "myRating": null}, {"title": "JFK", "faRating": 7.5, "duration": "3h 26 min", "platform": "Disney +", "director": "Oliver Stone", "actors": "Kevin Costner, Tommy Lee, Kevin Bacon, ", "year": 1991, "opinion": "Muy denso al principio y demasiado largo. Merece la pena y el final está chulo. ", "myRating": null}, {"title": "Shutter island", "faRating": 7.6, "duration": "2h 18min", "platform": "Prime video", "director": "Martin Scorsese", "actors": "Leonardo DiCaprio, Mark Ruffalo, Ben Kingsley", "year": 2010, "opinion": "Muy buena, mejor de lo que esperaba por la nota.", "myRating": null}, {"title": "El irlandés", "faRating": 7.2, "duration": "3h 29 min", "platform": "Netflix", "director": "Martin Scorsese", "actors": "Robert De Niro, Al Pacino, Stephen Graham", "year": 2019, "opinion": "Muy buena. Demasiado larga eso sí.", "myRating": null}, {"title": "Taxidriver", "faRating": 8.1, "duration": "1h 54 min", "platform": "Ninguna", "director": "Martin Scorsese", "actors": "Robert De Niro, Jodie Foster", "year": 1976, "opinion": "Me pasa un poco como con el club de la lucha, está bien pero no es mi tipo de peli. Estuvo bien verla.", "myRating": null}, {"title": "Goodfellas", "faRating": 8.4, "duration": "2h 26 min", "platform": "HBO", "director": "Martin Scorsese", "actors": "Robert De Niro, Ray Liotta", "year": 1990, "opinion": "Por la nota me la esperaba un pelin mejor, pero es muy muy buena", "myRating": null}, {"title": "Casino", "faRating": 8.1, "duration": "2h 58 min", "platform": "Prime video", "director": "Martin Scorsese", "actors": "Robert De Niro, Sharon Stone", "year": 1995, "opinion": "Del mismo estilo que goodfellas pero un poco peor, aún así es entretenida.", "myRating": null}, {"title": "Toro salvaje", "faRating": 8.1, "duration": "2h 9 min", "platform": "Prime video", "director": "Martin Scorsese", "actors": "Robert De Niro, Sharon Stone, Joe Pesci", "year": 1980, "opinion": "Me esperaba más por la nota pero está guay. Se me hizo un poco violenta/cruda.", "myRating": null}, {"title": "Érase una vez en América", "faRating": 8.3, "duration": "4h 11 min", "platform": "Prime video", "director": "Sergio Leone", "actors": "Robert De Niro, James Woods", "year": 1984, "opinion": "Peliculón. Larga pero merece la pena.", "myRating": null}, {"title": "The deer hunter", "faRating": 8, "duration": "3h 3 min", "platform": "Prime video", "director": "Michael Cimino", "actors": "Robert De Niro, Meryl Streep", "year": 1978, "opinion": "Muy lenta y bastante dura. Es muy buena peli pero no es mi rollo.", "myRating": null}, {"title": "Los intocables", "faRating": 7.8, "duration": "1h 59 min", "platform": "Ninguna", "director": "Brian de Palma", "actors": "Kevin Costner, Sean Connery, Robert de Niro", "year": 1987, "opinion": "Me encantó, súper divertida.", "myRating": null}, {"title": "Novecento", "faRating": 8.2, "duration": "5h 17 min", "platform": "Prime video", "director": "Bernardo Bertolucci", "actors": "Robert De Niro, Gerard Depardieu", "year": 1976, "opinion": "", "myRating": null}, {"title": "El cabo del miedo", "faRating": 7.3, "duration": "2h 8 min", "platform": "Prime video", "director": "Scorsese", "actors": "Robert De Niro, Juliette Lewis", "year": 1991, "opinion": "", "myRating": null}, {"title": "La lista de Schindler", "faRating": 8.7, "duration": "3h 15 min", "platform": "Ninguna", "director": "Steven Spielberg", "actors": "Liam Neeson", "year": 1993, "opinion": "", "myRating": null}, {"title": "El bueno, el feo y el malo", "faRating": 8.2, "duration": "3h 6 min", "platform": "Prime video", "director": "Sergio Leone", "actors": "Clint Eastwood, Eli Wallach, Lee Van Cleef", "year": 1966, "opinion": "Peliculón. La banda sonora es una autentica locura, la mejor que escuché. Los 3 actores de 10 y la trama tb muy buena.", "myRating": null}, {"title": "Million Dollar Baby", "faRating": 8, "duration": "2h 12 min", "platform": "Prime video", "director": "Clint Eastwood", "actors": "Morgan Freeman, Clint Eastwood", "year": 2004, "opinion": "Triste, pero bastante buena. Un 8 igual es demasiado", "myRating": null}, {"title": "Mystic River", "faRating": 8, "duration": "2h 17 min", "platform": "HBO", "director": "Clint Eastwood", "actors": "Sean Penn, Kevin Bacon", "year": 2003, "opinion": "Buenisima, le daría más de un 8 seguro. ", "myRating": null}, {"title": "Gladiator", "faRating": 7.9, "duration": "2h 35 min", "platform": "Netflix", "director": "Ridley Scott", "actors": "Russel Crowe, Joaquin Phoenix", "year": 2000, "opinion": "Es buenisima, me esperaba una de acción medio pocha y para nada, de mis favoritas. ", "myRating": null}, {"title": "Blade Runner", "faRating": 8.1, "duration": "1h 57 min", "platform": "HBO", "director": "Ridley Scott", "actors": "Harrison Ford, Sean Young", "year": 1982, "opinion": "", "myRating": null}, {"title": "Salvar al soldado Ryan", "faRating": 7.8, "duration": "2h 49 min", "platform": "Ninguna", "director": "Steven Spielberg", "actors": "Tom Hanks, Matt Damon, Vin Diesel,", "year": 1998, "opinion": "", "myRating": null}, {"title": "El Curioso Caso de Benjamin Button", "faRating": 7.2, "duration": "2h 46 min", "platform": "HBO, Amazon Prime", "director": "David Fincher", "actors": "Brad Pitt", "year": 2008, "opinion": "El principio está guay, pero le sobra una hora + o - y es bastante pastelera al final. Flojilla.", "myRating": null}, {"title": "El hombre elefante", "faRating": 8.1, "duration": "2h 4 min", "platform": "Filmin", "director": "David Lynch", "actors": "Anthony Hopkins", "year": 1980, "opinion": "", "myRating": null}, {"title": "Una historia verdadera", "faRating": 7.8, "duration": "1h 52 min", "platform": "Prime video", "director": "David Lynch", "actors": "Richard Farnsworth", "year": 1999, "opinion": "Trama súper simple, pero a la vez tiene mensaje súper chulo.", "myRating": null}, {"title": "Apocalypse Now", "faRating": 8.2, "duration": "2h 33 min", "platform": "Prime video", "director": "Coppola", "actors": "Marlo Brando, Robert Duvall, Harrison Ford", "year": 1979, "opinion": "Es un poco bizarrada pero no está mal. Aún así no es mi rollo.", "myRating": null}, {"title": "Carlito's Way", "faRating": 7.9, "duration": "2h 24 min", "platform": "Ninguna", "director": "Brian de Palma", "actors": "Al Pacino, Sean Penn", "year": 1993, "opinion": "El final es btt random, es peor que Scarface pero aún así es buena.", "myRating": null}, {"title": "The man who shot liberty valance", "faRating": 8.3, "duration": "2h 3 min", "platform": "Ninguna", "director": "John Ford", "actors": "John Wayne, Lee Marvin, James Stewart", "year": 1962, "opinion": "Se ve un poco viejuna pero es peliculón. Me encantó.", "myRating": null}, {"title": "Manhattan", "faRating": 8.1, "duration": "1h 36 min", "platform": "Movistar +", "director": "Woody Allen", "actors": "Woody Allen, Meryl Streep", "year": 1979, "opinion": "", "myRating": null}, {"title": "Delitos y faltas", "faRating": 7.9, "duration": "1h 44 min", "platform": "Ninguna", "director": "Woody Allen", "actors": "Woody Allen, Mia Farrow", "year": 1989, "opinion": "", "myRating": null}, {"title": "Annie Hall", "faRating": 8, "duration": "1h 33 min", "platform": "Prime video", "director": "Woody Allen", "actors": "Woody Allen", "year": 1977, "opinion": "", "myRating": null}, {"title": "Ladron de bicicletas", "faRating": 8.3, "duration": "1h 33 min", "platform": "Prime video", "director": "Vittoriio de Sica", "actors": "", "year": 1948, "opinion": "", "myRating": null}, {"title": "Hasta que llegó su hora", "faRating": 8.2, "duration": "2h 55 min", "platform": "Movistar +", "director": "Sergio Leone", "actors": "Claudia Cardinale, Henry Fonda", "year": 1968, "opinion": "", "myRating": null}, {"title": "La muerte tenia un precio", "faRating": 8, "duration": "2h 12 min", "platform": "Ninguna", "director": "Sergio Leone", "actors": "Clint Eastwood, Lee Van Cleef", "year": 1965, "opinion": "Me gustó un montón. Súper buena peli.", "myRating": null}, {"title": "American Gangster", "faRating": 7.6, "duration": "2h 56 min", "platform": "Netflix", "director": "Ridley Scott", "actors": "Idris Elba, Russel Crowe, Denzel Washington", "year": 2007, "opinion": "", "myRating": null}, {"title": "12 angry men", "faRating": 8.7, "duration": "1h 36 min", "platform": "Ninguna", "director": "Sidney Lumet", "actors": "Henry Fonda", "year": 1957, "opinion": "Muy buena y muy diferente. Un 8.7 me parece mucho de todas formas.", "myRating": null}, {"title": "Alguien voló sobre el nido del cuco", "faRating": 8.3, "duration": "2h 13 min", "platform": "Ninguna", "director": "Miloš Forman", "actors": "Jack Nicholson", "year": 1975, "opinion": "Muy jodida, pero súper bonita, merece un montón la pena.", "myRating": null}, {"title": "Hateful 8", "faRating": 7.3, "duration": "3h 7 min", "platform": "Movistar +", "director": "Tarantino", "actors": "Samuel L. Jackson, Kurt Russel, Channing Tatum, Jennifer Jason Leigh ", "year": 2015, "opinion": "", "myRating": null}, {"title": "The Prestige", "faRating": 7.4, "duration": "2h 10 min", "platform": "HBO", "director": "Cristopher Nolan", "actors": "Hugh Jackman, Christian Bale, Michael Caine, Scarlett Johansson", "year": 2006, "opinion": "Me gustó bastante para lo que me esperaba, probablemente mi favorita de Nolan. El cast es muy bueno además.", "myRating": null}, {"title": "Una mente maravillosa", "faRating": 7.5, "duration": "2h 10 min", "platform": "Ninguna", "director": "Ron Howard", "actors": "Russel Crowe, Jennifer Connelly", "year": 2001, "opinion": "", "myRating": null}, {"title": "Whiplash", "faRating": 7.8, "duration": "1h 43 min", "platform": "Ninguna", "director": "Damien Chazelle", "actors": "Miles Teller", "year": 2014, "opinion": "Muy divertida y muy diferente. Mereció la pena verla.", "myRating": null}, {"title": "Infiltrados", "faRating": 7.9, "duration": "2h 30 min", "platform": "Ninguna", "director": "Martin Scorsese", "actors": "Leonardo DiCaprio, Matt Damon, Jack Nicholson, Mark Wahlberg", "year": 2006, "opinion": "Me parece peliculón, el reparto top. Es pelicula policíaca súper bien hecha.", "myRating": null}, {"title": "Big fish", "faRating": 7.9, "duration": "2h 6 min", "platform": "Ninguna", "director": "Tim Burton", "actors": "Ewan McGregor", "year": 2003, "opinion": "", "myRating": null}, {"title": "Wall-e", "faRating": 7.9, "duration": "1h 43 min", "platform": "Disney +", "director": "Andrew Stanton", "actors": "Wall-e", "year": 2008, "opinion": "", "myRating": null}, {"title": "El pianista", "faRating": 8.2, "duration": "2h 28 min", "platform": "Netflix", "director": "Roman Polanski", "actors": "Adrien Brody", "year": 2002, "opinion": "Me gustó bastante. El tema de judíos -> campos de concentración es un poco repetitivo.", "myRating": null}, {"title": "Una historia del Bronx", "faRating": 7.8, "duration": "2h 1 min", "platform": "Prime video", "director": "Robert de Niro", "actors": "Robert de Niro, Chazz Palminteri", "year": 1993, "opinion": "Probablemente una de mis favoritas de la lista.", "myRating": null}, {"title": "Harry el Sucio", "faRating": 7.3, "duration": "1h 42 min", "platform": "HBO", "director": "Don Siegel", "actors": "Clint Eastwood", "year": 1971, "opinion": "Término medio entre Seven y Torrente. Entretenida pero sin más.", "myRating": null}, {"title": "Oceans Eleven", "faRating": 7.2, "duration": "1h 56 min", "platform": "Prime video", "director": "Steven Soderbergh", "actors": "Brad Pitt, Matt Damon, Julia Roberts, George Clooney", "year": 2001, "opinion": "Bastante fantasmada, pero para ver con gente es divertida y el cast es muy bueno", "myRating": null}, {"title": "Prisioners", "faRating": 7.6, "duration": "2h 33 min", "platform": "HBO", "director": "Denis Villeneuve", "actors": "Jake Gyllenhaal, Hugh Jackman", "year": 2013, "opinion": "", "myRating": null}, {"title": "Reservoir Dogs", "faRating": 8.1, "duration": "1h 39 min", "platform": "Ninguna", "director": "Quentin Tarantino", "actors": "Tim Roth", "year": 1992, "opinion": "", "myRating": null}, {"title": "Testigo de Cargo", "faRating": 8.6, "duration": "1h 54 min", "platform": "Prime video", "director": "Billy Wilder", "actors": "Tyrone Power", "year": 1957, "opinion": "De las mejores de la lista.", "myRating": null}, {"title": "Casablanca", "faRating": 8.4, "duration": "1h 42 min", "platform": "HBO", "director": "Michael Curtiz", "actors": "Humphrey Bogart", "year": 1942, "opinion": "De las mejores de la lista.", "myRating": null}, {"title": "Matar a un Ruiseñor", "faRating": 8.3, "duration": "2h 9 min", "platform": "Ninguna", "director": "Rober Mulligan", "actors": "Gregory Peck", "year": 1962, "opinion": "", "myRating": null}, {"title": "La vida de los otros", "faRating": 8, "duration": "2h 17 min", "platform": "Filmin", "director": "Florian Henckel von Donnersmarck", "actors": "Ulrich Mühe", "year": 2006, "opinion": "", "myRating": null}, {"title": "Un condenado a muerte se ha escapado", "faRating": 8.2, "duration": "1h 39 min", "platform": "Prime video", "director": "Robert Bresson", "actors": "Francois Leterrier", "year": 1956, "opinion": "", "myRating": null}, {"title": "Grupo Salvaje", "faRating": 8, "duration": "2h 25 min", "platform": "Ninguna", "director": "Sam Peckinpah", "actors": "William Holden", "year": 1969, "opinion": "", "myRating": null}, {"title": "Sospechosos habituales", "faRating": 8, "duration": "1h 45 min", "platform": "Ninguna", "director": "Bryan Singer", "actors": "Chazz Palmintieri, Kevin Spacey", "year": 1995, "opinion": "", "myRating": null}, {"title": "El golpe", "faRating": 8.5, "duration": "2h 9 min", "platform": "Ninguna", "director": "Gregory Roy Hill", "actors": "Robert Redford, Paul Newman", "year": 1973, "opinion": "", "myRating": null}, {"title": "Dos hombres y un destino", "faRating": 7.8, "duration": "1h 52 min", "platform": "Disney +", "director": "Gregory Roy Hill", "actors": "Robert Redford, Paul Newman", "year": 1969, "opinion": "", "myRating": null}, {"title": "American History X", "faRating": 8.3, "duration": "1h 59 min", "platform": "Netflix", "director": "Tony Kaye", "actors": "Edward Norton", "year": 1998, "opinion": "", "myRating": null}, {"title": "Por un puñado de dolares", "faRating": 7.6, "duration": "1h 35 min", "platform": "Prime video", "director": "Sergio Leone", "actors": "Clint Eastwood", "year": 1964, "opinion": "De las 3 de la triología la peor, pero aún así guay.", "myRating": null}, {"title": "No es país para viejos", "faRating": 7.2, "duration": "2h 2 min", "platform": "HBO", "director": "Joel Coen, Ethan Coen", "actors": "Josh Brolin, Javier Bardem", "year": 2007, "opinion": "", "myRating": null}, {"title": "El infierno del odio", "faRating": null, "duration": "2h 23 min", "platform": "Filmin", "director": "Akira Kurosawa", "actors": "Toshirô Mifune", "year": 1963, "opinion": "", "myRating": null}], "series": [{"title": "El pingüino", "imdbRating": 8.7, "seasons": 1, "epsPerSeason": "8", "epLength": "1h", "platform": "Max", "years": "2024-", "watched": "Al día", "opinion": "Es una serie de mafia normal, no sale batman ni hay superheroes. Me encantó.", "myRating": 9, "wantFinish": "Sí"}, {"title": "Vikingos", "imdbRating": 8.5, "seasons": 6, "epsPerSeason": "10(1-3) o 20(4-6)", "epLength": "1h", "platform": "Netflix", "years": "2013-2019", "watched": "4 Temporadas", "opinion": "Las 4 primeras temporadas las recuerdo muy buenas (las vi con 16 años). Las dos últimas parecen bastante peores pero igual algún día me animo a volver a verla entera.", "myRating": 9.5, "wantFinish": "Sí"}, {"title": "The last kingdom", "imdbRating": 8.5, "seasons": 5, "epsPerSeason": "10+-", "epLength": "1h", "platform": "Netflix", "years": "2015-2022", "watched": "2 Temporadas", "opinion": "La vi con pouso en el piso. No nos gustó nada, nos estabamos retroalimentando en lo mala que nos parecía, pero aún así no creo que le de otra oportunidad.", "myRating": 5, "wantFinish": "No"}, {"title": "Barry", "imdbRating": 8.3, "seasons": 4, "epsPerSeason": "8", "epLength": "30 min", "platform": "Max", "years": "2018-2023", "watched": "3 Temporadas", "opinion": "Sin más, no es mala pero no es mi rollo. Mezcla muchos géneros y a veces me gusta pero otras no.", "myRating": 7.5, "wantFinish": "No"}, {"title": "Mindhunter", "imdbRating": 8.6, "seasons": 2, "epsPerSeason": "10", "epLength": "1h", "platform": "Netflix", "years": "2017-¿2019?", "watched": "Al día", "opinion": "De mis series favoritas de asesinatos.", "myRating": 9, "wantFinish": "Sí"}, {"title": "Juego de Tronos", "imdbRating": 9.2, "seasons": 7, "epsPerSeason": "10", "epLength": "1h", "platform": "Max", "years": "2011-2019", "watched": "Entera", "opinion": "Me la vi 2 veces, de mis series favoritas. Las temporadas 1-6 probablemente lo mejor que he visto, el final es infumable pero aún así es buenisima. ", "myRating": 9.7, "wantFinish": ""}, {"title": "La Casa de Papel", "imdbRating": 8.2, "seasons": 4, "epsPerSeason": "10", "epLength": "1h", "platform": "Netflix", "years": "2017-2021", "watched": "2 Temporadas", "opinion": "Creo que con dos temporadas es suficiente. La primera no estaba mal, la segunda ya un poco fantasmada, la tercera la decidí dejar. Creo que la serie era de 2 temporadas y decidieron estirarla porque sí. No es mi tipo de serie además.", "myRating": 7, "wantFinish": "No"}, {"title": "Stranger Things", "imdbRating": 8.7, "seasons": 5, "epsPerSeason": "8", "epLength": "1h", "platform": "Netflix", "years": "2017-2025", "watched": "2 Temporadas", "opinion": "No me gustó. Nunca me terminó de convencer y la tercera temporada parecía dura de ver así que la dejé.", "myRating": 5.75, "wantFinish": "No"}, {"title": "Breaking Bad", "imdbRating": 9.5, "seasons": 5, "epsPerSeason": "10+-", "epLength": "45 min", "platform": "Max", "years": "2008-2013", "watched": "Entera", "opinion": "La primera temporada es un poco lenta. A partir de ahí va mejorando y es de las mejores series que vi, si no la mejor. Me la tengo que volver a ver después de Better Call Saul.", "myRating": 9.7, "wantFinish": "Volver a verla"}, {"title": "Rick y Morty", "imdbRating": 9.1, "seasons": 7, "epsPerSeason": "10", "epLength": "20 min", "platform": "Max", "years": "2013-", "watched": "Al día", "opinion": "Muy divertida. Es más para ver capitulos sueltos. Pero después de un porrete estaba guay jajaja.", "myRating": 8.5, "wantFinish": "Sí"}, {"title": "House of the Dragon", "imdbRating": 8.3, "seasons": 2, "epsPerSeason": "10", "epLength": "1h", "platform": "Max", "years": "2022-", "watched": "Al día", "opinion": "Por ahora muy buena. Peor que las 5 primeras temporadas de Juego de Tronos, pero mejor que las dos últimas.", "myRating": 9, "wantFinish": "Sí"}, {"title": "Peaky Blinders", "imdbRating": 8.7, "seasons": 6, "epsPerSeason": "6", "epLength": "1h", "platform": "Netflix", "years": "2013-2022", "watched": "Entera", "opinion": "Se me hizo un poco repetitiva al final. La estructura de las temporadas es siempre igual, pero es muy divertida y está guay.", "myRating": 8.5, "wantFinish": ""}, {"title": "Chernobyl", "imdbRating": 9.3, "seasons": 1, "epsPerSeason": "5", "epLength": "1h", "platform": "Max", "years": "2019", "watched": "Entera", "opinion": "La nota de IMDB me me parece demasiado alta, pero no está mal, se hace entretenida y es corta.", "myRating": 8, "wantFinish": ""}, {"title": "Succesion", "imdbRating": 8.8, "seasons": 4, "epsPerSeason": "10", "epLength": "1h", "platform": "Max", "years": "2018-2023", "watched": "Entera", "opinion": "Muy buena. Todas las temporadas son muy buenas y en ningún momento se siente que la alarguen o metan relleno.", "myRating": 9, "wantFinish": ""}, {"title": "Narcos", "imdbRating": 8.7, "seasons": 3, "epsPerSeason": "10", "epLength": "1h", "platform": "Netflix", "years": "2015-2017", "watched": "2 Temporadas", "opinion": "Me vi hasta que ya no va de Pablo Escobar, me gustó pero no es ninguna locura. Es entretenida.", "myRating": 8, "wantFinish": "No"}, {"title": "Mr. Robot", "imdbRating": 8.7, "seasons": 4, "epsPerSeason": "10", "epLength": "45 min", "platform": "Prime", "years": "2015-2019", "watched": "1 Temporada y poco", "opinion": "La temporada que vi me gustó, pero no me enganchó demasiado y me parecía un poco deprimente. Es entretenida pero no sé si volvería a intentar verla.", "myRating": 8, "wantFinish": "Sí"}, {"title": "The last of us", "imdbRating": 8.7, "seasons": 2, "epsPerSeason": "8", "epLength": "50 min", "platform": "Max", "years": "2022-", "watched": "Al día", "opinion": "Es divertida y muy fiel a los juegos. Merece la pena pero no es ninguna locura.", "myRating": 8, "wantFinish": "Sí"}, {"title": "Bojack Horseman", "imdbRating": 8.8, "seasons": 6, "epsPerSeason": "12", "epLength": "25 min", "platform": "Netflix", "years": "2014-2020", "watched": "Entera", "opinion": "Es un poco dura a veces, pero de lo mejor que vi en mi vida. Tengo que volver a verla.", "myRating": 9.7, "wantFinish": "Volver a verla"}, {"title": "Sherlock", "imdbRating": 9.1, "seasons": 4, "epsPerSeason": "3", "epLength": "1h 30 min", "platform": "Max", "years": "2010-2017", "watched": "Entera", "opinion": "No me acuerdo demasiado, me había gustado y es bastante entretenida. Me gustan mucho las paridas de crimenes, probablemente por eso me gustó tanto.", "myRating": 8.5, "wantFinish": "Volver a verla"}, {"title": "South Park", "imdbRating": 8.7, "seasons": 26, "epsPerSeason": "15", "epLength": "22 min", "platform": "Max con vpn", "years": "1997-", "watched": "Muchos capítulos", "opinion": "Es muy de mi humor ratilla, la mayoría de capitulos dan vergüenza, pero con los que se centran en cartman me descojono.", "myRating": 8, "wantFinish": "No"}, {"title": "Better Call Saul", "imdbRating": 9, "seasons": 6, "epsPerSeason": "10", "epLength": "50 min", "platform": "Netflix", "years": "2015-2022", "watched": "Entera", "opinion": "Creo que es la mejor serie que he visto.", "myRating": 9.8, "wantFinish": "Volver a verla"}, {"title": "The Last Dance", "imdbRating": 9, "seasons": 1, "epsPerSeason": "10", "epLength": "50 min", "platform": "Netflix", "years": "2020", "watched": "Entera", "opinion": "Sin más, no soy muy de documentales y este tpoco me cambió la vida, me lo vi pq me gusta mucho la nba, pero no me mereció mucho la pena.", "myRating": 7, "wantFinish": ""}, {"title": "The Wire", "imdbRating": 9.3, "seasons": 5, "epsPerSeason": "12", "epLength": "1h", "platform": "Max", "years": "2002-2008", "watched": "", "opinion": "", "myRating": null, "wantFinish": ""}, {"title": "Sons of Anarchy", "imdbRating": 8.5, "seasons": 7, "epsPerSeason": "13", "epLength": "45 min", "platform": "Disney +", "years": "2008-2014", "watched": "", "opinion": "", "myRating": null, "wantFinish": ""}, {"title": "Los Soprano", "imdbRating": 9.2, "seasons": 7, "epsPerSeason": "12", "epLength": "1h", "platform": "Max", "years": "1999-2007", "watched": "", "opinion": "", "myRating": null, "wantFinish": ""}, {"title": "True Detective", "imdbRating": 8.9, "seasons": 4, "epsPerSeason": "8", "epLength": "1h", "platform": "Max", "years": "2014-", "watched": "Temporada 1", "opinion": "Sólo me vi la temporada 1, es buenísima. Creo que las otras ni merece la pena intentarlo.", "myRating": 9.4, "wantFinish": ""}]};
+
+let D = {};
+
+function _migrateDivs(arr){
+  if(!arr)return arr;
+  arr.forEach(item=>{
+    if(Array.isArray(item.dividends)){
+      let total=0;item.dividends.forEach(d=>{total+=(d.perShare||0)*(d.shares||item.shares||item.totalShares||0)*(1-(d.withholdingPct||0))});
+      item.dividends=Math.round(total*100)/100}
+    if(item.dividends===undefined)item.dividends=0});
+  return arr}
+
+function _mergeHistory(local, remote){
+  if(!local||!local.length) return remote||[];
+  if(!remote||!remote.length) return local||[];
+  const map={};
+  local.forEach(h=>{map[h.date]=h});
+  remote.forEach(h=>{
+    if(!map[h.date]) map[h.date]=h;
+    else{
+      // keep the entry with the most recent totalValue (higher is more recent within a day)
+      // but always prefer the entry that has data
+      if(h.totalValue && (!map[h.date].totalValue || h.totalValue !== map[h.date].totalValue)){
+        // keep whichever has the later-updated totalValue; prefer remote for past days
+        map[h.date]={date:h.date, totalInvested:h.totalInvested||map[h.date].totalInvested, totalValue:h.totalValue||map[h.date].totalValue};
+      }
+    }
+  });
+  return Object.values(map).sort((a,b)=>a.date.localeCompare(b.date));
+}
+
+function loadDataFromObj(obj, merge){
+  D.holdings = _migrateDivs(obj.holdings || FALLBACK.holdings);
+  D.cash = obj.cash ?? FALLBACK.cash;
+  D.totalInvested = obj.totalInvested ?? FALLBACK.totalInvested;
+  D.closedTrades = _migrateDivs(obj.closedTrades || FALLBACK.closedTrades);
+  if(merge) D.history = _mergeHistory(D.history, obj.history || []);
+  else D.history = obj.history || FALLBACK.history || [];
+  D.gym = obj.gym || FALLBACK.gym;
+  D.books = obj.books || FALLBACK.books;
+  D.movies = obj.movies || FALLBACK.movies;
+  D.series = obj.series || FALLBACK.series;
+}
+
+function loadData(){
+  try{const s=localStorage.getItem('db_data');if(s){loadDataFromObj(JSON.parse(s));return}}catch(e){}
+  loadDataFromObj(FALLBACK);
+}
+
+// ============================================================
+//  AUTH (now uses SHA-256 hash comparison)
+// ============================================================
+let _authed = false;
+function authThenAction(action){
+  if(_authed){doAction(action);return}
+  _pendingAction = action;
+  document.getElementById('authOv').classList.add('open');
+  document.getElementById('authPw').value='';document.getElementById('authErr').style.display='none';
+  setTimeout(()=>document.getElementById('authPw').focus(),100);
+}
+async function checkAuth(){
+  const inputHash = await sha256(document.getElementById('authPw').value);
+  if(inputHash===PW_HASH){
+    _authed=true;document.getElementById('authOv').classList.remove('open');
+    if(!_cloudReady){
+      fetchDataFromCloud().then(ok=>{
+        if(ok){renderPortfolio();renderTrades();renderGym();renderBooks();renderMovies();renderSeries();renderHistory()}
+        if(!_cloudReady){updateSyncStatus('local')}
+      });
+    }
+    ['btnAddTrade','btnAddBook','btnAddMovie','btnAddSeries','btnAddHolding','gymForm'].forEach(id=>{const b=document.getElementById(id);if(b)b.style.display=''});
+    const ab=document.getElementById('btnAuth');if(ab){ab.innerHTML='&#x1F513; Unlocked';ab.classList.add('btn-g')}
+    renderPortfolio();renderBooks();renderMovies();renderSeries();renderTrades();renderGym();renderHistory();
+    if(_pendingAction && _pendingAction!=='none'){doAction(_pendingAction);_pendingAction=null}
+    else{_pendingAction=null}
+  } else document.getElementById('authErr').style.display='block';
+}
+function doAction(a){
+  if(a==='addBook')openAddModal('book');
+  else if(a==='addMovie')openAddModal('movie');
+  else if(a==='addSeries')openAddModal('serie');
+  else if(a==='addTrade')openAddModal('trade');
+  else if(a==='addHolding')openAddModal('holding');
+}
+
+// ============================================================
+//  PORTFOLIO STATE
+// ============================================================
+let P={},FX={USD:null,CAD:null,GBP:null},CH={},_refreshing=false;
+try{const cp=localStorage.getItem('pf_p'),cf=localStorage.getItem('pf_fx');
+if(cp){P=JSON.parse(cp);Object.values(P).forEach(v=>{if(v.ts)v.ts=v.ts.map(t=>new Date(t))})}
+if(cf){const fx=JSON.parse(cf);if(fx.USD)FX=fx}}catch(e){}
+
+const MY_PROXY_URL='https://script.google.com/macros/s/AKfycbyWUy-SpQFdJZnI1TWeL68pu5gdax4Tj6ZHg_pSY-R2HWzaHB4KDZo44se5vMdu_8xV/exec';
+async function pFetch(u){const r=await fetch(`${MY_PROXY_URL}?url=${encodeURIComponent(u)}`);if(!r.ok)throw new Error('Proxy:'+r.status);return r.json()}
+async function fetchStock(tk){const d=await pFetch(`https://query1.finance.yahoo.com/v8/finance/chart/${tk}?range=1d&interval=5m`);
+const r=d.chart.result[0],m=r.meta,q=r.indicators.quote[0];let price=m.regularMarketPrice,prev=m.chartPreviousClose||m.previousClose;
+let cls=q.close||[],his=(q.high||[]).filter(v=>v!=null),los=(q.low||[]).filter(v=>v!=null);
+if(['GBp','GBX','GBx'].includes(m.currency)){price/=100;prev/=100;cls=cls.map(v=>v!=null?v/100:null);his=his.map(v=>v/100);los=los.map(v=>v/100)}
+return{ticker:tk,price,prev,high:his.length?Math.max(...his):price,low:los.length?Math.min(...los):price,ts:(r.timestamp||[]).map(t=>new Date(t*1000)),cls,_stale:!isFinite(price)}}
+async function fetchFx(){try{const d=await(await fetch('https://api.exchangerate-api.com/v4/latest/EUR')).json();FX.USD=1/d.rates.USD;FX.CAD=1/d.rates.CAD;FX.GBP=1/d.rates.GBP;return}catch(e){}
+try{const d=await(await fetch('https://open.er-api.com/v6/latest/EUR')).json();FX.USD=1/d.rates.USD;FX.CAD=1/d.rates.CAD;FX.GBP=1/d.rates.GBP;return}catch(e){}
+if(!FX.USD){FX.USD=0.86;FX.CAD=0.63;FX.GBP=1.17}}
+
+async function refreshPortfolio(){if(_refreshing)return;_refreshing=true;
+const dot=document.getElementById('dot'),tsE=document.getElementById('ts');
+dot.style.background='var(--amber)';tsE.textContent='Updating...';
+if(Object.keys(P).length)renderPortfolio();let fxOk=false;
+try{await fetchFx();fxOk=true}catch(e){}if(!FX.USD){FX.USD=0.86;FX.CAD=0.63;FX.GBP=1.17}
+const res=await Promise.allSettled(D.holdings.map(h=>fetchStock(h.ticker)));let allOk=true;
+res.forEach((r,i)=>{if(r.status==='fulfilled')P[D.holdings[i].ticker]=r.value;else{if(P[D.holdings[i].ticker])P[D.holdings[i].ticker]._stale=true;allOk=false}});
+try{localStorage.setItem('pf_p',JSON.stringify(Object.fromEntries(Object.entries(P).map(([k,v])=>[k,{...v,ts:v.ts?v.ts.map(d=>d.toISOString()):[]}]))));
+localStorage.setItem('pf_fx',JSON.stringify(FX))}catch(e){}
+renderPortfolio();
+// --- Daily snapshot (Europe/Amsterdam midnight, skip weekends) ---
+if(allOk&&fxOk){
+  const euNow=new Date(new Date().toLocaleString('en-US',{timeZone:'Europe/Amsterdam'}));
+  const dow=euNow.getDay(); // 0=Sun, 6=Sat
+  if(dow!==0&&dow!==6){
+    const todayStr=euNow.getFullYear()+'-'+String(euNow.getMonth()+1).padStart(2,'0')+'-'+String(euNow.getDate()).padStart(2,'0');
+    if(!D.history)D.history=[];
+    const already=D.history.find(h=>h.date===todayStr);
+    let totalVal=D.cash;D.holdings.forEach(h=>{const d=P[h.ticker];if(d&&isFinite(d.price))totalVal+=d.price*h.shares*fxR(h.currency)});
+    if(!already){D.history.push({date:todayStr,totalInvested:D.totalInvested,totalValue:Math.round(totalVal*100)/100});saveAndSync()}
+    else{const oldVal=already.totalValue;already.totalValue=Math.round(totalVal*100)/100;already.totalInvested=D.totalInvested;if(oldVal!==already.totalValue)saveAndSync()}
+  }
+  renderHistory();
+}
+dot.style.background=(allOk&&fxOk)?'var(--green)':'var(--amber)';
+const now=new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+tsE.textContent=(allOk&&fxOk)?now:now+' (Parcial)';_refreshing=false}
+
+// ============================================================
+//  HELPERS
+// ============================================================
+const F=(n,d=2)=>n.toLocaleString('de-DE',{minimumFractionDigits:d,maximumFractionDigits:d});
+function fxR(c){return c==='EUR'?1:(FX[c]||0)}
+function valEur(h){const d=P[h.ticker];if(!d||!isFinite(d.price))return 0;return d.price*h.shares*fxR(h.currency)}
+function ratingColor(r,max=10){if(!r)return'var(--text-muted)';const pct=r/max;return pct>=.85?'var(--green)':pct>=.7?'var(--amber)':pct>=.5?'var(--text-dim)':'var(--red)'}
+const ttOpts={backgroundColor:'#1a1a35',titleColor:'#e2e2f0',bodyColor:'#e2e2f0',borderColor:'#2d2d55',borderWidth:1,cornerRadius:8,padding:10,bodyFont:{family:'IBM Plex Mono'}};
+const legOpts={color:'#7070a0',font:{family:'Sora',size:11},padding:12,usePointStyle:true,pointStyleWidth:7};
+function toast(msg,type){const t=document.createElement('div');t.className='toast toast-'+(type||'ok');t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3000)}
+
+// ============================================================
+//  TABS
+// ============================================================
+document.getElementById('tabBar').addEventListener('click',e=>{if(!e.target.matches('.tab-btn'))return;
+document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+e.target.classList.add('active');document.getElementById('tab-'+e.target.dataset.tab).classList.add('active');
+});
+
+// ============================================================
+//  RENDER: PORTFOLIO
+// ============================================================
+function renderPortfolio(){rFx();rHero();rStocks();rDonut();rBar()}
+function rFx(){document.getElementById('fxU').textContent=FX.USD?F(FX.USD,4):'--';document.getElementById('fxC').textContent=FX.CAD?F(FX.CAD,4):'--';document.getElementById('fxG').textContent=FX.GBP?F(FX.GBP,4):'--'}
+function rHero(){let t=D.cash;const bc={EUR:D.cash};
+D.holdings.forEach(h=>{const v=valEur(h);t+=v;bc[h.currency]=(bc[h.currency]||0)+v});
+document.getElementById('hVal').innerHTML=`${F(t)} &euro;`;
+const inv=D.totalInvested,tRoi=t-inv,tPct=(tRoi/inv)*100,tPos=tRoi>=0;
+document.getElementById('hRoi').innerHTML=`<div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text-dim);margin-bottom:6px">Invested: ${F(inv)} &euro;</div><div style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;margin-bottom:14px;color:var(--${tPos?'green':'red'})">All-Time ROI: ${tPos?'+':''}${F(tPct)}% | ${tPos?'+':''}${F(tRoi)} &euro;</div>`;
+document.getElementById('hSub').innerHTML=Object.entries(bc).map(([c,v])=>`<span>${c}: ${F(v)} &euro;</span>`).join('')}
+
+function rStocks(){const g=document.getElementById('sGrid');g.innerHTML='';
+let totalPV=D.cash;D.holdings.forEach(h=>{totalPV+=valEur(h)});
+const sorted=D.holdings.map((h,i)=>({h,i,ve:valEur(h)})).sort((a,b)=>b.ve-a.ve);
+sorted.forEach(({h,i:hi})=>{const d=P[h.ticker];const dOk=d&&isFinite(d.price);const chg=dOk?(d.price-d.prev):0,pct=dOk&&d.prev?(chg/d.prev)*100:0,pos=chg>=0,ve=dOk?d.price*h.shares*fxR(h.currency):0;
+const tc=h.currency==='USD'?'tag-usd':h.currency==='CAD'?'tag-cad':'tag-gbp';
+const staleTag=dOk&&d._stale?'<span class="tag" style="background:rgba(255,170,34,.12);color:var(--amber);margin-left:4px">STALE</span>':'';
+const noData=!dOk?'<span class="tag" style="background:rgba(255,68,102,.12);color:var(--red);margin-left:4px">NO DATA</span>':'';
+let divNetEur=(h.dividends||0)*fxR(h.currency);
+const hRoiAbsEur=dOk?(d.price-h.entryPrice)*h.shares*fxR(h.currency)+divNetEur:0;const totalInv=h.entryPrice*h.shares*fxR(h.currency);
+const hRoiPct=totalInv>0?(hRoiAbsEur/totalInv)*100:0;const hPos=hRoiAbsEur>=0;
+const pctOfPortfolio=totalPV>0?(ve/totalPV)*100:0;
+const el=document.createElement('div');el.className='stock';if(dOk&&d._stale)el.style.opacity='0.7';if(!dOk)el.style.opacity='0.55';
+if(_authed){el.dataset.editType='holding';el.dataset.editIdx=hi;el.style.cursor='pointer'}
+el.innerHTML=`<div class="s-top"><div><div class="s-tk">${h.ticker} <span class="tag ${tc}">${h.exchange}</span>${staleTag}${noData}</div><div class="s-nm">${h.name}</div><div class="s-pr" style="margin:6px 0 0">${dOk?F(d.price):'--'} <span class="cur">${h.currency}</span></div></div>
+${dOk?`<div class="s-chg" style="text-align:right"><div style="font-size:9px;color:var(--text);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:3px">Daily</div><div class="pct ${pos?'up':'dn'}">${pos?'+':''}${F(pct)}%</div><div class="abs ${pos?'up':'dn'}" style="font-size:11px">${pos?'+':''}${F(chg)} ${h.currency}</div><div style="font-size:10px;color:var(--text-muted);margin-top:4px">${F(d.low)} \u2013 ${F(d.high)}</div></div>`:''}</div>
+<div class="s-meta"><div><div class="ml">Shares</div><div class="mv">${h.shares.toLocaleString('de-DE')}</div></div>
+<div><div class="ml">Value (EUR)</div><div class="mv ${dOk?'up':''}">${dOk?F(ve)+' \u20ac':'--'}</div></div>
+<div><div class="ml">Dividends (${h.currency})</div><div class="mv ${(h.dividends||0)>0?'up':''}">${(h.dividends||0)>0?'+'+F(h.dividends)+' '+h.currency:'\u2014'}</div></div>
+<div><div class="ml">% of Portfolio</div><div class="mv">${dOk?F(pctOfPortfolio,1)+'%':'--'}</div></div>
+<div><div class="ml">Avg Price</div><div class="mv">${F(h.entryPrice)} <span style="font-size:10px;color:var(--text-dim)">${h.currency}</span></div></div>
+<div><div class="ml">Total Return</div><div class="mv ${dOk?(hPos?'up':'dn'):''}">${dOk?(hPos?'+':'')+F(hRoiPct)+'% <span style="font-size:10px;">('+( hPos?'+':'')+F(hRoiAbsEur)+' \u20ac)</span>':'--'}</div></div></div>`;
+g.appendChild(el)});
+if(D.cash>0||_authed){const cel=document.createElement('div');cel.className='stock';
+if(_authed){cel.dataset.editType='cash';cel.style.cursor='pointer'}
+cel.innerHTML=`<div class="s-top"><div><div class="s-tk" style="color:#667788">CASH <span class="tag" style="background:rgba(102,119,136,.12);color:#667788">EUR</span></div><div class="s-nm">Cash & totals${_authed?' \u00b7 click to edit':''}</div></div></div><div class="s-pr">${F(D.cash)} <span class="cur">EUR</span></div>`;g.appendChild(cel)}}
+
+function rDonut(){const ctx=document.getElementById('cD').getContext('2d');if(CH.d)CH.d.destroy();
+const dVals=[...D.holdings.map(h=>valEur(h)),D.cash];const dTotal=dVals.reduce((a,b)=>a+b,0);
+CH.d=new Chart(ctx,{type:'doughnut',data:{labels:[...D.holdings.map(h=>h.ticker),'Cash'],datasets:[{data:dVals,backgroundColor:[...D.holdings.map(h=>h.color),'#667788'],borderColor:'#0d0d1a',borderWidth:3}]},
+options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',labels:legOpts},tooltip:{...ttOpts,callbacks:{label:c=>{const pct=dTotal>0?(c.parsed/dTotal*100):0;return ` ${c.label}: ${F(c.parsed)} \u20ac (${F(pct,1)}%)`}}}}}})}
+
+function rBar(){const ctx=document.getElementById('cB').getContext('2d');
+const items=[...D.holdings.map(h=>({tk:h.ticker,val:valEur(h),color:h.color})),{tk:'Cash',val:D.cash,color:'#667788'}].sort((a,b)=>b.val-a.val);
+if(CH.b)CH.b.destroy();CH.b=new Chart(ctx,{type:'bar',data:{labels:items.map(i=>i.tk),datasets:[{data:items.map(i=>i.val),backgroundColor:items.map(i=>i.color+'aa'),borderColor:items.map(i=>i.color),borderWidth:1.5,borderRadius:6,borderSkipped:false}]},
+options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{...ttOpts,callbacks:{label:c=>` ${F(c.parsed.x)} \u20ac`}}},
+scales:{x:{grid:{color:'rgba(26,26,53,.6)'},ticks:{color:'#7070a0',font:{family:'IBM Plex Mono',size:10},callback:v=>F(v,0)+' \u20ac'}},y:{grid:{display:false},ticks:{color:'#e2e2f0',font:{family:'IBM Plex Mono',size:11,weight:'600'}}}}}})}
+
+// ============================================================
+//  RENDER: HISTORY & MONTHLY RETURNS (NEW)
+// ============================================================
+let _monthlyPage=1;const _monthlyPerPage=12;
+
+function renderHistory(){renderHistoryChart();renderMonthlyTable()}
+
+function renderHistoryChart(){
+  if(!D.history||!D.history.length){return}
+  const sorted=[...D.history].sort((a,b)=>a.date.localeCompare(b.date));
+  // Downsample: <90 points daily, 90-365 weekly (avg), >365 monthly (avg)
+  let sampled;
+  if(sorted.length<=90){sampled=sorted}
+  else{
+    const bucket=sorted.length<=365?7:30;
+    sampled=[];let i=0;
+    while(i<sorted.length){
+      const chunk=sorted.slice(i,i+bucket);
+      const last=chunk[chunk.length-1];
+      sampled.push({date:last.date,totalInvested:last.totalInvested,totalValue:last.totalValue});
+      i+=bucket;
+    }
+  }
+  const fmt=sampled.length<=90?{day:'numeric',month:'short'}:{month:'short',year:'2-digit'};
+  const labels=sampled.map(h=>{const d=new Date(h.date);return d.toLocaleDateString('es-ES',fmt)});
+  const invested=sampled.map(h=>h.totalInvested);
+  const values=sampled.map(h=>h.totalValue);
+  const ctx=document.getElementById('cHistory').getContext('2d');
+  if(CH.history)CH.history.destroy();
+  CH.history=new Chart(ctx,{type:'line',data:{labels,datasets:[
+    {label:'Invested',data:invested,borderColor:'#22df8a',backgroundColor:'rgba(34,223,138,.06)',fill:true,tension:.3,pointRadius:4,pointBackgroundColor:'#22df8a',pointBorderColor:'#0d0d1a',pointBorderWidth:2,borderWidth:2},
+    {label:'Portfolio Value',data:values,borderColor:'#5588ff',backgroundColor:'rgba(85,136,255,.06)',fill:true,tension:.3,pointRadius:4,pointBackgroundColor:'#5588ff',pointBorderColor:'#0d0d1a',pointBorderWidth:2,borderWidth:2}
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+  plugins:{legend:{labels:legOpts},tooltip:{...ttOpts,callbacks:{
+    label:c=>` ${c.dataset.label}: ${F(c.parsed.y)} \u20ac`,
+    afterBody:function(ctx){const i=ctx[0].dataIndex;const inv=invested[i],val=values[i];if(inv>0){const r=((val-inv)/inv)*100;return `  Return: ${r>=0?'+':''}${F(r)}%`}return''}
+  }}},
+  scales:{x:{grid:{color:'rgba(26,26,53,.4)'},ticks:{color:'#7070a0',font:{family:'IBM Plex Mono',size:10},maxTicksLimit:14}},
+  y:{type:'linear',grid:{color:'rgba(26,26,53,.4)'},ticks:{color:'#e2e2f0',font:{family:'IBM Plex Mono',size:10},callback:v=>F(v,0)+' \u20ac'}}}}})}
+
+function renderMonthlyTable(){
+  if(!D.history||!D.history.length){
+    document.getElementById('monthlyTable').innerHTML='<p style="color:var(--text-muted);text-align:center;padding:30px">No history yet. Data is recorded daily on each page load.</p>';
+    document.getElementById('monthlyPag').innerHTML='';return;
+  }
+  const sorted=[...D.history].sort((a,b)=>a.date.localeCompare(b.date));
+  // Group by month
+  const months={};sorted.forEach(h=>{const mk=h.date.substring(0,7);if(!months[mk])months[mk]={key:mk,entries:[]};months[mk].entries.push(h)});
+  const mList=Object.values(months).sort((a,b)=>b.key.localeCompare(a.key)); // newest first
+  // Pagination
+  const totalPages=Math.max(1,Math.ceil(mList.length/_monthlyPerPage));
+  if(_monthlyPage>totalPages)_monthlyPage=totalPages;
+  const start=(_monthlyPage-1)*_monthlyPerPage;const page=mList.slice(start,start+_monthlyPerPage);
+  let rows='';
+  page.forEach((m,pi)=>{
+    const last=m.entries[m.entries.length-1];
+    // Start value = end value of previous month (by chronological order in full mList)
+    const fullIdx=mList.indexOf(m); // mList is newest-first
+    const prevMonth=fullIdx<mList.length-1?mList[fullIdx+1]:null;
+    const startVal=prevMonth?prevMonth.entries[prevMonth.entries.length-1].totalValue:m.entries[0].totalValue;
+    const endVal=last.totalValue;
+    const absRet=endVal-startVal;
+    const pctRet=startVal>0?(absRet/startVal)*100:0;
+    const totalRet=last.totalInvested>0?((endVal-last.totalInvested)/last.totalInvested)*100:0;
+    const pos=absRet>=0;const tPos=totalRet>=0;
+    const [y,mo]=m.key.split('-');const mName=new Date(parseInt(y),parseInt(mo)-1).toLocaleDateString('en-US',{month:'short',year:'numeric'});
+    rows+=`<tr><td style="font-weight:600">${mName}</td><td>${F(startVal)} \u20ac</td><td>${F(endVal)} \u20ac</td>
+    <td class="${pos?'up':'dn'}" style="font-weight:600">${pos?'+':''}${F(absRet)} \u20ac</td>
+    <td class="${pos?'up':'dn'}" style="font-weight:600">${pos?'+':''}${F(pctRet)}%</td>
+    <td class="${tPos?'up':'dn'}">${tPos?'+':''}${F(totalRet)}%</td>
+    </tr>`});
+  document.getElementById('monthlyTable').innerHTML=`<table><thead><tr><th>Month</th><th>Start Value</th><th>End Value</th><th>Monthly P&L</th><th>Monthly %</th><th>All-Time %</th></tr></thead><tbody>${rows}</tbody></table>`;
+  // Pagination controls
+  if(totalPages<=1){document.getElementById('monthlyPag').innerHTML='';return}
+  let pg='';
+  pg+=`<button class="btn btn-sm" onclick="_monthlyPage=1;renderMonthlyTable()" ${_monthlyPage===1?'disabled':''}>\u00ab</button>`;
+  pg+=`<button class="btn btn-sm" onclick="_monthlyPage--;renderMonthlyTable()" ${_monthlyPage===1?'disabled':''}>\u2039</button>`;
+  const maxShow=5;let s=Math.max(1,_monthlyPage-Math.floor(maxShow/2)),e=Math.min(totalPages,s+maxShow-1);s=Math.max(1,e-maxShow+1);
+  for(let i=s;i<=e;i++)pg+=`<button class="btn btn-sm${i===_monthlyPage?' btn-g':''}" onclick="_monthlyPage=${i};renderMonthlyTable()">${i}</button>`;
+  pg+=`<button class="btn btn-sm" onclick="_monthlyPage++;renderMonthlyTable()" ${_monthlyPage===totalPages?'disabled':''}>\u203a</button>`;
+  pg+=`<button class="btn btn-sm" onclick="_monthlyPage=${totalPages};renderMonthlyTable()" ${_monthlyPage===totalPages?'disabled':''}>\u00bb</button>`;
+  document.getElementById('monthlyPag').innerHTML=pg;
+}
+
+// ============================================================
+//  RENDER: TRADES
+// ============================================================
+const TRADE_FX={EUR:1,USD:0.8696,CAD:0.6369,GBP:1.1574};
+function tradeFx(c){return TRADE_FX[c]||1}
+function calcTrade(t){const fx=tradeFx(t.currency);
+const grossPL=t.totalShares*(t.sellPrice-t.avgBuy)*fx;let divN=(t.dividends||0)*fx;
+const inv=t.totalShares*t.avgBuy*fx,net=grossPL+divN;
+return{grossPL,divN,inv,net,pct:inv>0?(net/inv)*100:0,ret:inv+net,fx,cur:t.currency,
+  rawBuy:t.avgBuy,rawSell:t.sellPrice,rawInv:t.totalShares*t.avgBuy,rawGross:t.totalShares*(t.sellPrice-t.avgBuy)}}
+
+function renderTrades(){let tI=0,tG=0,tDN=0,tNet=0;
+D.closedTrades.forEach(t=>{const c=calcTrade(t);tI+=c.inv;tG+=c.grossPL;tDN+=c.divN;tNet+=c.net});const nP=tNet>=0;
+document.getElementById('tradesSummary').innerHTML=`
+<div class="sum-card"><div class="sum-lbl">Capital deployed</div><div class="sum-val">${F(tI)} \u20ac</div></div>
+<div class="sum-card"><div class="sum-lbl">Gross P&L</div><div class="sum-val ${tG>=0?'up':'dn'}">${tG>=0?'+':''}${F(tG)} \u20ac</div></div>
+<div class="sum-card"><div class="sum-lbl">Dividends (net)</div><div class="sum-val up">${tDN>0?'+'+F(tDN):'\u2014'}</div></div>
+<div class="sum-card"><div class="sum-lbl">Net result</div><div class="sum-val ${nP?'up':'dn'}">${nP?'+':''}${F(tNet)} \u20ac</div></div>
+<div class="sum-card"><div class="sum-lbl">Return %</div><div class="sum-val ${nP?'up':'dn'}">${tI>0?(nP?'+':'')+F((tNet/tI)*100)+'%':'\u2014'}</div></div>`;
+let rows='';D.closedTrades.forEach((t,idx)=>{const c=calcTrade(t);const pos=c.net>=0;
+const curTag=t.currency!=='EUR'?`<span style="font-size:9px;color:var(--text-muted)"> ${t.currency}</span>`:'';
+rows+=`<tr ${_authed?`data-edit-type="trade" data-edit-idx="${idx}" style="cursor:pointer"`:''}><td><span style="color:${t.color};font-weight:600">${t.ticker}</span>${curTag}</td><td style="white-space:normal">${t.name}</td>
+<td>${t.totalShares.toLocaleString('de-DE')}</td><td>${F(c.rawBuy)}${curTag}</td><td>${F(c.rawSell)}${curTag}</td>
+<td>${F(c.inv)} \u20ac</td><td class="${c.grossPL>=0?'up':'dn'}">${c.grossPL>=0?'+':''}${F(c.grossPL)} \u20ac</td>
+<td class="up">${c.divN>0?'+'+F(c.divN)+' \u20ac':'\u2014'}</td>
+<td class="${pos?'up':'dn'}" style="font-weight:600">${pos?'+':''}${F(c.net)} \u20ac</td>
+<td class="${pos?'up':'dn'}">${pos?'+':''}${F(c.pct)}%</td></tr>`});
+document.getElementById('tradesTable').innerHTML=`<table><thead><tr><th>Ticker</th><th>Name</th><th>Shares</th><th>Avg Buy</th><th>Sell</th><th>Invested</th><th>Gross P&L</th><th>Div</th><th>Net</th><th>Return</th></tr></thead><tbody>${rows}</tbody>
+<tfoot><tr class="tbl-foot"><td colspan="5" style="font-weight:600">TOTAL</td><td>${F(tI)}</td><td class="${tG>=0?'up':'dn'}">${tG>=0?'+':''}${F(tG)}</td><td class="up">${tDN>0?'+'+F(tDN):'\u2014'}</td><td class="${nP?'up':'dn'}" style="font-weight:600">${nP?'+':''}${F(tNet)}</td><td class="${nP?'up':'dn'}">${tI>0?(nP?'+':'')+F((tNet/tI)*100)+'%':'\u2014'}</td></tr></tfoot></table>`;
+
+const ctx1=document.getElementById('cTrades').getContext('2d');const d1=D.closedTrades.map(t=>({tk:t.ticker,val:calcTrade(t).net,color:t.color}));
+if(CH.trades)CH.trades.destroy();if(d1.length)CH.trades=new Chart(ctx1,{type:'bar',data:{labels:d1.map(d=>d.tk),datasets:[{data:d1.map(d=>d.val),backgroundColor:d1.map(d=>d.val>=0?d.color+'aa':'rgba(255,68,102,.5)'),borderColor:d1.map(d=>d.val>=0?d.color:'var(--red)'),borderWidth:1.5,borderRadius:6,borderSkipped:false}]},
+options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...ttOpts,callbacks:{label:c=>` Net: ${F(c.parsed.y)} \u20ac`}}},scales:{x:{grid:{display:false},ticks:{color:'#e2e2f0',font:{family:'IBM Plex Mono',size:11,weight:'600'}}},y:{grid:{color:'rgba(26,26,53,.6)'},ticks:{color:'#7070a0',font:{family:'IBM Plex Mono',size:10},callback:v=>F(v,0)+' \u20ac'}}}}});
+
+const ctx2=document.getElementById('cCapital').getContext('2d');if(CH.capital)CH.capital.destroy();
+if(D.closedTrades.length)CH.capital=new Chart(ctx2,{type:'bar',data:{labels:D.closedTrades.map(t=>t.ticker),
+datasets:[{label:'Invested',data:D.closedTrades.map(t=>calcTrade(t).inv),backgroundColor:'rgba(112,112,160,.4)',borderColor:'#7070a0',borderWidth:1,borderRadius:6,borderSkipped:false},
+{label:'Returned',data:D.closedTrades.map(t=>calcTrade(t).ret),backgroundColor:'rgba(34,223,138,.4)',borderColor:'var(--green)',borderWidth:1,borderRadius:6,borderSkipped:false}]},
+options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:legOpts},tooltip:{...ttOpts,callbacks:{label:c=>` ${c.dataset.label}: ${F(c.parsed.y)} \u20ac`}}},
+scales:{x:{grid:{display:false},ticks:{color:'#e2e2f0',font:{family:'IBM Plex Mono',size:11,weight:'600'}}},y:{grid:{color:'rgba(26,26,53,.6)'},ticks:{color:'#7070a0',font:{family:'IBM Plex Mono',size:10},callback:v=>F(v,0)+' \u20ac'}}}}})}
+
+// ============================================================
+//  GYM
+// ============================================================
+function addGymEntry(){const date=document.getElementById('gymDate').value;const w=parseFloat(document.getElementById('gymWeight').value),bf=parseFloat(document.getElementById('gymBf').value);
+if(!date){alert('Select a date');return}if(isNaN(w)&&isNaN(bf)){alert('Enter weight or body fat');return}
+const entry={date,weight:isNaN(w)?null:w,bf:isNaN(bf)?null:bf};const idx=D.gym.findIndex(g=>g.date===date);
+if(idx>=0)D.gym[idx]=entry;else D.gym.push(entry);D.gym.sort((a,b)=>a.date.localeCompare(b.date));renderGym();saveAndSync();
+document.getElementById('gymWeight').value='';document.getElementById('gymBf').value=''}
+
+function renderGym(){const ctx=document.getElementById('cGym').getContext('2d');
+const labels=D.gym.map(g=>{const d=new Date(g.date);return d.toLocaleDateString('es-ES',{day:'numeric',month:'short',year:'2-digit'})});
+if(CH.gym)CH.gym.destroy();CH.gym=new Chart(ctx,{type:'line',data:{labels,datasets:[
+{label:'Weight (kg)',data:D.gym.map(g=>g.weight),borderColor:'#5588ff',backgroundColor:'rgba(85,136,255,.1)',fill:true,tension:.3,pointRadius:5,pointBackgroundColor:'#5588ff',pointBorderColor:'#0d0d1a',pointBorderWidth:2,yAxisID:'y'},
+{label:'Body Fat (%)',data:D.gym.map(g=>g.bf),borderColor:'#ffaa22',backgroundColor:'rgba(255,170,34,.1)',fill:true,tension:.3,pointRadius:5,pointBackgroundColor:'#ffaa22',pointBorderColor:'#0d0d1a',pointBorderWidth:2,yAxisID:'y1'}]},
+options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{labels:legOpts},tooltip:{...ttOpts}},
+scales:{x:{grid:{color:'rgba(26,26,53,.4)'},ticks:{color:'#7070a0',font:{family:'IBM Plex Mono',size:10}}},
+y:{type:'linear',position:'left',title:{display:true,text:'Weight (kg)',color:'#5588ff',font:{family:'Sora',size:11}},grid:{color:'rgba(26,26,53,.4)'},ticks:{color:'#5588ff',font:{family:'IBM Plex Mono',size:10}}},
+y1:{type:'linear',position:'right',title:{display:true,text:'Body Fat (%)',color:'#ffaa22',font:{family:'Sora',size:11}},grid:{drawOnChartArea:false},ticks:{color:'#ffaa22',font:{family:'IBM Plex Mono',size:10},callback:v=>v+'%'}}}}});
+const tbl=document.getElementById('gymTable');if(!D.gym.length){tbl.innerHTML='<p style="color:var(--text-muted);text-align:center;padding:40px">No entries yet.</p>';return}
+let rows='';D.gym.slice().reverse().forEach((g,i)=>{rows+=`<tr ${_authed?`data-edit-type="gym" data-edit-date="${g.date}" style="cursor:pointer"`:''}><td>${g.date}</td><td>${g.weight!=null?F(g.weight,1)+' kg':'\u2014'}</td><td>${g.bf!=null?F(g.bf,1)+'%':'\u2014'}</td></tr>`});
+tbl.innerHTML=`<table><thead><tr><th>Date</th><th>Weight</th><th>Body Fat</th></tr></thead><tbody>${rows}</tbody></table>`}
+
+// ============================================================
+//  BOOKS / MOVIES / SERIES RENDERS
+// ============================================================
+function renderBooks(){const q=(document.getElementById('booksSearch').value||'').toLowerCase();
+const sort=document.getElementById('booksSort').value;const filter=document.getElementById('booksFilter').value;
+let list=D.books.map((b,i)=>({...b,_i:i}));if(q)list=list.filter(b=>(b.title+' '+b.author).toLowerCase().includes(q));
+if(filter==='rated')list=list.filter(b=>b.myRating!=null);if(filter==='unrated')list=list.filter(b=>b.myRating==null);
+const S={default:(a,b)=>a._i-b._i,'rating-desc':(a,b)=>(b.myRating||0)-(a.myRating||0),'gr-desc':(a,b)=>b.grRating-a.grRating,'pages-desc':(a,b)=>(b.pages||0)-(a.pages||0),'pages-asc':(a,b)=>(a.pages||9999)-(b.pages||9999),title:(a,b)=>a.title.localeCompare(b.title)};
+list.sort(S[sort]||S.default);
+const rated=D.books.filter(b=>b.myRating!=null);const avgMy=rated.length?rated.reduce((s,b)=>s+b.myRating,0)/rated.length:0;
+const totPages=rated.reduce((s,b)=>s+(b.pages||0),0);
+document.getElementById('booksSummary').innerHTML=`<div class="sum-card"><div class="sum-lbl">Total</div><div class="sum-val">${D.books.length}</div></div>
+<div class="sum-card"><div class="sum-lbl">Read</div><div class="sum-val">${rated.length}/${D.books.length}</div></div>
+<div class="sum-card"><div class="sum-lbl">Pages read</div><div class="sum-val">${totPages.toLocaleString('de-DE')}</div></div>
+<div class="sum-card"><div class="sum-lbl">Avg mine</div><div class="sum-val" style="color:var(--amber)">${rated.length?F(avgMy,1):'\u2014'}/5</div></div>`;
+const grid=document.getElementById('booksGrid');grid.innerHTML='';
+list.forEach(b=>{const idx=b._i;
+grid.innerHTML+=`<div class="m-card" ${_authed?'data-edit-type="book" data-edit-idx="'+idx+'" style="cursor:pointer"':''}>
+<div class="m-card-top"><div class="m-card-title">${b.title}</div>
+<div class="m-card-rating" style="color:${ratingColor(b.myRating?b.myRating*2:null)}">${b.myRating!=null?b.myRating+'/5':'<span style="color:var(--text-muted);font-size:12px">TBR</span>'}</div></div>
+<div class="m-card-meta">${b.author} \u00b7 ${b.year} \u00b7 ${b.pages} pg \u00b7 <span style="color:var(--text-muted)">GR: ${b.grRating}</span></div>
+${b.opinion?`<div class="m-card-opinion">${b.opinion}</div>`:''}
+</div>`})}
+
+function _parseDurMin(s){if(!s)return 0;let m=0;const h=s.match(/(\d+)\s*h/);const mi=s.match(/(\d+)\s*min/);if(h)m+=parseInt(h[1])*60;if(mi)m+=parseInt(mi[1]);return m}
+function renderMovies(){const q=(document.getElementById('moviesSearch').value||'').toLowerCase();
+const sort=document.getElementById('moviesSort').value;const filt=document.getElementById('moviesFilter').value;
+let list=D.movies.map((m,i)=>({...m,_i:i}));if(q)list=list.filter(m=>(m.title+' '+m.director+' '+m.actors).toLowerCase().includes(q));
+if(filt==='rated')list=list.filter(m=>m.myRating!=null);else if(filt==='unrated')list=list.filter(m=>m.myRating==null);
+const S={default:(a,b)=>a._i-b._i,'fa-desc':(a,b)=>(b.faRating||0)-(a.faRating||0),'my-desc':(a,b)=>(b.myRating||0)-(a.myRating||0),'year-desc':(a,b)=>(b.year||0)-(a.year||0),'year-asc':(a,b)=>(a.year||9999)-(b.year||9999),'dur-desc':(a,b)=>_parseDurMin(b.duration)-_parseDurMin(a.duration),'dur-asc':(a,b)=>_parseDurMin(a.duration)-_parseDurMin(b.duration),title:(a,b)=>a.title.localeCompare(b.title)};
+list.sort(S[sort]||S.default);
+const rated=D.movies.filter(m=>m.myRating!=null);const avgMy=rated.length?rated.reduce((s,m)=>s+m.myRating,0)/rated.length:0;
+const watched=D.movies.filter(m=>m.opinion&&m.opinion!=='');
+const totalMin=watched.reduce((s,m)=>s+_parseDurMin(m.duration),0);const totalHrs=Math.round(totalMin/60);
+document.getElementById('moviesSummary').innerHTML=`<div class="sum-card"><div class="sum-lbl">Total</div><div class="sum-val">${D.movies.length}</div></div>
+<div class="sum-card"><div class="sum-lbl">Watched</div><div class="sum-val">${watched.length}/${D.movies.length}</div></div>
+<div class="sum-card"><div class="sum-lbl">Hours watched</div><div class="sum-val">${totalHrs}h</div></div>
+<div class="sum-card"><div class="sum-lbl">Avg mine</div><div class="sum-val" style="color:var(--amber)">${rated.length?F(avgMy,1):'\u2014'}/10</div></div>`;
+const grid=document.getElementById('moviesGrid');grid.innerHTML='';
+list.forEach(m=>{const idx=m._i;
+const mainR=m.myRating!=null?m.myRating:null;
+grid.innerHTML+=`<div class="m-card" ${_authed?'data-edit-type="movie" data-edit-idx="'+idx+'" style="cursor:pointer"':''}>
+<div class="m-card-top"><div class="m-card-title">${m.title}</div>
+<div class="m-card-rating" style="color:${mainR!=null?ratingColor(mainR):'var(--text-muted)'}">${mainR!=null?mainR+'<span style="font-size:11px;font-weight:400">/10</span>':'<span style="font-size:12px">\u2014</span>'}</div></div>
+<div class="m-card-meta">${m.director} \u00b7 ${m.year} \u00b7 ${m.duration} \u00b7 <span style="color:var(--text-muted)">FA: ${m.faRating||'\u2014'}</span>${m.platform&&!m.platform.startsWith('Ninguna')&&!m.platform.startsWith('None')?' \u00b7 '+m.platform:''}</div>
+${m.actors?`<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">${m.actors}</div>`:''}
+${m.opinion?`<div class="m-card-opinion">${m.opinion}</div>`:''}
+</div>`})}
+
+function renderSeries(){const q=(document.getElementById('seriesSearch').value||'').toLowerCase();
+const sort=document.getElementById('seriesSort').value;const filter=document.getElementById('seriesFilter').value;
+let list=D.series.map((s,i)=>({...s,_i:i}));if(q)list=list.filter(s=>(s.title+' '+s.platform).toLowerCase().includes(q));
+if(filter==='finished')list=list.filter(s=>s.watched==='Entera'||s.watched==='Finished');
+if(filter==='watching')list=list.filter(s=>s.wantFinish==='\u0053\u00ed'||s.wantFinish==='Yes'||s.wantFinish==='Volver a verla'||s.wantFinish==='Rewatch'||s.watched==='Al d\u00eda'||s.watched==='Up to date');
+if(filter==='dropped')list=list.filter(s=>s.wantFinish==='No');
+if(filter==='notstarted')list=list.filter(s=>s.myRating==null);
+const S={default:(a,b)=>a._i-b._i,'rating-desc':(a,b)=>(b.myRating||0)-(a.myRating||0),'imdb-desc':(a,b)=>(b.imdbRating||0)-(a.imdbRating||0),title:(a,b)=>a.title.localeCompare(b.title)};
+list.sort(S[sort]||S.default);
+const rated=D.series.filter(s=>s.myRating!=null);const avgMy=rated.length?rated.reduce((s,x)=>s+x.myRating,0)/rated.length:0;
+const notStarted=D.series.filter(s=>s.myRating==null).length;const watchedCount=D.series.length-notStarted;
+function _seasonsWatched(s){const w=(s.watched||'').toLowerCase();
+if(!w||s.myRating==null)return 0;
+if(w==='entera'||w==='finished'||w==='al d\u00eda'||w==='up to date')return s.seasons;
+const m=w.match(/(\d+)\s*(temporada|season)/);if(m)return parseInt(m[1]);
+if(w==='temporada 1'||w==='season 1')return 1;
+if(w.includes('muchos')||w.includes('many'))return Math.ceil(s.seasons/2);
+return s.seasons;}
+const seriesHrs=Math.round(rated.reduce((s,x)=>{const eps=parseInt(x.epsPerSeason)||10;return s+eps*_seasonsWatched(x)*_parseDurMin(x.epLength)},0)/60);
+document.getElementById('seriesSummary').innerHTML=`<div class="sum-card"><div class="sum-lbl">Total</div><div class="sum-val">${D.series.length}</div></div>
+<div class="sum-card"><div class="sum-lbl">Watched</div><div class="sum-val">${watchedCount}/${D.series.length}</div></div>
+<div class="sum-card"><div class="sum-lbl">Hours watched</div><div class="sum-val">${seriesHrs}h</div></div>
+<div class="sum-card"><div class="sum-lbl">Avg mine</div><div class="sum-val" style="color:var(--amber)">${rated.length?F(avgMy,1):'\u2014'}/10</div></div>`;
+const grid=document.getElementById('seriesGrid');grid.innerHTML='';
+list.forEach(s=>{const idx=s._i;
+let sc,st;
+if(s.watched==='Entera'||s.watched==='Finished'){sc='var(--green)';st='Finished'}
+else if(s.watched==='Al d\u00eda'||s.watched==='Up to date'){sc='var(--blue)';st='Up to date'}
+else if(s.wantFinish==='Volver a verla'||s.wantFinish==='Rewatch'){sc='var(--cyan)';st='Rewatch'}
+else if(s.wantFinish==='No'){sc='var(--red)';st='Dropped'}
+else if(s.wantFinish==='\u0053\u00ed'||s.wantFinish==='Yes'){sc='var(--amber)';st=s.watched||'In progress'}
+else if(s.watched&&s.watched!==''){sc='var(--amber)';st=s.watched}
+else if(!s.watched&&!s.myRating){sc='var(--text-muted)';st='Watchlist'}
+else{sc='var(--text-dim)';st=s.watched||'Unknown'}
+grid.innerHTML+=`<div class="m-card" ${_authed?'data-edit-type="serie" data-edit-idx="'+idx+'" style="cursor:pointer"':''}>
+<div class="m-card-top"><div class="m-card-title">${s.title}</div>
+<div class="m-card-rating" style="color:${ratingColor(s.myRating)}">${s.myRating!=null?s.myRating:'<span style="color:var(--text-muted);font-size:12px">\u2014</span>'}</div></div>
+<div class="m-card-meta"><span style="color:${sc};font-weight:600">${st}</span>
+ \u00b7 ${s.seasons} season${s.seasons>1?'s':''} \u00b7 ${s.epLength} \u00b7 ${s.platform} \u00b7 ${s.years}
+${s.imdbRating?' \u00b7 <span style="color:var(--text-muted)">IMDB: '+s.imdbRating+'</span>':''}</div>
+${s.opinion?`<div class="m-card-opinion">${s.opinion}</div>`:''}
+</div>`})}
+
+// ============================================================
+//  MODALS: ADD / EDIT (unchanged from original)
+// ============================================================
+function openEditModal(type, idx){
+if(!_authed)return;
+const m=document.getElementById('mod');let f='';
+if(type==='book'){const b=D.books[idx];
+f=`<h2>Edit Book</h2>
+<div class="fg"><label>Title</label><input id="eTitle" value="${(b.title||'').replace(/"/g,'&quot;')}"></div>
+<div class="fg"><label>Author</label><input id="eAuthor" value="${(b.author||'').replace(/"/g,'&quot;')}"></div>
+<div class="fg"><label>Goodreads rating</label><input type="number" id="eGr" step="0.01" value="${b.grRating||''}"></div>
+<div class="fg"><label>Pages</label><input type="number" id="ePages" value="${b.pages||''}"></div>
+<div class="fg"><label>Year</label><input id="eYear" value="${b.year||''}"></div>
+<div class="fg"><label>My rating (0-5)</label><input type="number" id="eMy" step="0.25" min="0" max="5" value="${b.myRating!=null?b.myRating:''}"></div>
+<div class="fg"><label>Opinion</label><textarea id="eOp">${b.opinion||''}</textarea></div>
+<div class="m-btns"><button class="btn btn-r" onclick="if(confirm('Delete this book?')){D.books.splice(${idx},1);closeModal();renderBooks();saveAndSync()}">Delete</button>
+<button class="btn" onclick="closeModal()">Cancel</button>
+<button class="btn btn-g" onclick="D.books[${idx}]={title:document.getElementById('eTitle').value,author:document.getElementById('eAuthor').value,grRating:parseFloat(document.getElementById('eGr').value)||0,pages:parseInt(document.getElementById('ePages').value)||0,year:document.getElementById('eYear').value,myRating:document.getElementById('eMy').value?parseFloat(document.getElementById('eMy').value):null,opinion:document.getElementById('eOp').value};closeModal();renderBooks();saveAndSync()">Save</button></div>`}
+else if(type==='movie'){const mv=D.movies[idx];
+f=`<h2>Edit Movie</h2>
+<div class="fg"><label>Title</label><input id="eTitle" value="${(mv.title||'').replace(/"/g,'&quot;')}"></div>
+<div class="fg"><label>Director</label><input id="eDir" value="${(mv.director||'').replace(/"/g,'&quot;')}"></div>
+<div class="fg"><label>Filmaffinity rating</label><input type="number" id="eFa" step="0.1" value="${mv.faRating||''}"></div>
+<div class="fg"><label>My rating (0-10)</label><input type="number" id="eMy" step="0.25" min="0" max="10" value="${mv.myRating!=null?mv.myRating:''}"></div>
+<div class="fg"><label>Duration</label><input id="eDur" value="${mv.duration||''}"></div>
+<div class="fg"><label>Year</label><input type="number" id="eYear" value="${mv.year||''}"></div>
+<div class="fg"><label>Platform</label><input id="ePlat" value="${(mv.platform||'').replace(/"/g,'&quot;')}"></div>
+<div class="fg"><label>Actors</label><input id="eAct" value="${(mv.actors||'').replace(/"/g,'&quot;')}"></div>
+<div class="fg"><label>Opinion</label><textarea id="eOp">${mv.opinion||''}</textarea></div>
+<div class="m-btns"><button class="btn btn-r" onclick="if(confirm('Delete this movie?')){D.movies.splice(${idx},1);closeModal();renderMovies();saveAndSync()}">Delete</button>
+<button class="btn" onclick="closeModal()">Cancel</button>
+<button class="btn btn-g" onclick="D.movies[${idx}]={title:document.getElementById('eTitle').value,director:document.getElementById('eDir').value,faRating:parseFloat(document.getElementById('eFa').value)||0,myRating:document.getElementById('eMy').value?parseFloat(document.getElementById('eMy').value):null,duration:document.getElementById('eDur').value,year:parseInt(document.getElementById('eYear').value)||0,platform:document.getElementById('ePlat').value,actors:document.getElementById('eAct').value,opinion:document.getElementById('eOp').value};closeModal();renderMovies();saveAndSync()">Save</button></div>`}
+else if(type==='serie'){const s=D.series[idx];
+f=`<h2>Edit Series</h2>
+<div class="fg"><label>Title</label><input id="eTitle" value="${(s.title||'').replace(/"/g,'&quot;')}"></div>
+<div class="fg"><label>IMDB rating</label><input type="number" id="eImdb" step="0.1" value="${s.imdbRating||''}"></div>
+<div class="fg"><label>Seasons</label><input type="number" id="eSeasons" value="${s.seasons||''}"></div>
+<div class="fg"><label>Ep length</label><input id="eEpLen" value="${s.epLength||''}"></div>
+<div class="fg"><label>Platform</label><input id="ePlat" value="${(s.platform||'').replace(/"/g,'&quot;')}"></div>
+<div class="fg"><label>Years</label><input id="eYears" value="${s.years||''}"></div>
+<div class="fg"><label>Watched</label><input id="eWatched" value="${(s.watched||'').replace(/"/g,'&quot;')}" placeholder="Finished / 3 seasons / Up to date"></div>
+<div class="fg"><label>My rating (0-10)</label><input type="number" id="eMy" step="0.25" min="0" max="10" value="${s.myRating!=null?s.myRating:''}"></div>
+<div class="fg"><label>Want to finish?</label><select id="eWant"><option value="">-</option><option value="Yes" ${s.wantFinish==='S\u00ed'||s.wantFinish==='Yes'?'selected':''}>Yes</option><option value="No" ${s.wantFinish==='No'?'selected':''}>No</option><option value="Rewatch" ${s.wantFinish==='Volver a verla'||s.wantFinish==='Rewatch'?'selected':''}>Rewatch</option></select></div>
+<div class="fg"><label>Opinion</label><textarea id="eOp">${s.opinion||''}</textarea></div>
+<div class="m-btns"><button class="btn btn-r" onclick="if(confirm('Delete this series?')){D.series.splice(${idx},1);closeModal();renderSeries();saveAndSync()}">Delete</button>
+<button class="btn" onclick="closeModal()">Cancel</button>
+<button class="btn btn-g" onclick="D.series[${idx}]={title:document.getElementById('eTitle').value,imdbRating:parseFloat(document.getElementById('eImdb').value)||0,seasons:parseInt(document.getElementById('eSeasons').value)||1,epsPerSeason:'',epLength:document.getElementById('eEpLen').value,platform:document.getElementById('ePlat').value,years:document.getElementById('eYears').value,watched:document.getElementById('eWatched').value,myRating:document.getElementById('eMy').value?parseFloat(document.getElementById('eMy').value):null,wantFinish:document.getElementById('eWant').value,opinion:document.getElementById('eOp').value};closeModal();renderSeries();saveAndSync()">Save</button></div>`}
+else if(type==='cash'){
+f=`<h2>Edit Cash & Totals</h2>
+<div class="fg"><label>Cash (EUR)</label><input type="number" id="eCash" step="0.01" value="${D.cash}"></div>
+<div class="fg"><label>Total invested (EUR)</label><input type="number" id="eInvested" step="1" value="${D.totalInvested}"></div>
+<div class="m-btns"><button class="btn" onclick="closeModal()">Cancel</button>
+<button class="btn btn-g" onclick="(function(){const c=parseFloat(document.getElementById('eCash').value);const t=parseFloat(document.getElementById('eInvested').value);if(!isNaN(c)&&c>=0)D.cash=c;if(!isNaN(t)&&t>=0)D.totalInvested=t;closeModal();renderPortfolio();saveAndSync()})()">Save</button></div>`}
+else if(type==='holding'){const h=D.holdings[idx];
+f=`<h2>Edit Position</h2>
+<div class="fg"><label>Ticker</label><input id="eHTicker" value="${(h.ticker||'').replace(/"/g,'&quot;')}"></div>
+<div class="fg"><label>Name</label><input id="eHName" value="${(h.name||'').replace(/"/g,'&quot;')}"></div>
+<div class="fg"><label>Shares</label><input type="number" id="eHShares" value="${h.shares||''}"></div>
+<div class="fg"><label>Entry price (${h.currency})</label><input type="number" id="eHEntry" step="0.0001" value="${h.entryPrice||''}"></div>
+<div class="fg"><label>Currency</label><select id="eHCur"><option ${h.currency==='USD'?'selected':''}>USD</option><option ${h.currency==='CAD'?'selected':''}>CAD</option><option ${h.currency==='GBP'?'selected':''}>GBP</option><option ${h.currency==='EUR'?'selected':''}>EUR</option></select></div>
+<div class="fg"><label>Exchange</label><input id="eHExch" value="${(h.exchange||'').replace(/"/g,'&quot;')}"></div>
+<div class="fg"><label>Color</label><input id="eHColor" value="${h.color||'#5588ff'}"></div>
+<div class="fg"><label>Dividends received (total, ${h.currency})</label><input type="number" id="eHDiv" step="0.01" value="${h.dividends||''}"></div>
+<div class="m-btns"><button class="btn btn-r" onclick="if(confirm('Delete this position?')){D.holdings.splice(${idx},1);closeModal();renderPortfolio();saveAndSync()}">Delete</button>
+<button class="btn" onclick="closeModal()">Cancel</button>
+<button class="btn btn-g" onclick="D.holdings[${idx}]={...D.holdings[${idx}],ticker:document.getElementById('eHTicker').value.toUpperCase(),name:document.getElementById('eHName').value,shares:parseInt(document.getElementById('eHShares').value)||0,entryPrice:parseFloat(document.getElementById('eHEntry').value)||0,currency:document.getElementById('eHCur').value,exchange:document.getElementById('eHExch').value,color:document.getElementById('eHColor').value,dividends:parseFloat(document.getElementById('eHDiv').value)||0};closeModal();renderPortfolio();saveAndSync()">Save</button></div>`}
+else if(type==='trade'){const t=D.closedTrades[idx];
+f=`<h2>Edit Trade</h2>
+<div class="fg"><label>Ticker</label><input id="eTTicker" value="${(t.ticker||'').replace(/"/g,'&quot;')}"></div>
+<div class="fg"><label>Name</label><input id="eTName" value="${(t.name||'').replace(/"/g,'&quot;')}"></div>
+<div class="fg"><label>Currency</label><select id="eTCur"><option ${t.currency==='EUR'?'selected':''}>EUR</option><option ${t.currency==='USD'?'selected':''}>USD</option><option ${t.currency==='CAD'?'selected':''}>CAD</option><option ${t.currency==='GBP'?'selected':''}>GBP</option></select></div>
+<div class="fg"><label>Total shares</label><input type="number" id="eTShares" value="${t.totalShares||''}"></div>
+<div class="fg"><label>Avg buy price</label><input type="number" id="eTBuy" step="0.0001" value="${t.avgBuy||''}"></div>
+<div class="fg"><label>Sell price</label><input type="number" id="eTSell" step="0.0001" value="${t.sellPrice||''}"></div>
+<div class="fg"><label>Lots</label><input id="eTLots" value="${(t.lots||'').replace(/"/g,'&quot;')}"></div>
+<div class="fg"><label>Color</label><input id="eTColor" value="${t.color||'#667788'}"></div>
+<div class="fg"><label>Dividends received (total, ${t.currency})</label><input type="number" id="eTDiv" step="0.01" value="${t.dividends||''}"></div>
+<div class="m-btns"><button class="btn btn-r" onclick="if(confirm('Delete this trade?')){D.closedTrades.splice(${idx},1);closeModal();renderTrades();saveAndSync()}">Delete</button>
+<button class="btn" onclick="closeModal()">Cancel</button>
+<button class="btn btn-g" onclick="D.closedTrades[${idx}]={...D.closedTrades[${idx}],ticker:document.getElementById('eTTicker').value.toUpperCase(),name:document.getElementById('eTName').value,currency:document.getElementById('eTCur').value,totalShares:parseInt(document.getElementById('eTShares').value)||0,avgBuy:parseFloat(document.getElementById('eTBuy').value)||0,sellPrice:parseFloat(document.getElementById('eTSell').value)||0,lots:document.getElementById('eTLots').value,color:document.getElementById('eTColor').value,dividends:parseFloat(document.getElementById('eTDiv').value)||0};closeModal();renderTrades();saveAndSync()">Save</button></div>`}
+else if(type==='gym'){const gIdx=D.gym.findIndex(x=>x.date===idx);const g=D.gym[gIdx];if(!g)return;
+f=`<h2>Edit Entry</h2>
+<div class="fg"><label>Date</label><input type="date" id="eGDate" value="${g.date||''}"></div>
+<div class="fg"><label>Weight (kg)</label><input type="number" id="eGWeight" step="0.1" value="${g.weight!=null?g.weight:''}"></div>
+<div class="fg"><label>Body Fat (%)</label><input type="number" id="eGBf" step="0.1" value="${g.bf!=null?g.bf:''}"></div>
+<div class="m-btns"><button class="btn btn-r" onclick="if(confirm('Delete this entry?')){D.gym.splice(${gIdx},1);closeModal();renderGym();saveAndSync()}">Delete</button>
+<button class="btn" onclick="closeModal()">Cancel</button>
+<button class="btn btn-g" onclick="(function(){const nd=document.getElementById('eGDate').value;const nw=parseFloat(document.getElementById('eGWeight').value);const nb=parseFloat(document.getElementById('eGBf').value);D.gym[${gIdx}]={date:nd||'${g.date}',weight:isNaN(nw)?null:nw,bf:isNaN(nb)?null:nb};D.gym.sort((a,b)=>a.date.localeCompare(b.date));closeModal();renderGym();saveAndSync()})()">Save</button></div>`}
+m.innerHTML=f;document.getElementById('ov').classList.add('open')}
+
+function closeModal(){document.getElementById('ov').classList.remove('open')}
+
+function openAddModal(type){
+  const m=document.getElementById('mod');let f='';
+  if(type==='book'){f=`<h2>Add Book</h2>
+<div class="fg"><label>Title</label><input id="aTitle"></div><div class="fg"><label>Author</label><input id="aAuthor"></div>
+<div class="fg"><label>Goodreads rating</label><input type="number" id="aGr" step="0.01"></div><div class="fg"><label>Pages</label><input type="number" id="aPages"></div>
+<div class="fg"><label>Year</label><input id="aYear"></div><div class="fg"><label>My rating (0-5)</label><input type="number" id="aMy" step="0.25" min="0" max="5"></div>
+<div class="fg"><label>Opinion</label><textarea id="aOp"></textarea></div>
+<div class="m-btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-g" onclick="saveAdd('book')">Add</button></div>`}
+  else if(type==='movie'){f=`<h2>Add Movie</h2>
+<div class="fg"><label>Title</label><input id="aTitle"></div><div class="fg"><label>Director</label><input id="aDir"></div>
+<div class="fg"><label>Filmaffinity rating</label><input type="number" id="aFa" step="0.1"></div><div class="fg"><label>Duration</label><input id="aDur" placeholder="2h 30 min"></div>
+<div class="fg"><label>Year</label><input type="number" id="aYear"></div><div class="fg"><label>Platform</label><input id="aPlat"></div>
+<div class="fg"><label>Actors</label><input id="aAct"></div><div class="fg"><label>Opinion</label><textarea id="aOp"></textarea></div>
+<div class="m-btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-g" onclick="saveAdd('movie')">Add</button></div>`}
+  else if(type==='serie'){f=`<h2>Add Series</h2>
+<div class="fg"><label>Title</label><input id="aTitle"></div><div class="fg"><label>IMDB rating</label><input type="number" id="aImdb" step="0.1"></div>
+<div class="fg"><label>Seasons</label><input type="number" id="aSeasons"></div><div class="fg"><label>Ep length</label><input id="aEpLen" placeholder="1h"></div>
+<div class="fg"><label>Platform</label><input id="aPlat"></div><div class="fg"><label>Years</label><input id="aYears" placeholder="2020-2024"></div>
+<div class="fg"><label>Watched</label><input id="aWatched" placeholder="Finished / 2 seasons / Up to date"></div>
+<div class="fg"><label>My rating (0-10)</label><input type="number" id="aMy" step="0.25" min="0" max="10"></div>
+<div class="fg"><label>Want to finish?</label><select id="aWant"><option value="">-</option><option value="Yes">Yes</option><option value="No">No</option><option value="Rewatch">Rewatch</option></select></div>
+<div class="fg"><label>Opinion</label><textarea id="aOp"></textarea></div>
+<div class="m-btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-g" onclick="saveAdd('serie')">Add</button></div>`}
+  else if(type==='trade'){f=`<h2>Add Closed Trade</h2>
+<div class="fg"><label>Ticker</label><input id="aTicker"></div><div class="fg"><label>Name</label><input id="aName"></div>
+<div class="fg"><label>Currency</label><select id="aCur"><option>EUR</option><option>USD</option><option>CAD</option><option>GBP</option></select></div>
+<div class="fg"><label>Total shares</label><input type="number" id="aShares"></div>
+<div class="fg"><label>Avg buy price</label><input type="number" id="aAvgBuy" step="0.0001"></div>
+<div class="fg"><label>Sell price</label><input type="number" id="aSell" step="0.0001"></div>
+<div class="fg"><label>Lots (optional)</label><input id="aLots" placeholder="100@5.00 + 50@5.50"></div>
+<div class="fg"><label>Color</label><input id="aColor" value="#667788"></div>
+<div class="fg"><label>Dividends received (total, in selected currency)</label><input type="number" id="aDiv" step="0.01"></div>
+<div class="m-btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-g" onclick="saveAdd('trade')">Add</button></div>`}
+  else if(type==='holding'){f=`<h2>Add Position</h2>
+<div class="fg"><label>Ticker</label><input id="aHTicker"></div>
+<div class="fg"><label>Name</label><input id="aHName"></div>
+<div class="fg"><label>Currency</label><select id="aHCur"><option>USD</option><option>CAD</option><option>GBP</option><option>EUR</option></select></div>
+<div class="fg"><label>Exchange</label><input id="aHExch" placeholder="NYSE / LSE / TSX"></div>
+<div class="fg"><label>Shares</label><input type="number" id="aHShares"></div>
+<div class="fg"><label>Entry price</label><input type="number" id="aHEntry" step="0.0001"></div>
+<div class="fg"><label>Color</label><input id="aHColor" value="#5588ff"></div>
+<div class="fg"><label>Dividends received (total, in selected currency)</label><input type="number" id="aHDiv" step="0.01"></div>
+<div class="m-btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-g" onclick="saveAdd('holding')">Add</button></div>`}
+  m.innerHTML=f;document.getElementById('ov').classList.add('open')}
+
+function saveAdd(type){
+  if(type==='book'){const t=document.getElementById('aTitle').value;if(!t)return;
+    D.books.push({title:t,author:document.getElementById('aAuthor').value,grRating:parseFloat(document.getElementById('aGr').value)||0,
+    pages:parseInt(document.getElementById('aPages').value)||0,year:document.getElementById('aYear').value,
+    myRating:document.getElementById('aMy').value?parseFloat(document.getElementById('aMy').value):null,opinion:document.getElementById('aOp').value});
+    renderBooks()}
+  else if(type==='movie'){const t=document.getElementById('aTitle').value;if(!t)return;
+    D.movies.push({title:t,director:document.getElementById('aDir').value,faRating:parseFloat(document.getElementById('aFa').value)||0,
+    duration:document.getElementById('aDur').value,year:parseInt(document.getElementById('aYear').value)||0,
+    platform:document.getElementById('aPlat').value,actors:document.getElementById('aAct').value,opinion:document.getElementById('aOp').value});
+    renderMovies()}
+  else if(type==='serie'){const t=document.getElementById('aTitle').value;if(!t)return;
+    D.series.push({title:t,imdbRating:parseFloat(document.getElementById('aImdb').value)||0,seasons:parseInt(document.getElementById('aSeasons').value)||1,
+    epsPerSeason:'',epLength:document.getElementById('aEpLen').value,platform:document.getElementById('aPlat').value,
+    years:document.getElementById('aYears').value,watched:document.getElementById('aWatched').value,
+    myRating:document.getElementById('aMy').value?parseFloat(document.getElementById('aMy').value):null,
+    wantFinish:document.getElementById('aWant').value,opinion:document.getElementById('aOp').value});
+    renderSeries()}
+  else if(type==='trade'){const tk=document.getElementById('aTicker').value;if(!tk)return;
+    D.closedTrades.push({ticker:tk.toUpperCase(),name:document.getElementById('aName').value,currency:document.getElementById('aCur').value,
+    color:document.getElementById('aColor').value,totalShares:parseInt(document.getElementById('aShares').value)||0,
+    avgBuy:parseFloat(document.getElementById('aAvgBuy').value)||0,sellPrice:parseFloat(document.getElementById('aSell').value)||0,
+    dividends:parseFloat(document.getElementById('aDiv').value)||0,lots:document.getElementById('aLots').value});
+    renderTrades()}
+  else if(type==='holding'){const tk=document.getElementById('aHTicker').value;if(!tk)return;
+    D.holdings.push({ticker:tk.toUpperCase(),name:document.getElementById('aHName').value,currency:document.getElementById('aHCur').value,
+    exchange:document.getElementById('aHExch').value,shares:parseInt(document.getElementById('aHShares').value)||0,
+    entryPrice:parseFloat(document.getElementById('aHEntry').value)||0,color:document.getElementById('aHColor').value,dividends:parseFloat(document.getElementById('aHDiv').value)||0});
+    renderPortfolio()}
+  closeModal();saveAndSync()}
+
+// ============================================================
+//  INIT
+// ============================================================
+document.addEventListener('click',function(e){
+  if(!_authed)return;
+  const card=e.target.closest('.m-card[data-edit-type]');
+  if(card){openEditModal(card.dataset.editType,parseInt(card.dataset.editIdx));return}
+  const stock=e.target.closest('.stock[data-edit-type]');
+  if(stock){
+    if(stock.dataset.editType==='cash')openEditModal('cash',0);
+    else openEditModal('holding',parseInt(stock.dataset.editIdx));
+    return
+  }
+  const row=e.target.closest('tr[data-edit-type]');
+  if(row){
+    if(row.dataset.editType==='trade')openEditModal('trade',parseInt(row.dataset.editIdx));
+    else if(row.dataset.editType==='gym')openEditModal('gym',row.dataset.editDate);
+  }
+});
+
+async function init(){
+  loadData();
+  refreshPortfolio();
+  renderTrades();renderGym();renderBooks();renderMovies();renderSeries();renderHistory();
+  document.getElementById('gymDate').value=new Date().toISOString().slice(0,10);
+  setInterval(refreshPortfolio,60000);
+  fetchDataFromCloud().then(ok=>{
+    if(ok){renderPortfolio();renderTrades();renderGym();renderBooks();renderMovies();renderSeries();renderHistory()}
+    if(!_cloudReady){updateSyncStatus('local')}
+  });
+  document.addEventListener('visibilitychange', async ()=>{
+    if(document.visibilityState==='visible' && _cloudReady){
+      const ok = await fetchDataFromCloud();
+      if(ok){renderPortfolio();renderTrades();renderGym();renderBooks();renderMovies();renderSeries();renderHistory()}
+    }
+  });
+}
+init();
+
+</script>
+</body>
+</html>
