@@ -207,20 +207,12 @@ async function fetchDataFromCloud(){
     const j = JSON.parse(text);
     if(j && j.holdings){
       _cloudReady = true;
-      const localTs = D.lastModified || 0;
-      const cloudTs = j.lastModified || 0;
       const hadLocalHistory = (D.history && D.history.length) || 0;
-      if(cloudTs >= localTs){
-        // Cloud is newer or equal: full load + merge history
-        loadDataFromObj(j, true);
-      } else {
-        // Local is newer: only merge history, keep everything else
-        D.history = _mergeHistory(D.history, j.history || []);
-      }
+      loadDataFromObj(j, true);
       const merged = buildDataObj();
       localStorage.setItem('db_data', JSON.stringify(merged));
       // If merge added local entries the cloud didn't have, push back
-      if(hadLocalHistory && D.history.length > (j.history||[]).length || localTs > cloudTs){
+      if(hadLocalHistory && D.history.length > (j.history||[]).length){
         pushDataToCloud();
       }
       updateSyncStatus('ok');
@@ -279,12 +271,11 @@ async function _verifySync(){
 }
 
 function buildDataObj(){
-  return {holdings:D.holdings, cash:D.cash, totalInvested:D.totalInvested, closedTrades:D.closedTrades, history:D.history, gym:D.gym, books:D.books, movies:D.movies, series:D.series, lastModified:D.lastModified};
+  return {holdings:D.holdings, cash:D.cash, totalInvested:D.totalInvested, closedTrades:D.closedTrades, history:D.history, gym:D.gym, books:D.books, movies:D.movies, series:D.series};
 }
 
 let _cloudReady = false;
 async function saveAndSync(){
-  D.lastModified = Date.now();
   localStorage.setItem('db_data', JSON.stringify(buildDataObj()));
   if(_authed) await pushDataToCloud();
 }
@@ -346,7 +337,6 @@ function loadDataFromObj(obj, merge){
   D.books = obj.books || FALLBACK.books;
   D.movies = obj.movies || FALLBACK.movies;
   D.series = obj.series || FALLBACK.series;
-  D.lastModified = obj.lastModified || 0;
 }
 
 function loadData(){
