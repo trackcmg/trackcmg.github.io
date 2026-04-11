@@ -115,7 +115,9 @@ async function _verifySync() {
 }
 
 // Guarda localmente y, si está autenticado, también en la nube
+// Retorna true si la sincronización en la nube fue exitosa (o si no hay auth).
 export async function saveAndSync() {
   saveLocal();
-  if (_authed) await pushDataToCloud();
+  if (_authed) return await pushDataToCloud();
+  return true;
 }

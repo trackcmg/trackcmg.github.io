@@ -5,6 +5,7 @@ import { D } from './state.js';
 import { _authed } from './state.js';
 import { F, ttOpts, legOpts } from './utils.js';
 import { saveAndSync } from './cloud.js';
+import { toast } from './utils.js';
 
 let CH = {};
 
@@ -12,8 +13,8 @@ export function addGymEntry() {
   const date = document.getElementById('gymDate').value;
   const w = parseFloat(document.getElementById('gymWeight').value);
   const bf = parseFloat(document.getElementById('gymBf').value);
-  if (!date) { alert('Select a date'); return; }
-  if (isNaN(w) && isNaN(bf)) { alert('Enter weight or body fat'); return; }
+  if (!date) { toast('Select a date first', 'err'); return; }
+  if (isNaN(w) && isNaN(bf)) { toast('Enter weight or body fat %', 'err'); return; }
   const entry = { date, weight: isNaN(w) ? null : w, bf: isNaN(bf) ? null : bf };
   const idx = D.gym.findIndex(g => g.date === date);
   if (idx >= 0) D.gym[idx] = entry;

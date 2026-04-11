@@ -120,3 +120,12 @@ td{padding:10px 14px;border-bottom:1px solid var(--border);font-family:'IBM Plex
 .stock-skeleton .sk-block{height:32px;border-radius:4px}
 /* FX strip skeleton */
 .fx-skeleton{height:14px;width:60px;border-radius:4px;display:inline-block}
+
+/* ── Fase 4: Admin Mode ───────────────────────────────────── */
+/* Inline form validation error */
+.form-err{color:var(--red);font-size:12px;margin-bottom:10px;font-family:'IBM Plex Mono',monospace;display:none}
+/* Amber action button (e.g. Close Position) */
+.btn-amber{background:var(--amber-bg);color:var(--amber);border-color:rgba(255,170,34,.2)}
+.btn-amber:hover{background:rgba(255,170,34,.15)}
+/* Disabled button state */
+.btn:disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
