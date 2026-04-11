@@ -46,16 +46,22 @@ export function renderTrades() {
     <div class="sum-card"><div class="sum-lbl">Return %</div><div class="sum-val ${nP ? 'up' : 'dn'}">${tI > 0 ? (nP ? '+' : '') + F((tNet / tI) * 100) + '%' : '\u2014'}</div></div>`;
 
   let rows = '';
+  // Detectar si algún trade tiene fechas o broker para mostrar columnas extra
+  const hasDate   = D.closedTrades.some(t => t.sellDate);
+  const hasBroker = D.closedTrades.some(t => t.broker);
   D.closedTrades.forEach((t, idx) => {
     const c = calcTrade(t);
     const pos = c.net >= 0;
     const curTag = t.currency !== 'EUR' ? `<span style="font-size:9px;color:var(--text-muted)"> ${t.currency}</span>` : '';
-    rows += `<tr ${_authed ? `data-edit-type="trade" data-edit-idx="${idx}" style="cursor:pointer"` : ''}>
+    const editAttrs = _authed ? `data-edit-type="trade" data-edit-idx="${idx}"` : '';
+    rows += `<tr ${editAttrs} data-trade-idx="${idx}" style="cursor:pointer">
       <td><span style="color:${t.color};font-weight:600">${t.ticker}</span>${curTag}</td>
       <td style="white-space:normal">${t.name}</td>
       <td>${t.totalShares.toLocaleString('de-DE')}</td>
       <td>${F(c.rawBuy)}${curTag}</td>
       <td>${F(c.rawSell)}${curTag}</td>
+      ${hasDate   ? `<td style="font-size:11px;color:var(--text-dim)">${t.sellDate || '\u2014'}</td>` : ''}
+      ${hasBroker ? `<td style="font-size:11px;color:var(--text-dim)">${t.broker || '\u2014'}</td>` : ''}
       <td>${F(c.inv)} \u20ac</td>
       <td class="${c.grossPL >= 0 ? 'up' : 'dn'}">${c.grossPL >= 0 ? '+' : ''}${F(c.grossPL)} \u20ac</td>
       <td class="up">${c.divN > 0 ? '+' + F(c.divN) + ' \u20ac' : '\u2014'}</td>
@@ -65,10 +71,10 @@ export function renderTrades() {
   });
 
   document.getElementById('tradesTable').innerHTML = `
-    <table><thead><tr><th>Ticker</th><th>Name</th><th>Shares</th><th>Avg Buy</th><th>Sell</th><th>Invested</th><th>Gross P&L</th><th>Div</th><th>Net</th><th>Return</th></tr></thead>
+    <table><thead><tr><th>Ticker</th><th>Name</th><th>Shares</th><th>Avg Buy</th><th>Sell</th>${hasDate ? '<th>Sell Date</th>' : ''}${hasBroker ? '<th>Broker</th>' : ''}<th>Invested</th><th>Gross P&L</th><th>Div</th><th>Net</th><th>Return</th></tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr class="tbl-foot">
-      <td colspan="5" style="font-weight:600">TOTAL</td>
+      <td colspan="${5 + (hasDate?1:0) + (hasBroker?1:0)}" style="font-weight:600">TOTAL</td>
       <td>${F(tI)}</td>
       <td class="${tG >= 0 ? 'up' : 'dn'}">${tG >= 0 ? '+' : ''}${F(tG)}</td>
       <td class="up">${tDN > 0 ? '+' + F(tDN) : '\u2014'}</td>
@@ -118,4 +124,44 @@ export function renderTrades() {
       }
     }
   });
+}
+
+// ── Accordion inline: detalle de trade cerrado (siempre visible) ──
+export function toggleTradeDetail(rowEl, tradeIdx) {
+  const next = rowEl.nextElementSibling;
+  const alreadyOpen = next && next.classList.contains('trade-detail-row') && next.dataset.detailFor == tradeIdx;
+
+  // Cerrar todos los paneles abiertos de trades
+  document.querySelectorAll('tr.trade-detail-row').forEach(r => r.remove());
+  document.querySelectorAll('tr.trade-acc-open').forEach(r => r.classList.remove('trade-acc-open'));
+
+  if (alreadyOpen) return; // toggle off
+
+  const t = D.closedTrades[tradeIdx];
+  if (!t) return;
+  const c = calcTrade(t);
+  const pos = c.net >= 0;
+  const card = (lbl, val, cls) => `<div class="sum-card" style="padding:10px"><div class="sum-lbl">${lbl}</div><div class="sum-val ${cls || ''}" style="font-size:13px">${val}</div></div>`;
+
+  const detailRow = document.createElement('tr');
+  detailRow.className = 'trade-detail-row';
+  detailRow.dataset.detailFor = tradeIdx;
+  detailRow.innerHTML = `<td colspan="99">
+    <div class="td-grid">
+      ${card('Avg Buy Price', F(c.rawBuy) + '\u00a0' + t.currency)}
+      ${card('Sell Price', F(c.rawSell) + '\u00a0' + t.currency)}
+      ${t.buyDate ? card('Buy Date', t.buyDate) : ''}
+      ${t.sellDate ? card('Sell Date', t.sellDate) : ''}
+      ${card('Invested', F(c.inv) + '\u00a0\u20ac')}
+      ${card('Gross P&L', (c.grossPL >= 0 ? '+' : '') + F(c.grossPL) + '\u00a0\u20ac', c.grossPL >= 0 ? 'up' : 'dn')}
+      ${c.divN > 0 ? card('Dividends', '+' + F(c.divN) + '\u00a0\u20ac', 'up') : ''}
+      ${card('Net P&L', (pos ? '+' : '') + F(c.net) + '\u00a0\u20ac', pos ? 'up' : 'dn')}
+      ${card('Return %', (pos ? '+' : '') + F(c.pct) + '%', pos ? 'up' : 'dn')}
+      ${t.sector ? card('Sector', t.sector) : ''}
+      ${t.broker ? card('Broker', t.broker) : ''}
+    </div>
+  </td>`;
+
+  rowEl.classList.add('trade-acc-open');
+  rowEl.parentNode.insertBefore(detailRow, rowEl.nextSibling);
 }

@@ -44,12 +44,14 @@ document.addEventListener('click', function (e) {
 });
 
 // ── Helpers de FX ───────────────────────────────────────────
-export function fxR(c) { return c === 'EUR' ? 1 : (FX[c] || 0); }
+const _FX_FALLBACK = { USD: 0.92, CAD: 0.68, GBP: 1.17 };
+export function fxR(c) { return c === 'EUR' ? 1 : (FX[c] || _FX_FALLBACK[c] || 1); }
 export function valEur(h) {
   const d = P[h.ticker];
   if (!d || !isFinite(d.price)) return 0;
   return d.price * h.shares * fxR(h.currency);
 }
+export function getPriceData(ticker) { return P[ticker] || null; }
 
 // ── Fetch interno a través del GAS proxy ────────────────────
 async function pFetch(u) {
@@ -74,20 +76,58 @@ export async function fetchStock(tk) {
     high: his.length ? Math.max(...his) : price,
     low: los.length ? Math.min(...los) : price,
     ts: (result.timestamp || []).map(t => new Date(t * 1000)),
-    cls, _stale: !isFinite(price)
+    cls,
+    wk52High: isFinite(m.fiftyTwoWeekHigh) ? (m.currency && ['GBp','GBX','GBx'].includes(m.currency) ? m.fiftyTwoWeekHigh / 100 : m.fiftyTwoWeekHigh) : null,
+    wk52Low:  isFinite(m.fiftyTwoWeekLow)  ? (m.currency && ['GBp','GBX','GBx'].includes(m.currency) ? m.fiftyTwoWeekLow  / 100 : m.fiftyTwoWeekLow)  : null,
+    _stale: !isFinite(price)
   };
 }
 
+// ── Fundamentales: P/E y Dividend Yield (batch Yahoo v7/quote) ──
+async function fetchFundamentals(tickers) {
+  if (!tickers.length) return {};
+  try {
+    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${tickers.join(',')}`;
+    const data = await pFetch(url);
+    const result = {};
+    (data.quoteResponse?.result || []).forEach(q => {
+      result[q.symbol] = {
+        pe: isFinite(q.trailingPE) ? q.trailingPE : null,
+        divYield: isFinite(q.dividendYield) && q.dividendYield > 0 ? q.dividendYield * 100 : null,
+        wk52High: isFinite(q.fiftyTwoWeekHigh) ? q.fiftyTwoWeekHigh : null,
+        wk52Low:  isFinite(q.fiftyTwoWeekLow)  ? q.fiftyTwoWeekLow  : null,
+      };
+    });
+    return result;
+  } catch (_) { return {}; }
+}
+
 export async function fetchFx() {
+  // Primero: pares FX de Yahoo Finance via proxy (más actualizado)
+  try {
+    const url = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=USDEUR%3DX,CADEUR%3DX,GBPEUR%3DX';
+    const data = await pFetch(url);
+    const found = {};
+    (data.quoteResponse?.result || []).forEach(q => { found[q.symbol] = q.regularMarketPrice; });
+    if (found['USDEUR=X'] && found['CADEUR=X'] && found['GBPEUR=X']) {
+      FX.USD = found['USDEUR=X'];
+      FX.CAD = found['CADEUR=X'];
+      FX.GBP = found['GBPEUR=X'];
+      return;
+    }
+  } catch (e) { /* si el proxy falla, usa fuentes alternativas */ }
+  // Segundo: exchangerate-api.com (libre, sin clave)
   try {
     const d = await (await fetch('https://api.exchangerate-api.com/v4/latest/EUR')).json();
     FX.USD = 1 / d.rates.USD; FX.CAD = 1 / d.rates.CAD; FX.GBP = 1 / d.rates.GBP; return;
   } catch (e) { /* fallback */ }
+  // Tercero: open.er-api.com
   try {
     const d = await (await fetch('https://open.er-api.com/v6/latest/EUR')).json();
     FX.USD = 1 / d.rates.USD; FX.CAD = 1 / d.rates.CAD; FX.GBP = 1 / d.rates.GBP; return;
   } catch (e) { /* noop */ }
-  if (!FX.USD) { FX.USD = 0.86; FX.CAD = 0.63; FX.GBP = 1.17; }
+  // Fallback estático (solo si todo lo anterior falla y no hay valor previo)
+  if (!FX.USD) { FX.USD = 0.92; FX.CAD = 0.68; FX.GBP = 1.17; }
 }
 
 // ── Actualización completa de precios ───────────────────────
@@ -110,6 +150,21 @@ export async function refreshPortfolio() {
     if (r.status === 'fulfilled') P[D.holdings[i].ticker] = r.value;
     else { if (P[D.holdings[i].ticker]) P[D.holdings[i].ticker]._stale = true; allOk = false; }
   });
+
+  // Enriquecer con P/E, Dividend Yield y 52-semanas vía Yahoo v7 (batch)
+  const tks = D.holdings.map(h => h.ticker).filter(Boolean);
+  fetchFundamentals(tks).then(fund => {
+    Object.entries(fund).forEach(([ticker, f]) => {
+      if (P[ticker]) {
+        // v7 52wk prevalece si más preciso; P/E y yield solo de v7
+        if (f.wk52High != null) P[ticker].wk52High = f.wk52High;
+        if (f.wk52Low  != null) P[ticker].wk52Low  = f.wk52Low;
+        P[ticker].pe       = f.pe;
+        P[ticker].divYield = f.divYield;
+      }
+    });
+    renderPortfolio(); // re-render con datos enriquecidos
+  }).catch(() => { /* non-blocking */ });
 
   try {
     localStorage.setItem('pf_p', JSON.stringify(
@@ -218,7 +273,24 @@ function rStocks() {
     el.className = 'stock';
     if (dOk && d._stale) el.style.opacity = '0.7';
     if (!dOk) el.style.opacity = '0.55';
-    if (_authed) { el.dataset.editType = 'holding'; el.dataset.editIdx = hi; el.style.cursor = 'pointer'; }
+    const _inEditMode = document.body.classList.contains('edit-mode');
+    if (_inEditMode) { el.dataset.editType = 'holding'; el.dataset.editIdx = hi; el.style.cursor = 'pointer'; }
+    else { el.dataset.detailIdx = hi; el.style.cursor = 'pointer'; }
+    // ── Barra de rango 52 semanas ────────────────────────────────
+    const has52 = dOk && d.wk52High != null && d.wk52Low != null && d.wk52High > d.wk52Low;
+    const pct52 = has52 ? Math.round(Math.max(0, Math.min(100, (d.price - d.wk52Low) / (d.wk52High - d.wk52Low) * 100))) : null;
+    const wk52html = has52 ? `
+      <div class="s-wk52">
+        <span>${F(d.wk52Low)}</span>
+        <div class="s-wk52-track"><div class="s-wk52-fill" style="width:${pct52}%"></div></div>
+        <span>${F(d.wk52High)}</span>
+      </div>` : '';
+    const fundTags = dOk ? [
+      d.pe       ? `<span class="tag tag-pe">P/E  ${F(d.pe, 1)}</span>` : '',
+      d.divYield ? `<span class="tag tag-yield">Yield ${F(d.divYield, 2)}%</span>` : ''
+    ].join('') : '';
+    const fundHtml = fundTags ? `<div class="s-fund-tags">${fundTags}</div>` : '';
+
     el.innerHTML = `
       <div class="s-top"><div>
         <div class="s-tk">${h.ticker} <span class="tag ${tc}">${h.exchange}</span>${staleTag}${noData}</div>
@@ -231,6 +303,7 @@ function rStocks() {
         <div class="abs ${pos ? 'up' : 'dn'}" style="font-size:11px">${pos ? '+' : ''}${F(chg)} ${h.currency}</div>
         <div style="font-size:10px;color:var(--text-muted);margin-top:4px">${F(d.low)} \u2013 ${F(d.high)}</div>
       </div>` : ''}</div>
+      ${wk52html}${fundHtml}
       <div class="s-meta">
         <div><div class="ml">Shares</div><div class="mv">${h.shares.toLocaleString('de-DE')}</div></div>
         <div><div class="ml">Value (EUR)</div><div class="mv ${dOk ? 'up' : ''}">${dOk ? F(ve) + ' \u20ac' : '--'}</div></div>
@@ -244,10 +317,11 @@ function rStocks() {
   if (D.cash > 0 || _authed) {
     const cel = document.createElement('div');
     cel.className = 'stock';
-    if (_authed) { cel.dataset.editType = 'cash'; cel.style.cursor = 'pointer'; }
+    const _inEditModeCash = document.body.classList.contains('edit-mode');
+    if (_inEditModeCash) { cel.dataset.editType = 'cash'; cel.style.cursor = 'pointer'; }
     cel.innerHTML = `<div class="s-top"><div>
       <div class="s-tk" style="color:#667788">CASH <span class="tag" style="background:rgba(102,119,136,.12);color:#667788">EUR</span></div>
-      <div class="s-nm">Cash & totals${_authed ? ' \u00b7 click to edit' : ''}</div>
+      <div class="s-nm">Cash & totals${_inEditModeCash ? ' \u00b7 click to edit' : ''}</div>
     </div></div>
     <div class="s-pr">${F(D.cash)} <span class="cur">EUR</span></div>`;
     g.appendChild(cel);
@@ -411,4 +485,139 @@ function renderMonthlyTable() {
   pg += `<button class="btn btn-sm" data-monthly-action="next" ${_monthlyPage === _monthlyTotalPages ? 'disabled' : ''}>\u203a</button>`;
   pg += `<button class="btn btn-sm" data-monthly-action="last" ${_monthlyPage === _monthlyTotalPages ? 'disabled' : ''}>\u00bb</button>`;
   document.getElementById('monthlyPag').innerHTML = pg;
+}
+
+// ── Accordion inline: detalle de holding (modo lectura) ──────
+export function toggleHoldingDetail(cardEl, holdingIdx) {
+  const next = cardEl.nextElementSibling;
+  const alreadyOpen = next && next.classList.contains('accordion-pane') && next.dataset.accIdx == holdingIdx;
+
+  // Cerrar todos los paneles existentes
+  document.querySelectorAll('.accordion-pane').forEach(p => p.remove());
+  document.querySelectorAll('.stock.accordion-open').forEach(s => s.classList.remove('accordion-open'));
+
+  if (alreadyOpen) return; // toggle off
+
+  const h = D.holdings[holdingIdx];
+  if (!h) return;
+  const pd = P[h.ticker];
+  const dOk = pd && isFinite(pd.price);
+  const chg = dOk ? pd.price - pd.prev : 0;
+  const pct = dOk && pd.prev ? (chg / pd.prev) * 100 : 0;
+  const pos = chg >= 0;
+  const ve = dOk ? pd.price * h.shares * fxR(h.currency) : 0;
+  const hRoiAbs = dOk ? (pd.price - h.entryPrice) * h.shares * fxR(h.currency) : 0;
+  const hRoiPct = h.entryPrice > 0 ? ((pd.price - h.entryPrice) / h.entryPrice) * 100 : 0;
+  const has52 = dOk && pd.wk52High != null && pd.wk52Low != null && pd.wk52High > pd.wk52Low;
+  const pct52 = has52 ? Math.round(Math.max(0, Math.min(100, (pd.price - pd.wk52Low) / (pd.wk52High - pd.wk52Low) * 100))) : null;
+
+  const closedForTicker = (D.closedTrades || []).filter(t => t.ticker === h.ticker);
+  const histRows = closedForTicker.map(t => {
+    const rp = t.realizedPnl != null ? t.realizedPnl : (t.sellPrice - t.avgBuy) * t.totalShares;
+    const rpPos = rp >= 0;
+    return `<div class="detail-hist-row">
+      <span style="color:var(--text-dim)">${t.sellDate || '—'}</span>
+      <span>${t.totalShares} @ ${F(t.sellPrice)} ${t.currency}</span>
+      <span class="${rpPos ? 'up' : 'dn'}" style="font-weight:600">${rpPos ? '+' : ''}${F(rp)} ${t.currency}</span>
+    </div>`;
+  }).join('') || '<div style="color:var(--text-muted);font-size:12px;padding:6px 0">No closed trades for this ticker</div>';
+
+  const chip = (lbl, val) => val ? `<span class="detail-chip"><span style="opacity:.65">${lbl}</span>\u00a0<strong>${val}</strong></span>` : '';
+
+  const pane = document.createElement('div');
+  pane.className = 'accordion-pane';
+  pane.dataset.accIdx = holdingIdx;
+  pane.innerHTML = `
+    <div class="acc-header">
+      <div>
+        <span class="acc-ticker" style="color:${h.color}">${h.ticker}</span>
+        <span style="font-size:12px;color:var(--text-muted);margin-left:10px">${h.name}</span>
+      </div>
+      <button class="acc-close" id="accClose_${holdingIdx}" title="Close">&#x2715;</button>
+    </div>
+    ${dOk ? `<div style="margin-bottom:10px">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:700">${F(pd.price)} <span style="font-size:12px;color:var(--text-muted)">${h.currency}</span></span>
+      <span style="font-size:13px;font-weight:600;color:var(--${pos ? 'green' : 'red'});margin-left:10px">${pos ? '+' : ''}${F(chg)} &nbsp;${pos ? '+' : ''}${F(pct)}%</span>
+    </div>` : ''}
+    <div class="acc-chips">
+      ${dOk && pd.pe ? `<span class="detail-chip">P/E&nbsp;<strong>${F(pd.pe, 1)}</strong></span>` : ''}
+      ${dOk && pd.divYield ? `<span class="detail-chip">Yield&nbsp;<strong>${F(pd.divYield, 2)}%</strong></span>` : ''}
+      ${has52 ? `<span class="detail-chip" title="Posición del precio actual respecto al rango 52 semanas (Low: ${F(pd.wk52Low)} / High: ${F(pd.wk52High)})">52w&nbsp;${F(pd.wk52Low)}&ndash;${F(pd.wk52High)}&nbsp;(${pct52}%)</span>` : ''}
+      ${chip('Sector', h.sector)}
+      ${chip('Broker', h.broker)}
+      ${chip('Buy date', h.buyDate)}
+    </div>
+    <div class="acc-grid">
+      <div class="sum-card" style="padding:10px"><div class="sum-lbl">Shares</div><div class="sum-val">${h.shares.toLocaleString('de-DE')}</div></div>
+      <div class="sum-card" style="padding:10px"><div class="sum-lbl">Avg Entry</div><div class="sum-val">${F(h.entryPrice)}&nbsp;${h.currency}</div></div>
+      <div class="sum-card" style="padding:10px"><div class="sum-lbl">Value (EUR)</div><div class="sum-val ${dOk ? 'up' : ''}">${dOk ? F(ve) + '\u00a0\u20ac' : '\u2014'}</div></div>
+      <div class="sum-card" style="padding:10px"><div class="sum-lbl">Total Return</div><div class="sum-val ${dOk ? (hRoiAbs >= 0 ? 'up' : 'dn') : ''}">${dOk ? (hRoiAbs >= 0 ? '+' : '') + F(hRoiPct) + '% (' + (hRoiAbs >= 0 ? '+' : '') + F(hRoiAbs) + '\u00a0\u20ac)' : '\u2014'}</div></div>
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Performance &mdash; last 30 days</div>
+      <div class="acc-chart"><canvas id="accChart_${holdingIdx}"></canvas></div>
+    </div>
+    <div class="acc-hist-title" style="margin-top:14px">Closed trades (${h.ticker})</div>
+    ${histRows}`;
+
+  cardEl.classList.add('accordion-open');
+
+  // Insertar el panel después de la ÚLTIMA tarjeta de la misma fila visual,
+  // para que grid-column:1/-1 se renderice correctamente bajo toda la fila.
+  const _insertAfterRow = (clickedCard) => {
+    const grid = clickedCard.parentNode;
+    if (!grid) return clickedCard;
+    const allCards = [...grid.querySelectorAll('.stock')];
+    const clickedTop = clickedCard.getBoundingClientRect().top;
+    // Agrupar cards de la misma fila (misma posición Y ± 5px)
+    const sameRow = allCards.filter(c => Math.abs(c.getBoundingClientRect().top - clickedTop) < 5);
+    return sameRow.length ? sameRow[sameRow.length - 1] : clickedCard;
+  };
+  const lastInRow = _insertAfterRow(cardEl);
+  lastInRow.parentNode.insertBefore(pane, lastInRow.nextSibling);
+
+  document.getElementById(`accClose_${holdingIdx}`)?.addEventListener('click', ev => {
+    ev.stopPropagation();
+    pane.remove();
+    cardEl.classList.remove('accordion-open');
+  });
+
+  _fetchMiniChart(h.ticker, `accChart_${holdingIdx}`, pos);
+}
+
+// ── Fetch mini-chart de 1 mes desde Yahoo y renderiza sparkline ──
+async function _fetchMiniChart(ticker, canvasId, defaultPos) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || typeof Chart === 'undefined') return;
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=1mo&interval=1d`;
+    const r = await fetch(`${PROXY_URL}?url=${encodeURIComponent(url)}`);
+    if (!r.ok) return;
+    const json = await r.json();
+    const result = json.chart?.result?.[0];
+    if (!result) return;
+    const rawCloses = result.indicators.quote[0].close || [];
+    const timestamps = result.timestamp || [];
+    const pairs = rawCloses.map((c, i) => ({ c, ts: timestamps[i] })).filter(p => p.c != null);
+    let data = pairs.map(p => p.c);
+    const labels = pairs.map(p => {
+      const d = new Date(p.ts * 1000);
+      return d.getUTCDate() + '/' + (d.getUTCMonth() + 1);
+    });
+    if (['GBp', 'GBX', 'GBx'].includes(result.meta?.currency)) data = data.map(v => v / 100);
+    const isPos = data.length >= 2 ? data[data.length - 1] >= data[0] : defaultPos;
+    const col = isPos ? '#22df8a' : '#ff4466';
+    new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: { labels, datasets: [{ data, borderColor: col, backgroundColor: col + '18', fill: true, tension: .3, pointRadius: 2, pointBackgroundColor: col, borderWidth: 2 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        plugins: { legend: { display: false }, tooltip: { ...ttOpts, callbacks: { label: c => ` ${F(c.parsed.y)}` } } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 9 }, maxTicksLimit: 6, maxRotation: 0 } },
+          y: { border: { dash: [2, 2] }, grid: { color: 'rgba(26,26,53,.4)' }, ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 9 }, maxTicksLimit: 4, callback: v => F(v) } }
+        }
+      }
+    });
+  } catch (_) { /* non-blocking */ }
 }

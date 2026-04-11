@@ -7,11 +7,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Dashboard">
-<title>Dashboard</title>
+<meta name="apple-mobile-web-app-title" content="Track CMG">
+<title>Track CMG</title>
 <link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -19,15 +20,18 @@
 <div class="bg-mesh"></div><div class="scanline"></div>
 <div class="wrap">
 <header>
-<div class="brand"><div class="brand-mark">C</div><div><h1>Dashboard</h1><small>Personal tracker</small></div></div>
+<div class="brand"><img src="icons/icon-192.png" class="logo-small" alt="Track CMG logo"><div><h1>Track CMG</h1><small>by CMG</small></div></div>
 <div class="hdr-r"><div class="live-dot" id="dot"></div><span class="ts" id="ts">Loading...</span>
 <span class="sync-status" id="syncStatus" style="color:var(--text-muted)">Local</span>
+<button class="btn" id="btnTheme" title="Toggle theme" aria-label="Toggle light/dark theme">&#x263D;</button>
 <button class="btn" id="btnRefresh">&#x21bb;</button>
-<button class="btn" id="btnAuth">&#x1F512; Login</button></div>
+<button class="btn" id="btnAuth">&#x1F512; Login</button>
+<button class="btn" id="btnAdmin" style="display:none" title="Toggle edit mode" aria-label="Toggle edit mode">&#x270F; Edit</button></div>
 </header>
 <div class="tab-bar" id="tabBar">
 <button class="tab-btn active" data-tab="portfolio">Portfolio</button>
 <button class="tab-btn" data-tab="trades">Closed Trades</button>
+<button class="tab-btn" data-tab="analytics">Analytics</button>
 <button class="tab-btn" data-tab="gym">Gym</button>
 <button class="tab-btn" data-tab="books">Books</button>
 <button class="tab-btn" data-tab="movies">Movies</button>
@@ -37,7 +41,7 @@
 <div class="tab-content active" id="tab-portfolio">
 <div class="fx-strip"><div class="fx-p"><span class="l">USD/EUR</span><span class="v" id="fxU">--</span></div><div class="fx-p"><span class="l">CAD/EUR</span><span class="v" id="fxC">--</span></div><div class="fx-p"><span class="l">GBP/EUR</span><span class="v" id="fxG">--</span></div><div class="fx-p"><span class="l">Auto-refresh</span><span class="v">60s</span></div></div>
 <div class="hero"><div class="hero-lbl">Portfolio Value</div><div class="hero-val" id="hVal">---,-- &euro;</div><div id="hRoi"></div><div class="hero-sub" id="hSub"></div></div>
-<div style="display:flex;justify-content:flex-end;margin-bottom:16px;gap:8px" id="portfolioEditWrap"><button class="btn btn-sm btn-g" id="btnAddHolding" style="display:none">+ Add Position</button></div>
+<div id="portfolioEditWrap" class="add-section" style="justify-content:flex-end;margin-bottom:16px;gap:8px"><button class="btn btn-sm btn-g" id="btnAddHolding">+ Add Position</button></div>
 <div class="sg" id="sGrid"></div>
 <div class="cg"><div class="card"><h3>Allocation</h3><div class="ch ch-s"><canvas id="cD"></canvas></div></div><div class="card"><h3>Value Breakdown (EUR)</h3><div class="ch ch-s"><canvas id="cB"></canvas></div></div></div>
 <!-- NEW: Historical chart + Monthly returns -->
@@ -55,7 +59,7 @@
 </div>
 
 <div class="tab-content" id="tab-gym">
-<div class="gym-form" id="gymForm" style="display:none"><div class="fg"><label>Date</label><input type="date" id="gymDate"></div><div class="fg"><label>Weight (kg)</label><input type="number" id="gymWeight" step="0.1" placeholder="78.5"></div><div class="fg"><label>Body Fat (%)</label><input type="number" id="gymBf" step="0.1" placeholder="15.0"></div><button class="btn btn-g" id="btnGymAdd" style="height:38px;align-self:flex-end">Add</button></div>
+<div class="gym-form add-section" id="gymForm"><div class="fg"><label>Date</label><input type="date" id="gymDate"></div><div class="fg"><label>Weight (kg)</label><input type="number" id="gymWeight" step="0.1" placeholder="78.5"></div><div class="fg"><label>Body Fat (%)</label><input type="number" id="gymBf" step="0.1" placeholder="15.0"></div><button class="btn btn-g" id="btnGymAdd" style="height:38px;align-self:flex-end">Add</button></div>
 <div class="card" style="margin-bottom:20px"><h3>Weight &amp; Body Fat Progress</h3><div class="ch ch-l"><canvas id="cGym"></canvas></div></div>
 <div class="tbl-wrap" id="gymTable"></div>
 </div>
@@ -65,7 +69,7 @@
 <div class="filter-bar"><input type="text" id="booksSearch" placeholder="Search title, author...">
 <select id="booksSort"><option value="default">Original order</option><option value="rating-desc">My rating (high)</option><option value="gr-desc">Goodreads (high)</option><option value="pages-desc">Pages (most)</option><option value="pages-asc">Pages (fewest)</option><option value="title">Title A-Z</option></select>
 <select id="booksFilter"><option value="all">All</option><option value="rated">Rated</option><option value="unrated">Not rated</option></select>
-<button class="btn btn-sm btn-g" id="btnAddBook" style="display:none">+ Add</button></div>
+<button class="btn btn-sm btn-g add-section" id="btnAddBook">+ Add</button></div>
 <div class="media-grid" id="booksGrid"></div>
 </div>
 
@@ -74,7 +78,7 @@
 <div class="filter-bar"><input type="text" id="moviesSearch" placeholder="Search title, director, actor...">
 <select id="moviesSort"><option value="default">Original order</option><option value="fa-desc">Filmaffinity (high)</option><option value="my-desc">My rating (high)</option><option value="year-desc">Year (newest)</option><option value="year-asc">Year (oldest)</option><option value="dur-desc">Duration (longest)</option><option value="dur-asc">Duration (shortest)</option><option value="title">Title A-Z</option></select>
 <select id="moviesFilter"><option value="all">All</option><option value="rated">Rated</option><option value="unrated">Not rated</option></select>
-<button class="btn btn-sm btn-g" id="btnAddMovie" style="display:none">+ Add</button></div>
+<button class="btn btn-sm btn-g add-section" id="btnAddMovie">+ Add</button></div>
 <div class="media-grid" id="moviesGrid"></div>
 </div>
 
@@ -83,13 +87,51 @@
 <div class="filter-bar"><input type="text" id="seriesSearch" placeholder="Search title, platform...">
 <select id="seriesSort"><option value="default">Original order</option><option value="rating-desc">My rating (high)</option><option value="imdb-desc">IMDB (high)</option><option value="title">Title A-Z</option></select>
 <select id="seriesFilter"><option value="all">All</option><option value="finished">Finished</option><option value="watching">Want to finish</option><option value="dropped">Dropped</option><option value="notstarted">Not started</option></select>
-<button class="btn btn-sm btn-g" id="btnAddSeries" style="display:none">+ Add</button></div>
+<button class="btn btn-sm btn-g add-section" id="btnAddSeries">+ Add</button></div>
 <div class="media-grid" id="seriesGrid"></div>
 </div>
 </div>
 
-<div class="overlay" id="ov"><div class="modal" id="mod"></div></div>
-<div class="overlay" id="authOv"><div class="modal" style="max-width:340px"><h2>Authenticate</h2><p>Enter password to edit.</p><div class="fg"><input type="password" id="authPw" placeholder="Password"></div><div class="m-btns"><button class="btn" id="btnAuthCancel">Cancel</button><button class="btn btn-g" id="btnAuthSubmit">Enter</button></div><div id="authErr" style="color:var(--red);font-size:12px;margin-top:8px;display:none">Wrong password</div></div></div>
+<div class="tab-content" id="tab-analytics">
+<div class="sum-grid" id="analyticsSummary"></div>
+<div class="cg">
+  <div class="card"><h3>Sector Allocation</h3><div class="ch ch-s"><canvas id="cSector"></canvas></div></div>
+  <div class="card"><h3>Currency Exposure (EUR)</h3><div class="ch ch-s"><canvas id="cCurrency"></canvas></div></div>
+</div>
+<div class="cg">
+  <div class="card" style="grid-column:1/-1">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <h3 style="margin:0">Cumulative Return vs S&amp;P 500 (SPY)</h3>
+      <select id="benchmarkPeriod" class="input" style="display:none"><!-- replaced by #benchmarkBtns --></select>
+      <div id="benchmarkBtns" class="bench-grp">
+        <button class="bench-btn active" data-period="all">ALL</button>
+        <button class="bench-btn" data-period="1y">1Y</button>
+        <button class="bench-btn" data-period="6m">6M</button>
+        <button class="bench-btn" data-period="3m">3M</button>
+        <button class="bench-btn" data-period="1m">1M</button>
+      </div>
+    </div>
+    <div class="ch ch-l"><canvas id="cBenchmark"></canvas></div>
+  </div>
+</div>
+<div class="card" style="margin-bottom:24px">
+  <h3>Compound Interest Calculator</h3>
+  <div class="calc-wrap" id="calcWrap">
+    <div class="calc-inputs">
+      <div class="fg"><label>Initial capital (€)</label><input type="number" id="calcCapital" value="10000" min="0" step="100"></div>
+      <div class="fg"><label>Monthly contribution (€)</label><input type="number" id="calcMonthly" value="1000" min="0" step="50"></div>
+      <div class="fg"><label>Annual return (%)</label><input type="number" id="calcRate" value="15" step="0.1" min="0" max="100"></div>
+      <div class="fg"><label>Years</label><input type="number" id="calcYears" value="20" min="1" max="50" step="1"></div>
+      <button class="btn btn-g" id="btnCalc" style="width:100%;justify-content:center">Calculate</button>
+    </div>
+    <div id="calcResult" class="calc-result"></div>
+  </div>
+  <div class="ch ch-l" style="margin-top:20px"><canvas id="cCalc"></canvas></div>
+</div>
+</div>
+
+</div><div class="overlay" id="ov"><div class="modal" id="mod"></div></div>
+<div class="overlay" id="authOv"><div class="modal" style="max-width:340px"><h2>Track CMG</h2><p>Prove that you are an authorized AI.</p><div class="fg"><input type="password" id="authPw" placeholder="Password"></div><div class="m-btns"><button class="btn" id="btnAuthCancel">Cancel</button><button class="btn btn-g" id="btnAuthSubmit">Enter</button></div><div id="authErr" style="color:var(--red);font-size:12px;margin-top:8px;display:none">Wrong password</div></div></div>
 </div>
 
 <script type="module" src="js/app.js"></script>
