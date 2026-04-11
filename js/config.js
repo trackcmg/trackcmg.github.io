@@ -7,14 +7,14 @@
 // ============================================================
 
 // URL del Web App de Google Apps Script (sincronización de datos)
-export const GAS_URL = 'https://script.google.com/macros/s/AKfycbyWUy-SpQFdJZnI1TWeL68pu5gdax4Tj6ZHg_pSY-R2HWzaHB4KDZo44se5vMdu_8xV/exec';
+export const GAS_URL = 'https://script.google.com/macros/s/AKfycbzSrJ7ZPEWRU2tJugXIywr0jHQeUCCRlnrIIVfKdzU0N65d_quPzCclFc-WNBdbYWpu/exec';
 
 // URL del Web App de Google Apps Script que actúa como proxy para Yahoo Finance
 // (puede ser el mismo endpoint u otro separado)
-export const PROXY_URL = 'https://script.google.com/macros/s/AKfycbyWUy-SpQFdJZnI1TWeL68pu5gdax4Tj6ZHg_pSY-R2HWzaHB4KDZo44se5vMdu_8xV/exec';
+export const PROXY_URL = 'https://script.google.com/macros/s/AKfycbzSrJ7ZPEWRU2tJugXIywr0jHQeUCCRlnrIIVfKdzU0N65d_quPzCclFc-WNBdbYWpu/exec';
 
 // Hash SHA-256 de tu contraseña de acceso al dashboard
-export const PW_HASH = '3b45022ab36728cdae12e709e945bba267c50ee8a91e6e4388539a8e03a3fdcd';
+export const PW_HASH = '1a34ce6f94df88d435381a01277d152d07efb361b2b69cf67046f0488018dfbc';
 
 // Tipos de cambio estáticos (fallback de emergencia si las APIs de FX fallan)
 // Se actualizan periódicamente de forma manual
