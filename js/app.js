@@ -8,7 +8,8 @@ import { renderTrades } from './trades.js';
 import { addGymEntry, renderGym } from './gym.js';
 import { renderBooks, renderMovies, renderSeries } from './media.js';
 import { openEditModal, openAddModal, closeModal } from './modals.js';
-import { authThenAction, checkAuth } from './auth.js';
+import { authThenAction, checkAuth, restoreSession } from './auth.js';
+import { toast } from './utils.js';
 
 // ── Render completo de todas las secciones ───────────────────
 function renderAll() {
@@ -30,27 +31,24 @@ function doAction(action) {
   else if (action === 'addHolding') openAddModal('holding');
 }
 
-// ── Event: autenticación correcta ────────────────────────────
-document.addEventListener('dashboard:auth-success', e => {
-  // Mostrar botones de edición
+// ── Helper: aplicar estado autenticado a la UI ───────────────
+function _applyAuthUI() {
   ['btnAddTrade', 'btnAddBook', 'btnAddMovie', 'btnAddSeries', 'btnAddHolding', 'gymForm'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = '';
   });
-  // Actualizar botón auth
   const ab = document.getElementById('btnAuth');
   if (ab) { ab.innerHTML = '&#x1F513; Unlocked'; ab.classList.add('btn-g'); }
+}
 
-  // Rerender con estado autenticado
+// ── Event: autenticación correcta ────────────────────────────
+document.addEventListener('dashboard:auth-success', e => {
+  _applyAuthUI();
   renderAll();
-
-  // Sincronizar con la nube si no estaba listo
   fetchDataFromCloud().then(ok => {
     if (ok) renderAll();
     updateSyncStatus('local');
   });
-
-  // Ejecutar acción pendiente
   const pendingAction = e.detail;
   if (pendingAction && pendingAction !== 'none') doAction(pendingAction);
 });
@@ -129,6 +127,12 @@ async function init() {
   loadData();
   renderAll();
   document.getElementById('gymDate').value = new Date().toISOString().slice(0, 10);
+
+  // Restaurar sesión si hay token válido en sessionStorage (evita re-login)
+  if (restoreSession()) {
+    _applyAuthUI();
+  }
+
   refreshPortfolio();
   setInterval(refreshPortfolio, 60000);
 
@@ -142,6 +146,10 @@ async function init() {
       if (ok) renderAll();
     }
   });
+
+  // Detectar cambios de conectividad
+  window.addEventListener('online', () => toast('Back online', 'ok'));
+  window.addEventListener('offline', () => toast('Sin conexión — mostrando datos en caché', 'err'));
 }
 
 init();
