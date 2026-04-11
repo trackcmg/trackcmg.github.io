@@ -87,3 +87,36 @@ td{padding:10px 14px;border-bottom:1px solid var(--border);font-family:'IBM Plex
   .m-card-opinion{font-size:13px}
 }
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ── Skeleton Loaders ─────────────────────────────────────── */
+@keyframes shimmer{
+  0%{background-position:200% 0}
+  100%{background-position:-200% 0}
+}
+.skeleton{
+  background:linear-gradient(90deg,var(--bg-card) 25%,var(--bg-hover) 50%,var(--bg-card) 75%);
+  background-size:200% 100%;
+  animation:shimmer 1.6s ease-in-out infinite;
+  border-radius:6px;
+  color:transparent!important;
+  pointer-events:none;
+}
+.skeleton *{visibility:hidden}
+/* Tarjeta de stock completa en estado skeleton */
+.stock-skeleton{
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:20px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.stock-skeleton .sk-line{height:14px;border-radius:4px}
+.stock-skeleton .sk-line.sk-lg{height:24px;width:55%}
+.stock-skeleton .sk-line.sk-xl{height:36px;width:40%}
+.stock-skeleton .sk-line.sk-sm{height:10px;width:35%}
+.stock-skeleton .sk-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:14px;border-top:1px solid var(--border)}
+.stock-skeleton .sk-block{height:32px;border-radius:4px}
+/* FX strip skeleton */
+.fx-skeleton{height:14px;width:60px;border-radius:4px;display:inline-block}

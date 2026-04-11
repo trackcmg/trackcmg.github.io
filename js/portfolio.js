@@ -98,6 +98,7 @@ export async function refreshPortfolio() {
   dot.style.background = 'var(--amber)';
   tsE.textContent = 'Updating...';
   if (Object.keys(P).length) renderPortfolio();
+  else rSkeletons();
 
   let fxOk = false;
   try { await fetchFx(); fxOk = true; } catch (e) { /* noop */ }
@@ -156,10 +157,29 @@ export async function refreshPortfolio() {
 // ── Render completo del portfolio ───────────────────────────
 export function renderPortfolio() { rFx(); rHero(); rStocks(); rDonut(); rBar(); }
 
+// ── Skeleton loaders (mientras la API responde) ──────────────
+function rSkeletons() {
+  const g = document.getElementById('sGrid');
+  const count = D.holdings.length || 3;
+  g.innerHTML = Array(count).fill(`
+    <div class="stock-skeleton">
+      <div class="sk-line sk-lg skeleton"></div>
+      <div class="sk-line sk-sm skeleton" style="width:45%;margin-top:4px"></div>
+      <div class="sk-line sk-xl skeleton" style="margin-top:8px"></div>
+      <div class="sk-grid">
+        <div class="sk-block skeleton"></div>
+        <div class="sk-block skeleton"></div>
+        <div class="sk-block skeleton"></div>
+        <div class="sk-block skeleton"></div>
+      </div>
+    </div>`).join('');
+}
+
 function rFx() {
-  document.getElementById('fxU').textContent = FX.USD ? F(FX.USD, 4) : '--';
-  document.getElementById('fxC').textContent = FX.CAD ? F(FX.CAD, 4) : '--';
-  document.getElementById('fxG').textContent = FX.GBP ? F(FX.GBP, 4) : '--';
+  const skel = '<span class="fx-skeleton skeleton"></span>';
+  document.getElementById('fxU').innerHTML = FX.USD ? F(FX.USD, 4) : skel;
+  document.getElementById('fxC').innerHTML = FX.CAD ? F(FX.CAD, 4) : skel;
+  document.getElementById('fxG').innerHTML = FX.GBP ? F(FX.GBP, 4) : skel;
 }
 
 function rHero() {

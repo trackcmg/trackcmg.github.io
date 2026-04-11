@@ -7,6 +7,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.3.0-alpha] — 2026-04-11 — Fase 3: PWA y Experiencia de Usuario
+
+### Added
+- `manifest.json`: Web App Manifest — nombre, colores, orientación, iconos (placeholders)
+- `sw.js`: Service Worker con Cache-First (assets) + Network-First (GAS API) y precarga del App Shell
+- `docs/sw-cache-strategy.md`: diagrama de estrategia de caché del SW
+- PWA meta tags en `index.html`: `theme-color`, `apple-mobile-web-app-capable`, `apple-touch-icon`
+- Registro del Service Worker en `index.html` (evento `load`, silencioso en error)
+- **Skeleton Loaders**: animación shimmer en tarjetas de portfolio y FX strip mientras la API responde
+- `css/styles.css`: clases `.skeleton`, `.stock-skeleton`, `.fx-skeleton`, `@keyframes shimmer`
+
+### Changed
+- `js/portfolio.js`: `rSkeletons()` se activa cuando no hay precios en caché; `rFx()` muestra skeleton en lugar de `--` durante la carga
+
+### Removed
+- `index.html`: bloque `<!-- LEGACY_SCRIPT -->` (~770 líneas) con PW_HASH y SYNC_URL en texto plano purgado del código fuente
+
+---
+
 ## [1.2.0-alpha] — 2026-04-11 — Fase 2: Seguridad y Resiliencia
 
 ### Added
