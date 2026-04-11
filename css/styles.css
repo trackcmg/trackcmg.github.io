@@ -129,3 +129,53 @@ td{padding:10px 14px;border-bottom:1px solid var(--border);font-family:'IBM Plex
 .btn-amber:hover{background:rgba(255,170,34,.15)}
 /* Disabled button state */
 .btn:disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
+
+/* ── Fase 5: Light/Dark Theme ────────────────────────────────
+   Dark is the default (Cyberpunk). Light mode respects the OS
+   preference OR a manual override class on <html>. */
+@media (prefers-color-scheme: light) {
+  :root:not(.theme-dark) {
+    --bg:#f0f0f8;--bg-card:#ffffff;--bg-hover:#e8e8f5;--border:#d0d0e8;--border-focus:#b0b0d8;
+    --text:#18183a;--text-dim:#4a4a7a;--text-muted:#8888b0;
+    --green:#0f9e5e;--green-bg:rgba(15,158,94,.08);
+    --red:#d42050;--red-bg:rgba(212,32,80,.08);
+    --blue:#2255cc;--blue-bg:rgba(34,85,204,.08);
+    --amber:#bb6600;--amber-bg:rgba(187,102,0,.08);
+    --purple:#7733cc;--purple-bg:rgba(119,51,204,.08);--cyan:#0088aa;
+  }
+}
+html.theme-light {
+  --bg:#f0f0f8;--bg-card:#ffffff;--bg-hover:#e8e8f5;--border:#d0d0e8;--border-focus:#b0b0d8;
+  --text:#18183a;--text-dim:#4a4a7a;--text-muted:#8888b0;
+  --green:#0f9e5e;--green-bg:rgba(15,158,94,.08);
+  --red:#d42050;--red-bg:rgba(212,32,80,.08);
+  --blue:#2255cc;--blue-bg:rgba(34,85,204,.08);
+  --amber:#bb6600;--amber-bg:rgba(187,102,0,.08);
+  --purple:#7733cc;--purple-bg:rgba(119,51,204,.08);--cyan:#0088aa;
+}
+html.theme-light .bg-mesh{background:radial-gradient(ellipse 600px 400px at 20% 10%,rgba(15,158,94,.04),transparent),radial-gradient(ellipse 500px 500px at 80% 80%,rgba(34,85,204,.04),transparent)}
+html.theme-light .scanline{display:none}
+
+/* ── Fase 5: CLS Fix — reserve canvas heights ──────────────── */
+.ch-s{height:260px;contain:layout}
+.ch-l{height:360px;contain:layout}
+
+/* ── Fase 5: Analytics — Dividend Heatmap ───────────────────── */
+.div-heatmap{display:grid;grid-template-columns:repeat(12,1fr);gap:6px;padding:8px 0}
+.div-heatmap .hm-col{display:flex;flex-direction:column;gap:4px;align-items:center}
+.div-heatmap .hm-month{font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;font-family:'IBM Plex Mono',monospace;margin-bottom:2px;text-align:center}
+.div-heatmap .hm-cell{width:100%;border-radius:5px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;text-align:center;padding:6px 2px;transition:.2s;cursor:default;min-height:40px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.div-heatmap .hm-cell:hover{filter:brightness(1.2)}
+.div-heatmap .hm-cell .hm-amt{font-size:10px;font-weight:600}
+.div-heatmap .hm-cell .hm-type{font-size:9px;opacity:.7}
+
+/* ── Fase 5: Compound Interest Calculator ───────────────────── */
+.calc-wrap{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+.calc-inputs{display:flex;flex-direction:column;gap:0}
+.calc-result{background:var(--bg-hover);border:1px solid var(--border);border-radius:12px;padding:20px;font-family:'IBM Plex Mono',monospace}
+.calc-result .cr-row{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
+.calc-result .cr-row:last-child{border-bottom:none}
+.calc-result .cr-lbl{color:var(--text-dim);font-size:11px;text-transform:uppercase;letter-spacing:.8px}
+.calc-result .cr-val{font-weight:600;color:var(--text)}
+.calc-result .cr-val.up{color:var(--green)}
+@media(max-width:640px){.calc-wrap{grid-template-columns:1fr}}

@@ -10,6 +10,8 @@ import { renderBooks, renderMovies, renderSeries } from './media.js';
 import { openEditModal, openAddModal, closeModal } from './modals.js';
 import { authThenAction, checkAuth, restoreSession } from './auth.js';
 import { toast } from './utils.js';
+import { renderAnalytics, renderBenchmark, renderDividendHeatmap } from './analytics.js';
+import { renderCalculator } from './calculator.js';
 
 // ── Render completo de todas las secciones ───────────────────
 function renderAll() {
@@ -20,6 +22,8 @@ function renderAll() {
   renderMovies();
   renderSeries();
   renderHistory();
+  renderAnalytics();
+  renderDividendHeatmap();
 }
 
 // ── Ejecuta una acción que requiere auth ─────────────────────
@@ -57,12 +61,36 @@ document.addEventListener('dashboard:auth-success', e => {
 document.addEventListener('dashboard:action', e => { doAction(e.detail); });
 
 // ── Sistema de pestañas ──────────────────────────────────────
+let _benchmarkLoaded = false;
 document.getElementById('tabBar').addEventListener('click', e => {
   if (!e.target.matches('.tab-btn')) return;
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   e.target.classList.add('active');
-  document.getElementById('tab-' + e.target.dataset.tab).classList.add('active');
+  const tab = e.target.dataset.tab;
+  document.getElementById('tab-' + tab).classList.add('active');
+  // Carga el benchmark SPY al entrar por primera vez en Analytics (evita fetch innecesario)
+  if (tab === 'analytics' && !_benchmarkLoaded) {
+    _benchmarkLoaded = true;
+    renderBenchmark();
+  }
+});
+
+// ── Toggle de tema claro/oscuro ──────────────────────────────
+(function initTheme() {
+  const saved = localStorage.getItem('theme');
+  if (saved === 'light') document.documentElement.classList.add('theme-light');
+  else if (saved === 'dark') document.documentElement.classList.add('theme-dark');
+})();
+
+document.getElementById('btnTheme')?.addEventListener('click', () => {
+  const html = document.documentElement;
+  const isLight = html.classList.contains('theme-light');
+  html.classList.toggle('theme-light', !isLight);
+  html.classList.toggle('theme-dark', isLight);
+  localStorage.setItem('theme', isLight ? 'dark' : 'light');
+  const btn = document.getElementById('btnTheme');
+  if (btn) btn.textContent = isLight ? '☽' : '☀';
 });
 
 // ── Listeners de botones de la barra superior ────────────────
@@ -131,6 +159,16 @@ async function init() {
   // Restaurar sesión si hay token válido en sessionStorage (evita re-login)
   if (restoreSession()) {
     _applyAuthUI();
+  }
+
+  // Inicializar calculator (registra listener del botón)
+  renderCalculator();
+
+  // Actualizar icono del botón de tema al estado actual
+  const btnTheme = document.getElementById('btnTheme');
+  if (btnTheme) {
+    const isLight = document.documentElement.classList.contains('theme-light');
+    btnTheme.textContent = isLight ? '☀' : '☽';
   }
 
   refreshPortfolio();

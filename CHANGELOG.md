@@ -5,6 +5,34 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.0] — 2026-04-11 — Fase 5: Analítica Pro y Refinamiento Final
+
+### Added
+- **Pestaña Analytics**: nueva vista con 4 secciones:
+  - Tarjetas de resumen: Total Return, Dividend Yield, Positions, Closed Trades
+  - Gráfico de distribución sectorial (Doughnut) — soporta propiedad `sector` por holding
+  - Gráfico de exposición por divisa en EUR (Bar)
+  - Benchmark: Portfolio vs S&P 500/SPY (retorno acumulado % — requiere proxy GAS activo)
+- **Heatmap de dividendos**: cuadrícula 12 meses con dividendos reales (meses pasados) y proyectados (meses futuros), intensidad de color Cyberpunk (verde=cobrado, azul=estimado)
+- **Calculadora de interés compuesto** (`js/calculator.js`): capital inicial + aportación mensual + tasa anual + años → valor final, ganancias, gráfico proyectado
+- **Sistema de temas Claro/Oscuro**:
+  - Responde automáticamente a `prefers-color-scheme`
+  - Toggle manual (`☽/☀`) en el header guarda preferencia en `localStorage`
+  - Override forzado con clases `html.theme-light` / `html.theme-dark`
+- `docs/performance-metrics.md`: metodología de cálculo de ROI, dividend yield, retorno mensual y benchmark
+- `js/analytics.js`: módulo nuevo con `renderAnalytics`, `renderBenchmark`, `renderDividendHeatmap`
+- `js/calculator.js`: módulo nuevo con `renderCalculator` y `runCalc`
+
+### Changed
+- `index.html`: Chart.js cargado con `defer` (elimina render-blocking — mejora LCP)
+- `index.html`: botón toggle de tema añadido en header; nueva tab "Analytics"
+- `css/styles.css`: `.ch-s` y `.ch-l` con `contain:layout` para eliminar CLS (layout shift → 0)
+- `css/styles.css`: variables tema light en `@media prefers-color-scheme:light` y `html.theme-light`
+- `css/styles.css`: estilos `.div-heatmap`, `.calc-wrap`, `.calc-result` para las nuevas vistas
+- `js/app.js`: importa y conecta `analytics.js` y `calculator.js`; benchmark carga lazy al entrar en la tab
+
+---
+
 ## [Unreleased]
 
 ## [1.3.0-alpha] — 2026-04-11 — Fase 3: PWA y Experiencia de Usuario

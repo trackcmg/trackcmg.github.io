@@ -11,7 +11,7 @@
 <title>Dashboard</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -22,12 +22,14 @@
 <div class="brand"><div class="brand-mark">C</div><div><h1>Dashboard</h1><small>Personal tracker</small></div></div>
 <div class="hdr-r"><div class="live-dot" id="dot"></div><span class="ts" id="ts">Loading...</span>
 <span class="sync-status" id="syncStatus" style="color:var(--text-muted)">Local</span>
+<button class="btn" id="btnTheme" title="Toggle theme" aria-label="Toggle light/dark theme">&#x263D;</button>
 <button class="btn" id="btnRefresh">&#x21bb;</button>
 <button class="btn" id="btnAuth">&#x1F512; Login</button></div>
 </header>
 <div class="tab-bar" id="tabBar">
 <button class="tab-btn active" data-tab="portfolio">Portfolio</button>
 <button class="tab-btn" data-tab="trades">Closed Trades</button>
+<button class="tab-btn" data-tab="analytics">Analytics</button>
 <button class="tab-btn" data-tab="gym">Gym</button>
 <button class="tab-btn" data-tab="books">Books</button>
 <button class="tab-btn" data-tab="movies">Movies</button>
@@ -88,7 +90,36 @@
 </div>
 </div>
 
-<div class="overlay" id="ov"><div class="modal" id="mod"></div></div>
+<div class="tab-content" id="tab-analytics">
+<div class="sum-grid" id="analyticsSummary"></div>
+<div class="cg">
+  <div class="card"><h3>Sector Allocation</h3><div class="ch ch-s"><canvas id="cSector"></canvas></div></div>
+  <div class="card"><h3>Currency Exposure (EUR)</h3><div class="ch ch-s"><canvas id="cCurrency"></canvas></div></div>
+</div>
+<div class="cg">
+  <div class="card" style="grid-column:1/-1"><h3>Cumulative Return vs S&amp;P 500 (SPY)</h3><div class="ch ch-l"><canvas id="cBenchmark"></canvas></div></div>
+</div>
+<div class="card" style="margin-bottom:24px">
+  <h3>Dividend Heatmap — 12 months</h3>
+  <div id="dividendHeatmap" class="div-heatmap"></div>
+</div>
+<div class="card" style="margin-bottom:24px">
+  <h3>Compound Interest Calculator</h3>
+  <div class="calc-wrap" id="calcWrap">
+    <div class="calc-inputs">
+      <div class="fg"><label>Initial capital (€)</label><input type="number" id="calcCapital" value="10000" min="0" step="100"></div>
+      <div class="fg"><label>Monthly contribution (€)</label><input type="number" id="calcMonthly" value="500" min="0" step="50"></div>
+      <div class="fg"><label>Annual return (%)</label><input type="number" id="calcRate" value="8" step="0.1" min="0" max="100"></div>
+      <div class="fg"><label>Years</label><input type="number" id="calcYears" value="20" min="1" max="50" step="1"></div>
+      <button class="btn btn-g" id="btnCalc" style="width:100%;justify-content:center">Calculate</button>
+    </div>
+    <div id="calcResult" class="calc-result"></div>
+  </div>
+  <div class="ch ch-l" style="margin-top:20px"><canvas id="cCalc"></canvas></div>
+</div>
+</div>
+
+</div><div class="modal" id="mod"></div></div>
 <div class="overlay" id="authOv"><div class="modal" style="max-width:340px"><h2>Authenticate</h2><p>Enter password to edit.</p><div class="fg"><input type="password" id="authPw" placeholder="Password"></div><div class="m-btns"><button class="btn" id="btnAuthCancel">Cancel</button><button class="btn btn-g" id="btnAuthSubmit">Enter</button></div><div id="authErr" style="color:var(--red);font-size:12px;margin-top:8px;display:none">Wrong password</div></div></div>
 </div>
 
