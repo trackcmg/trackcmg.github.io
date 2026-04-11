@@ -51,9 +51,22 @@ const API_HOSTS = [
 
 // ── Install: precachear el shell de la app ──────────────────
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_STATIC).then(cache => cache.addAll(PRECACHE_URLS))
-  );
+  // Precaching resiliente: ignorar recursos que fallen (p. ej. iconos faltantes)
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_STATIC);
+    for (const url of PRECACHE_URLS) {
+      try {
+        const res = await fetch(url, { cache: 'no-cache' });
+        if (res && res.ok) {
+          await cache.put(url, res.clone());
+        } else {
+          console.warn('sw: precache failed for', url, res && res.status);
+        }
+      } catch (e) {
+        console.warn('sw: precache error for', url, e && e.message);
+      }
+    }
+  })());
   // Activar inmediatamente sin esperar a que cierren pestañas anteriores
   self.skipWaiting();
 });

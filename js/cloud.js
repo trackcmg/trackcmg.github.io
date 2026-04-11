@@ -5,6 +5,8 @@ import { GAS_URL, PW_HASH } from './config.js';
 import { D, _authed, _token } from './state.js';
 import { toast } from './utils.js';
 import { loadDataFromObj, buildDataObj, saveLocal, updateSyncStatus } from './storage.js';
+// Re-export updateSyncStatus para compatibilidad con imports desde cloud.js
+export { updateSyncStatus };
 
 export let _cloudReady = false;
 
