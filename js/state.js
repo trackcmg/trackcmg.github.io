@@ -15,3 +15,7 @@ export function setAuthed(v) { _authed = v; }
 // Acción pendiente tras autenticación
 export let _pendingAction = null;
 export function setPendingAction(v) { _pendingAction = v; }
+
+// Token de sesión emitido por GAS (Fase 2). null = auth local sin token.
+export let _token = null;
+export function setToken(v) { _token = v; }

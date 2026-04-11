@@ -2,7 +2,7 @@
 //  cloud.js — Comunicación con Google Apps Script
 // ============================================================
 import { GAS_URL, PW_HASH } from './config.js';
-import { D, _authed } from './state.js';
+import { D, _authed, _token } from './state.js';
 import { toast } from './utils.js';
 import { loadDataFromObj, buildDataObj, saveLocal, updateSyncStatus } from './storage.js';
 
@@ -21,7 +21,8 @@ export async function fetchDataFromCloud() {
   try {
     const controller = new AbortController();
     setTimeout(() => controller.abort(), 20000);
-    const res = await fetch(GAS_URL + '?action=getData&t=' + Date.now(), { signal: controller.signal });
+    const tokenParam = _token ? '&token=' + encodeURIComponent(_token) : '';
+    const res = await fetch(GAS_URL + '?action=getData&t=' + Date.now() + tokenParam, { signal: controller.signal });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const text = await res.text();
     console.log('Cloud GET response:', text.substring(0, 200));
@@ -58,7 +59,7 @@ export async function fetchDataFromCloud() {
 // Envía el estado actual a GAS
 export async function pushDataToCloud() {
   try {
-    const payload = JSON.stringify({ password: PW_HASH, data: JSON.stringify(buildDataObj()) });
+    const payload = JSON.stringify({ password: PW_HASH, token: _token || '', data: JSON.stringify(buildDataObj()) });
     let text = '';
     try {
       const res = await fetch(GAS_URL, {
