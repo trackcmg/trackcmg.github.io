@@ -25,7 +25,6 @@ export function renderAnalytics() {
   _renderSummaryCards();
   _renderSectorChart();
   _renderCurrencyChart();
-  _renderDividendHeatmap();
 }
 
 // ── Tarjetas de resumen ──────────────────────────────────────
@@ -35,7 +34,19 @@ function _renderSummaryCards() {
 
   const totalVal = D.cash + D.holdings.reduce((s, h) => s + valEur(h), 0);
   const totalInv = D.totalInvested;
-  const totalReturn = totalVal - totalInv;
+
+  // PnL Latente: valor actual posiciones abiertas vs lo invertido en ellas
+  const openInvestedEur = D.holdings.reduce((s, h) => s + h.entryPrice * h.shares * fxR(h.currency), 0);
+  const latentPnl   = D.holdings.reduce((s, h) => s + valEur(h), 0) - openInvestedEur;
+
+  // PnL Realizado: suma de realizedPnl de closedTrades (o gross si no existe)
+  const realizedPnl = D.closedTrades.reduce((s, t) => {
+    const fx = fxR(t.currency);
+    if (t.realizedPnl != null) return s + t.realizedPnl * fx;
+    return s + (t.sellPrice - t.avgBuy) * t.totalShares * fx;
+  }, 0);
+
+  const totalReturn = latentPnl + realizedPnl;
   const totalReturnPct = totalInv > 0 ? (totalReturn / totalInv) * 100 : 0;
 
   // Dividendos totales cobrados (en EUR)
@@ -45,8 +56,10 @@ function _renderSummaryCards() {
   const yieldPct = totalInv > 0 ? (totalDivEur / totalInv) * 100 : 0;
 
   el.innerHTML = [
-    { lbl: 'Total Return', val: (totalReturn >= 0 ? '+' : '') + F(totalReturn) + ' €', cls: totalReturn >= 0 ? 'up' : 'dn' },
+    { lbl: 'Total Return (Real.+Lat.)', val: (totalReturn >= 0 ? '+' : '') + F(totalReturn) + ' €', cls: totalReturn >= 0 ? 'up' : 'dn' },
     { lbl: 'Return %', val: (totalReturnPct >= 0 ? '+' : '') + F(totalReturnPct) + '%', cls: totalReturnPct >= 0 ? 'up' : 'dn' },
+    { lbl: 'Realized P&L', val: (realizedPnl >= 0 ? '+' : '') + F(realizedPnl) + ' €', cls: realizedPnl >= 0 ? 'up' : 'dn' },
+    { lbl: 'Unrealized P&L', val: (latentPnl >= 0 ? '+' : '') + F(latentPnl) + ' €', cls: latentPnl >= 0 ? 'up' : 'dn' },
     { lbl: 'Dividends (EUR)', val: F(totalDivEur) + ' €', cls: totalDivEur > 0 ? 'up' : '' },
     { lbl: 'Dividend Yield', val: F(yieldPct) + '%', cls: '' },
     { lbl: 'Positions', val: D.holdings.length, cls: '' },
@@ -126,63 +139,161 @@ function _renderCurrencyChart() {
   });
 }
 
-// ── Benchmark: Portfolio vs SPY (histórico) ──────────────────
-// Precaución: requiere que GAS tenga espejo para Yahoo; si el proxy
-// falla, el dataset SPY simplemente no se agrega al gráfico.
+// ── Benchmark: Portfolio vs SPY ────────────────────────────────
+// Caché global de precios SPY para no re-fetchear al cambiar periodo
+let _spyMap = null;
+
+function _nearestSpy(dateStr) {
+  if (!_spyMap) return null;
+  if (_spyMap[dateStr]) return _spyMap[dateStr];
+  const base = new Date(dateStr);
+  for (let offset = 1; offset <= 5; offset++) {
+    for (const sign of [-1, 1]) {
+      const d = new Date(base);
+      d.setUTCDate(base.getUTCDate() + sign * offset);
+      const k = d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
+      if (_spyMap[k]) return _spyMap[k];
+    }
+  }
+  return null;
+}
+
 export async function renderBenchmark() {
+  // Cargar precios SPY una sola vez; si ya existe la caché, redibujar directamente
+  if (!_spyMap) {
+    try {
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/SPY?period1=1704067200&interval=1d`;
+      const res = await fetch(`${PROXY_URL}?url=${encodeURIComponent(url)}`);
+      if (res.ok) {
+        const json = await res.json();
+        const r0 = json.chart?.result?.[0];
+        if (r0) {
+          const timestamps = r0.timestamp || [];
+          const closes = r0.indicators.quote[0].close || [];
+          _spyMap = {};
+          timestamps.forEach((ts, i) => {
+            if (closes[i] != null) {
+              const d = new Date(ts * 1000);
+              const key = d.getUTCFullYear() + '-'
+                + String(d.getUTCMonth() + 1).padStart(2, '0') + '-'
+                + String(d.getUTCDate()).padStart(2, '0');
+              _spyMap[key] = closes[i];
+            }
+          });
+          console.log('[SPY] cargado:', Object.keys(_spyMap).length, 'días');
+        } else {
+          console.warn('[SPY] respuesta sin result:', JSON.stringify(json).slice(0, 200));
+          _spyMap = {};
+        }
+      } else {
+        console.warn('[SPY] HTTP error:', res.status);
+        _spyMap = {};
+      }
+    } catch (err) {
+      console.warn('[SPY] fetch falló (offline/proxy):', err.message);
+      _spyMap = {};
+    }
+  }
+  _drawBenchmark();
+}
+
+function _drawBenchmark() {
   const canvas = document.getElementById('cBenchmark');
   if (!canvas) return;
 
-  const sorted = [...(D.history || [])].sort((a, b) => a.date.localeCompare(b.date));
-  if (sorted.length < 2) {
+  // Período seleccionado desde el grupo de botones
+  const period = document.querySelector('#benchmarkBtns .active')?.dataset.period || 'all';
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+
+  // La ventana de vista nunca retrocede antes de enero 2024
+  let viewStart = '2024-01-01';
+  if (period === '1y') { const d = new Date(now); d.setFullYear(d.getFullYear() - 1); const s = d.toISOString().slice(0, 10); if (s > '2024-01-01') viewStart = s; }
+  else if (period === '6m') { const d = new Date(now); d.setMonth(d.getMonth() - 6); const s = d.toISOString().slice(0, 10); if (s > '2024-01-01') viewStart = s; }
+  else if (period === '3m') { const d = new Date(now); d.setMonth(d.getMonth() - 3); const s = d.toISOString().slice(0, 10); if (s > '2024-01-01') viewStart = s; }
+  else if (period === '1m') { const d = new Date(now); d.setMonth(d.getMonth() - 1); const s = d.toISOString().slice(0, 10); if (s > '2024-01-01') viewStart = s; }
+
+  // Ancla SPY: siempre el primer día hábil de enero 2024
+  const spyBase = _nearestSpy('2024-01-01');
+  console.log('[Benchmark] periodo:', period, '| viewStart:', viewStart, '| spyBase:', spyBase);
+
+  // Eje X: primer día de cada mes desde viewStart hasta hoy
+  const axisDates = [];
+  const cur = new Date(viewStart + 'T00:00:00Z');
+  cur.setUTCDate(1);
+  while (true) {
+    const key = cur.getUTCFullYear() + '-' + String(cur.getUTCMonth() + 1).padStart(2, '0') + '-01';
+    if (key > todayStr) break;
+    axisDates.push(key);
+    cur.setUTCMonth(cur.getUTCMonth() + 1);
+  }
+
+  // Añadir fechas reales del portfolio dentro del rango
+  const allPortfolio = [...(D.history || [])].filter(h => h.date >= '2024-01-01').sort((a, b) => a.date.localeCompare(b.date));
+  allPortfolio.filter(h => h.date >= viewStart).forEach(h => { if (!axisDates.includes(h.date)) axisDates.push(h.date); });
+  axisDates.sort();
+
+  // Base del portfolio: primer valor registrado desde enero 2024
+  const portfolioFirstDate = allPortfolio[0]?.date;
+  const portfolioBase = allPortfolio.length > 0
+    ? (allPortfolio[0].totalInvested > 0 ? allPortfolio[0].totalInvested : allPortfolio[0].totalValue)
+    : null;
+
+  if (!spyBase && !portfolioBase) {
+    if (CH.benchmark) { CH.benchmark.destroy(); CH.benchmark = null; }
     canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
     return;
   }
 
-  // Mi portfolio como % de retorno acumulado desde el primer punto
-  const base = sorted[0].totalInvested || sorted[0].totalValue;
-  const myReturns = sorted.map(h => base > 0 ? ((h.totalValue - base) / base) * 100 : 0);
-  const labels = sorted.map(h => new Date(h.date).toLocaleDateString('es-ES', { month: 'short', year: '2-digit' }));
+  // Mapa portfolio por fecha para forward-fill
+  const portMap = {};
+  for (const h of allPortfolio) portMap[h.date] = h.totalValue;
 
-  // Intentar obtener SPY del proxy
-  let spyReturns = null;
-  try {
-    const rangeMonths = Math.ceil(sorted.length / 20) <= 1 ? '1mo' : sorted.length <= 90 ? '6mo' : sorted.length <= 365 ? '1y' : '2y';
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/SPY?range=${rangeMonths}&interval=1d`;
-    const res = await fetch(`${PROXY_URL}?url=${encodeURIComponent(url)}`);
-    if (res.ok) {
-      const json = await res.json();
-      const closes = json.chart.result[0].indicators.quote[0].close.filter(v => v != null);
-      if (closes.length >= 2) {
-        const spyBase = closes[0];
-        // Submuestrear para que los puntos coincidan en cantidad con nuestro historial
-        const step = Math.max(1, Math.floor(closes.length / sorted.length));
-        const sampled = [];
-        for (let i = 0; i < sorted.length; i++) {
-          const idx = Math.min(Math.round(i * step), closes.length - 1);
-          sampled.push(((closes[idx] - spyBase) / spyBase) * 100);
-        }
-        spyReturns = sampled;
+  const labels = axisDates.map(d => new Date(d + 'T00:00:00Z').toLocaleDateString('es-ES', { month: 'short', year: '2-digit' }));
+
+  const spyData = axisDates.map(d => {
+    if (!spyBase) return null;
+    const p = _nearestSpy(d);
+    return p != null ? parseFloat(((p / spyBase - 1) * 100).toFixed(2)) : null;
+  });
+
+  const portData = (() => {
+    if (!portfolioBase || !portfolioFirstDate) return axisDates.map(() => null);
+    let lastVal = null;
+    return axisDates.map(d => {
+      if (d < portfolioFirstDate) return null;
+      if (portMap[d] != null) lastVal = portMap[d];
+      if (lastVal == null) {
+        const prev = allPortfolio.filter(h => h.date <= d);
+        if (prev.length) lastVal = prev[prev.length - 1].totalValue;
       }
-    }
-  } catch (_) { /* offline o proxy no configurado — no bloqueante */ }
+      return lastVal != null ? parseFloat(((lastVal / portfolioBase - 1) * 100).toFixed(2)) : null;
+    });
+  })();
 
-  const datasets = [
-    {
-      label: 'My Portfolio',
-      data: myReturns,
-      borderColor: '#22df8a', backgroundColor: 'rgba(34,223,138,.06)',
-      fill: true, tension: .3, pointRadius: 3, pointBackgroundColor: '#22df8a',
-      pointBorderColor: '#0d0d1a', pointBorderWidth: 2, borderWidth: 2
-    }
-  ];
-  if (spyReturns) {
+  const datasets = [];
+  if (spyBase) {
     datasets.push({
       label: 'S&P 500 (SPY)',
-      data: spyReturns,
+      data: spyData,
       borderColor: '#5588ff', backgroundColor: 'rgba(85,136,255,.04)',
-      fill: true, tension: .3, pointRadius: 0, borderWidth: 1.5, borderDash: [4, 4]
+      fill: true, tension: .3, pointRadius: 0, borderWidth: 1.5, borderDash: [4, 4], spanGaps: true
     });
+  }
+  if (portfolioBase) {
+    datasets.push({
+      label: 'My Portfolio',
+      data: portData,
+      borderColor: '#22df8a', backgroundColor: 'rgba(34,223,138,.06)',
+      fill: true, tension: .3, pointRadius: 3, pointBackgroundColor: '#22df8a',
+      pointBorderColor: '#0d0d1a', pointBorderWidth: 2, borderWidth: 2, spanGaps: false
+    });
+  }
+
+  if (!datasets.length || axisDates.length < 2) {
+    if (CH.benchmark) { CH.benchmark.destroy(); CH.benchmark = null; }
+    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+    return;
   }
 
   if (CH.benchmark) CH.benchmark.destroy();
@@ -194,80 +305,12 @@ export async function renderBenchmark() {
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { labels: legOpts },
-        tooltip: { ...ttOpts, callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y >= 0 ? '+' : ''}${F(c.parsed.y)}%` } }
+        tooltip: { ...ttOpts, callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y >= 0 ? '+' : ''}${F(c.parsed.y, 2)}%` } }
       },
       scales: {
-        x: { grid: { color: 'rgba(26,26,53,.3)' }, ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 10 }, maxTicksLimit: 12 } },
+        x: { grid: { color: 'rgba(26,26,53,.3)' }, ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 10 }, maxTicksLimit: 14 } },
         y: { grid: { color: 'rgba(26,26,53,.3)' }, ticks: { color: '#e2e2f0', font: { family: 'IBM Plex Mono', size: 10 }, callback: v => (v >= 0 ? '+' : '') + F(v, 1) + '%' } }
       }
     }
   });
-}
-
-// ── Heatmap de dividendos (12 meses corrientes) ──────────────
-export function renderDividendHeatmap() {
-  const el = document.getElementById('dividendHeatmap');
-  if (!el) return;
-
-  const now = new Date();
-  // Generar los últimos 12 meses como { year, month }
-  const months = [];
-  for (let i = 11; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    months.push({ year: d.getFullYear(), month: d.getMonth() + 1 });
-  }
-
-  // Dividendos por holding: distribuimos uniformemente (datos reales requeriría
-  // un calendario de ex-dividend del GAS proxy). Aquí mostramos dividendos totales
-  // reales y el valor proyectado anual/12 como estimación mensual.
-  const monthlyReal = {}; // clave: YYYY-MM
-  const monthlyProjected = {};
-
-  // Cada holding contribuye con dividendos anuales proyectados / 12 por mes futuro
-  D.holdings.forEach(h => {
-    const annualEur = (h.dividends || 0) * fxR(h.currency);
-    const monthlyEst = annualEur / 12;
-    months.forEach(({ year, month }) => {
-      const key = `${year}-${String(month).padStart(2, '0')}`;
-      const isCurrentOrFuture = year > now.getFullYear() ||
-        (year === now.getFullYear() && month >= now.getMonth() + 1);
-      if (isCurrentOrFuture) {
-        monthlyProjected[key] = (monthlyProjected[key] || 0) + monthlyEst;
-      } else {
-        // Para meses pasados: los dividendos reales acumulados se muestran si existen
-        monthlyReal[key] = (monthlyReal[key] || 0) + monthlyEst;
-      }
-    });
-  });
-
-  // Escala de colores: 0→bg-card, max→green con intensidad
-  const allValues = [...Object.values(monthlyReal), ...Object.values(monthlyProjected)].filter(v => v > 0);
-  const maxVal = allValues.length ? Math.max(...allValues) : 1;
-
-  function _cellColor(val, projected) {
-    if (!val || val <= 0) return 'background:var(--bg-hover);color:var(--text-muted)';
-    const intensity = Math.round((val / maxVal) * 100);
-    if (projected) {
-      return `background:rgba(85,136,255,${0.08 + intensity / 100 * 0.35});color:var(--blue)`;
-    }
-    return `background:rgba(34,223,138,${0.08 + intensity / 100 * 0.40});color:var(--green)`;
-  }
-
-  const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-  el.innerHTML = months.map(({ year, month }) => {
-    const key = `${year}-${String(month).padStart(2, '0')}`;
-    const isCurrentOrFuture = year > now.getFullYear() ||
-      (year === now.getFullYear() && month >= now.getMonth() + 1);
-    const val = isCurrentOrFuture ? (monthlyProjected[key] || 0) : (monthlyReal[key] || 0);
-    const style = _cellColor(val, isCurrentOrFuture);
-    const typeLabel = isCurrentOrFuture ? 'est.' : 'paid';
-    return `<div class="hm-col">
-      <div class="hm-month">${MONTH_NAMES[month - 1]}<br>${String(year).slice(2)}</div>
-      <div class="hm-cell" style="${style}" title="${key}: ${F(val)} €">
-        <span class="hm-amt">${val >= 0.01 ? F(val, 0) + '€' : '—'}</span>
-        <span class="hm-type">${val >= 0.01 ? typeLabel : ''}</span>
-      </div>
-    </div>`;
-  }).join('');
 }

@@ -3,15 +3,15 @@
 // ============================================================
 import { loadData } from './storage.js';
 import { fetchDataFromCloud, updateSyncStatus } from './cloud.js';
-import { refreshPortfolio, renderPortfolio, renderHistory } from './portfolio.js';
-import { renderTrades } from './trades.js';
+import { refreshPortfolio, renderPortfolio, renderHistory, toggleHoldingDetail } from './portfolio.js';
+import { renderTrades, toggleTradeDetail } from './trades.js';
 import { addGymEntry, renderGym } from './gym.js';
 import { renderBooks, renderMovies, renderSeries } from './media.js';
 import { openEditModal, openAddModal, closeModal } from './modals.js';
 import { authThenAction, checkAuth, restoreSession } from './auth.js';
 import { toast } from './utils.js';
-import { renderAnalytics, renderBenchmark, renderDividendHeatmap } from './analytics.js';
-import { renderCalculator } from './calculator.js';
+import { renderAnalytics, renderBenchmark } from './analytics.js';
+import { renderCalculator, syncCalculatorCapital } from './calculator.js';
 
 // ── Render completo de todas las secciones ───────────────────
 function renderAll() {
@@ -23,7 +23,6 @@ function renderAll() {
   renderSeries();
   renderHistory();
   renderAnalytics();
-  renderDividendHeatmap();
 }
 
 // ── Ejecuta una acción que requiere auth ─────────────────────
@@ -35,24 +34,61 @@ function doAction(action) {
   else if (action === 'addHolding') openAddModal('holding');
 }
 
-// ── Helper: aplicar estado autenticado a la UI ───────────────
+// ── Helper: aplicar estado autenticado a la UI (modo lectura por defecto) ──
 function _applyAuthUI() {
-  ['btnAddTrade', 'btnAddBook', 'btnAddMovie', 'btnAddSeries', 'btnAddHolding', 'gymForm'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = '';
-  });
+  // Solo revela el botón Admin; los botones de edición permanecen ocultos
+  // hasta que el usuario active explícitamente el modo edición.
+  const adminBtn = document.getElementById('btnAdmin');
+  if (adminBtn) adminBtn.style.display = '';
   const ab = document.getElementById('btnAuth');
-  if (ab) { ab.innerHTML = '&#x1F513; Unlocked'; ab.classList.add('btn-g'); }
+  if (ab) { ab.innerHTML = '&#x1F513; Authed'; ab.classList.add('btn-g'); }
 }
 
-// ── Event: autenticación correcta ────────────────────────────
-document.addEventListener('dashboard:auth-success', e => {
-  _applyAuthUI();
+// ── Modo edición: muestra/oculta controles de escritura ───────────────
+let _editMode = false;
+let _activeTab = 'portfolio';
+
+// btnAddTrade solo visible cuando (edit mode) Y (pestaña activa = trades)
+function _syncTradeBtn() {
+  const btn = document.getElementById('btnAddTrade');
+  if (btn) btn.style.display = (_editMode && _activeTab === 'trades') ? '' : 'none';
+}
+
+function _applyEditMode(on) {
+  _editMode = on;
+  document.body.classList.toggle('edit-mode', on);
+  // Los elementos .add-section se muestran/ocultan mediante CSS (body.edit-mode .add-section)
+  // btnAddTrade tiene lógica especial (tab + edit-mode) gestionada por _syncTradeBtn
+  _syncTradeBtn();
+  const adminBtn = document.getElementById('btnAdmin');
+  if (adminBtn) adminBtn.innerHTML = on ? '&#x270F;&#xFE0E; Editing' : '&#x270F; Edit';
+  // Al desactivar el modo edición se hace un renderAll para limpiar cualquier
+  // elemento de UI de edición que quedara visible (tarjetas, atributos, etc.)
+  if (on) renderPortfolio();
+  else renderAll();
+}
+
+// ── Flag de bloqueo de vista (view-lock) ───────────────────────
+let _lockMode = false;
+let _rfInterval = null;
+
+// ── Post-auth: render + fetch + intervalo ────────────────────
+async function _postAuthInit() {
   renderAll();
-  fetchDataFromCloud().then(ok => {
-    if (ok) renderAll();
-    updateSyncStatus('local');
-  });
+  renderCalculator();
+  refreshPortfolio();
+  if (!_rfInterval) _rfInterval = setInterval(refreshPortfolio, 60000);
+  const ok = await fetchDataFromCloud();
+  if (ok) renderAll();
+  if (!ok) updateSyncStatus('local');
+}
+
+// ── Event: autenticación correcta ────────────────────────────────
+document.addEventListener('dashboard:auth-success', async e => {
+  _lockMode = false;
+  document.getElementById('authOv').classList.remove('auth-locked');
+  _applyAuthUI();
+  await _postAuthInit();
   const pendingAction = e.detail;
   if (pendingAction && pendingAction !== 'none') doAction(pendingAction);
 });
@@ -68,19 +104,34 @@ document.getElementById('tabBar').addEventListener('click', e => {
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   e.target.classList.add('active');
   const tab = e.target.dataset.tab;
+  _activeTab = tab;
   document.getElementById('tab-' + tab).classList.add('active');
+  _syncTradeBtn();
   // Carga el benchmark SPY al entrar por primera vez en Analytics (evita fetch innecesario)
   if (tab === 'analytics' && !_benchmarkLoaded) {
     _benchmarkLoaded = true;
     renderBenchmark();
   }
+  // Siempre sincroniza la calculadora con el patrimonio actual al abrir Analytics
+  if (tab === 'analytics') syncCalculatorCapital();
+});
+
+// ── Selector de periodo del benchmark ───────────────────────
+document.getElementById('benchmarkBtns')?.addEventListener('click', e => {
+  const btn = e.target.closest('.bench-btn');
+  if (!btn) return;
+  document.querySelectorAll('#benchmarkBtns .bench-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderBenchmark();
 });
 
 // ── Toggle de tema claro/oscuro ──────────────────────────────
+// Dark es el valor por defecto absoluto. Solo se activa light
+// cuando el usuario lo selecciona manualmente.
 (function initTheme() {
   const saved = localStorage.getItem('theme');
   if (saved === 'light') document.documentElement.classList.add('theme-light');
-  else if (saved === 'dark') document.documentElement.classList.add('theme-dark');
+  else document.documentElement.classList.add('theme-dark');
 })();
 
 document.getElementById('btnTheme')?.addEventListener('click', () => {
@@ -96,6 +147,7 @@ document.getElementById('btnTheme')?.addEventListener('click', () => {
 // ── Listeners de botones de la barra superior ────────────────
 document.getElementById('btnRefresh')?.addEventListener('click', () => refreshPortfolio());
 document.getElementById('btnAuth')?.addEventListener('click', () => authThenAction('none'));
+document.getElementById('btnAdmin')?.addEventListener('click', () => _applyEditMode(!_editMode));
 document.getElementById('btnAddHolding')?.addEventListener('click', () => authThenAction('addHolding'));
 document.getElementById('btnAddTrade')?.addEventListener('click', () => authThenAction('addTrade'));
 document.getElementById('btnAddBook')?.addEventListener('click', () => authThenAction('addBook'));
@@ -105,6 +157,8 @@ document.getElementById('btnGymAdd')?.addEventListener('click', () => addGymEntr
 
 // ── Listeners del overlay de auth ────────────────────────────
 document.getElementById('btnAuthCancel')?.addEventListener('click', () => {
+  // En view-lock, no se puede cancelar; redirigir al campo de contraseña
+  if (_lockMode) { document.getElementById('authPw')?.focus(); return; }
   document.getElementById('authOv').classList.remove('open');
 });
 document.getElementById('btnAuthSubmit')?.addEventListener('click', () => checkAuth());
@@ -116,6 +170,7 @@ document.getElementById('ov')?.addEventListener('click', e => {
 });
 document.getElementById('authOv')?.addEventListener('click', e => {
   if (e.target === document.getElementById('authOv')) {
+    if (_lockMode) { document.getElementById('authPw')?.focus(); return; }
     document.getElementById('authOv').classList.remove('open');
   }
 });
@@ -132,7 +187,18 @@ document.getElementById('seriesSort')?.addEventListener('change', () => renderSe
 document.getElementById('seriesFilter')?.addEventListener('change', () => renderSeries());
 
 // ── Delegación global: click en tarjetas editables ───────────
-document.addEventListener('click', function (e) {
+document.addEventListener('click', function (e) {  // En modo lectura no se procesa ninguna edición
+  if (!document.body.classList.contains('edit-mode')) {
+    // Accordion de holding al hacer clic en tarjeta (modo lectura)
+    const stock = e.target.closest('.stock[data-detail-idx]');
+    if (stock) { toggleHoldingDetail(stock, parseInt(stock.dataset.detailIdx)); return; }
+    // Accordion de trade cerrado al hacer clic en fila (siempre disponible en lectura)
+    const tradeRow = e.target.closest('tr[data-trade-idx]');
+    if (tradeRow && !e.target.closest('tr.trade-detail-row')) {
+      toggleTradeDetail(tradeRow, parseInt(tradeRow.dataset.tradeIdx)); return;
+    }
+    return;
+  }
   const card = e.target.closest('.m-card[data-edit-type]');
   if (card) { openEditModal(card.dataset.editType, parseInt(card.dataset.editIdx)); return; }
 
@@ -153,39 +219,35 @@ document.addEventListener('click', function (e) {
 // ── Inicialización ───────────────────────────────────────────
 async function init() {
   loadData();
-  renderAll();
   document.getElementById('gymDate').value = new Date().toISOString().slice(0, 10);
 
-  // Restaurar sesión si hay token válido en sessionStorage (evita re-login)
-  if (restoreSession()) {
-    _applyAuthUI();
-  }
-
-  // Inicializar calculator (registra listener del botón)
-  renderCalculator();
-
-  // Actualizar icono del botón de tema al estado actual
+  // Icono del botón de tema al estado actual
   const btnTheme = document.getElementById('btnTheme');
   if (btnTheme) {
     const isLight = document.documentElement.classList.contains('theme-light');
     btnTheme.textContent = isLight ? '☀' : '☽';
   }
 
-  refreshPortfolio();
-  setInterval(refreshPortfolio, 60000);
-
-  const ok = await fetchDataFromCloud();
-  if (ok) renderAll();
-  if (!ok) updateSyncStatus('local');
+  if (restoreSession()) {
+    // Sesión válida: desbloquear UI directamente
+    _applyAuthUI();
+    await _postAuthInit();
+  } else {
+    // VIEW-LOCK: bloquear todo hasta autenticación desde el segundo 0
+    _lockMode = true;
+    const authOv = document.getElementById('authOv');
+    authOv.classList.add('open', 'auth-locked');
+    document.getElementById('authPw')?.focus();
+    renderCalculator();
+  }
 
   document.addEventListener('visibilitychange', async () => {
-    if (document.visibilityState === 'visible') {
+    if (document.visibilityState === 'visible' && !_lockMode) {
       const ok = await fetchDataFromCloud();
       if (ok) renderAll();
     }
   });
 
-  // Detectar cambios de conectividad
   window.addEventListener('online', () => toast('Back online', 'ok'));
   window.addEventListener('offline', () => toast('Sin conexión — mostrando datos en caché', 'err'));
 }

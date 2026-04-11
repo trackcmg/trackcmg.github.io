@@ -1,6 +1,6 @@
 {
-  "name": "Dashboard Personal",
-  "short_name": "Dashboard",
+  "name": "Track CMG",
+  "short_name": "Track CMG",
   "description": "Portfolio financiero, gym, libros y series — tracker personal.",
   "start_url": "/",
   "display": "standalone",

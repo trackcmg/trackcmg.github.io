@@ -2,6 +2,8 @@
 //  calculator.js — Calculadora de interés compuesto
 // ============================================================
 import { F, ttOpts, legOpts } from './utils.js';
+import { D } from './state.js';
+import { valEur } from './portfolio.js';
 
 let CH_calc = null;
 
@@ -25,13 +27,22 @@ function _simulate(capital, monthly, annualRatePct, years) {
   return results;
 }
 
+// Sincroniza el campo capital con el patrimonio neto actual y re-calcula.
+export function syncCalculatorCapital() {
+  const netWorth = (D.cash || 0) + (D.holdings || []).reduce((s, h) => s + valEur(h), 0);
+  const capEl = document.getElementById('calcCapital');
+  if (capEl && netWorth > 0) capEl.value = Math.round(netWorth);
+  runCalc();
+}
+
 export function renderCalculator() {
   const btn = document.getElementById('btnCalc');
-  if (!btn) return;
+  if (!btn || btn.dataset.calcInited) return;
+  btn.dataset.calcInited = '1';
   btn.addEventListener('click', () => runCalc());
 
-  // Auto-calcular al cargar con los valores por defecto
-  runCalc();
+  // Sincronizar con el patrimonio actual y calcular
+  syncCalculatorCapital();
 }
 
 function runCalc() {
