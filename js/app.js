@@ -249,6 +249,11 @@ async function init() {
   const adminBtn = document.getElementById('btnAdmin');
   if (adminBtn) adminBtn.style.display = 'none';
 
+  // Si hay sesión guardada de Supabase, ocultar el login overlay inmediatamente
+  // sin esperar al callback async (elimina el freeze de ~5s en PWA móvil)
+  const hasSession = Object.keys(localStorage).some(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+  if (hasSession) _hideLoginOverlay();
+
   // Render inicial con datos locales (sin esperar a la nube)
   renderAll();
   renderCalculator();
