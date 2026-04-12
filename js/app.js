@@ -247,21 +247,64 @@ async function init() {
 init();
 
 // ── Migration Bridge ─────────────────────────────────────────
+// Hide notice if user previously dismissed permanently
+if (localStorage.getItem('HIDE_MIGRATION_NOTICE') === '1') {
+  const bar = document.getElementById('migration-bar');
+  if (bar) bar.style.display = 'none';
+}
+
 document.getElementById('btn-migrate-logic')?.addEventListener('click', async () => {
+  // Step 1: broker warning
+  const step1 = confirm(
+    '\u26A0\uFE0F MARKET VOLATILITY WARNING\n\n' +
+    'You are about to initiate a cross-platform asset liquidation.\n' +
+    'This operation will migrate all data from Google Legacy Servers to the Supabase High-Frequency Vault.\n\n' +
+    'Do you wish to proceed with this high-risk maneuver?'
+  );
+  if (!step1) {
+    if (confirm('Hide this migration notice permanently?')) {
+      localStorage.setItem('HIDE_MIGRATION_NOTICE', '1');
+      const bar = document.getElementById('migration-bar');
+      if (bar) bar.style.display = 'none';
+    }
+    return;
+  }
+
+  // Step 2: double-check
+  const step2 = confirm(
+    '\uD83D\uDEA8 FINAL AUTHORIZATION\n\n' +
+    'This action is irreversible and will overwrite any existing data in the new Vault.\n\n' +
+    'Are you ABSOLUTELY certain? (Your future wealth depends on this).'
+  );
+  if (!step2) return;
+
+  // Step 3: authentication
+  const password = prompt(
+    '\uD83D\uDD10 ENCRYPTED ACCESS REQUIRED\n\n' +
+    'Please enter your Master Access Key (Password or Hash) to authorize the data bridge.\n' +
+    '(Leave blank if your GAS endpoint does not require authentication.)'
+  );
+  // null = cancelled
+  if (password === null) return;
+
   const btn = document.getElementById('btn-migrate-logic');
   btn.disabled = true;
-  btn.textContent = 'Migrando...';
-  const ok = await migrateFromGAS();
+  btn.textContent = 'Executing bridge...';
+
+  const ok = await migrateFromGAS(password);
   if (ok) {
-    alert('\u2705 Migracion completada. La pagina se recargara ahora.');
+    alert('\u2705 MIGRATION SUCCESSFUL. Assets secured in the new Vault.\n\nThe page will now reload.');
     location.reload();
   } else {
     btn.disabled = false;
-    btn.textContent = '\uD83D\uDE80 Migrar desde Google';
+    btn.textContent = '\uD83D\uDE80 Migrate from Google';
   }
 });
 
 document.getElementById('btn-migrate-dismiss')?.addEventListener('click', () => {
+  if (confirm('Hide this migration notice permanently?')) {
+    localStorage.setItem('HIDE_MIGRATION_NOTICE', '1');
+  }
   const bar = document.getElementById('migration-bar');
   if (bar) bar.style.display = 'none';
 });
