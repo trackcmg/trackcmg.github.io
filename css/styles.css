@@ -3,6 +3,7 @@
 .bg-mesh{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 600px 400px at 20% 10%,rgba(34,223,138,.04),transparent),radial-gradient(ellipse 500px 500px at 80% 80%,rgba(85,136,255,.04),transparent),radial-gradient(ellipse 400px 300px at 50% 50%,rgba(170,102,255,.03),transparent)}
 .scanline{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.015;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,.03) 2px,rgba(255,255,255,.03) 4px)}
 .wrap{position:relative;z-index:1;max-width:1320px;margin:0 auto;padding:20px 16px}
+main{display:block;min-height:80vh}
 header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding-bottom:16px;margin-bottom:0;border-bottom:1px solid var(--border)}
 .brand{display:flex;align-items:center;gap:10px}.brand-mark{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,var(--green),var(--blue));display:grid;place-items:center;font-weight:800;font-size:16px;color:var(--bg)}
 .logo-small{width:32px;height:32px;border-radius:8px;object-fit:cover;flex-shrink:0}
@@ -34,7 +35,7 @@ header{display:flex;justify-content:space-between;align-items:center;flex-wrap:w
 .s-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:14px;border-top:1px solid var(--border)}
 .ml{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px}.mv{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500}
 .up{color:var(--green)}.dn{color:var(--red)}
-.cg{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;margin-bottom:16px}
+.cg{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;margin-bottom:16px;min-height:300px}
 .card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px}
 .card h2{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;font-weight:500}
 .ch{position:relative;width:100%}.ch-s{height:260px;min-height:260px;contain:layout style}.ch-l{height:360px;min-height:360px;contain:layout style}

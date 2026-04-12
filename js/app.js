@@ -14,15 +14,17 @@ import { renderAnalytics, renderBenchmark } from './analytics.js';
 import { renderCalculator, syncCalculatorCapital } from './calculator.js';
 
 // ── Render completo de todas las secciones ───────────────────
+// Cada módulo se programa como una tarea independiente (setTimeout 0)
+// para ceder el hilo principal al navegador entre renders y reducir el TBT.
 function renderAll() {
   renderPortfolio();
-  renderTrades();
-  renderGym();
-  renderBooks();
-  renderMovies();
-  renderSeries();
-  renderHistory();
-  renderAnalytics();
+  setTimeout(() => renderTrades(), 0);
+  setTimeout(() => renderGym(), 0);
+  setTimeout(() => renderBooks(), 0);
+  setTimeout(() => renderMovies(), 0);
+  setTimeout(() => renderSeries(), 0);
+  setTimeout(() => renderHistory(), 0);
+  setTimeout(() => renderAnalytics(), 0);
 }
 
 // ── Ejecuta una acción que requiere auth ─────────────────────
