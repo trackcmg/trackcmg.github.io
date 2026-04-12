@@ -56,8 +56,6 @@ function _renderSummaryCards() {
   const yieldPct = totalInv > 0 ? (totalDivEur / totalInv) * 100 : 0;
 
   el.innerHTML = [
-    { lbl: 'Total Return (Real.+Lat.)', val: (totalReturn >= 0 ? '+' : '') + F(totalReturn) + ' €', cls: totalReturn >= 0 ? 'up' : 'dn' },
-    { lbl: 'Return %', val: (totalReturnPct >= 0 ? '+' : '') + F(totalReturnPct) + '%', cls: totalReturnPct >= 0 ? 'up' : 'dn' },
     { lbl: 'Realized P&L', val: (realizedPnl >= 0 ? '+' : '') + F(realizedPnl) + ' €', cls: realizedPnl >= 0 ? 'up' : 'dn' },
     { lbl: 'Unrealized P&L', val: (latentPnl >= 0 ? '+' : '') + F(latentPnl) + ' €', cls: latentPnl >= 0 ? 'up' : 'dn' },
     { lbl: 'Dividends (EUR)', val: F(totalDivEur) + ' €', cls: totalDivEur > 0 ? 'up' : '' },

@@ -65,7 +65,7 @@ function runCalc() {
     res.innerHTML = `
       <div class="cr-row"><span class="cr-lbl">Final value</span><span class="cr-val up">${F(final.value)} €</span></div>
       <div class="cr-row"><span class="cr-lbl">Total invested</span><span class="cr-val">${F(totalInvested)} €</span></div>
-      <div class="cr-row"><span class="cr-lbl">Total gains</span><span class="cr-val up">+${F(totalGains)} € (+${F(totalReturn)}%)</span></div>
+      <div class="cr-row"><span class="cr-lbl">Total gains</span><span class="cr-val up">+${F(totalGains)} €</span></div>
       <div class="cr-row"><span class="cr-lbl">Annual rate</span><span class="cr-val">${rate}%</span></div>
       <div class="cr-row"><span class="cr-lbl">Duration</span><span class="cr-val">${years} years</span></div>
     `;
