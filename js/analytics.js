@@ -205,23 +205,65 @@ function _drawBenchmark() {
   const canvas = document.getElementById('cBenchmark');
   if (!canvas) return;
 
-  // Período seleccionado desde el grupo de botones
   const period = document.querySelector('#benchmarkBtns .active')?.dataset.period || 'all';
   const now = new Date();
   const todayStr = now.toISOString().slice(0, 10);
+  const MIN_DATE = '2025-01-01';
 
-  // La ventana de vista nunca retrocede antes de enero 2024
-  let viewStart = '2024-01-01';
-  if (period === '1y') { const d = new Date(now); d.setFullYear(d.getFullYear() - 1); const s = d.toISOString().slice(0, 10); if (s > '2024-01-01') viewStart = s; }
-  else if (period === '6m') { const d = new Date(now); d.setMonth(d.getMonth() - 6); const s = d.toISOString().slice(0, 10); if (s > '2024-01-01') viewStart = s; }
-  else if (period === '3m') { const d = new Date(now); d.setMonth(d.getMonth() - 3); const s = d.toISOString().slice(0, 10); if (s > '2024-01-01') viewStart = s; }
-  else if (period === '1m') { const d = new Date(now); d.setMonth(d.getMonth() - 1); const s = d.toISOString().slice(0, 10); if (s > '2024-01-01') viewStart = s; }
+  // ── viewStart según período (mínimo enero 2025) ──────────────
+  let viewStart = MIN_DATE;
+  if (period === '1y')  { const d = new Date(now); d.setFullYear(d.getFullYear() - 1); viewStart = d.toISOString().slice(0, 10); }
+  else if (period === '6m') { const d = new Date(now); d.setMonth(d.getMonth() - 6); viewStart = d.toISOString().slice(0, 10); }
+  else if (period === '3m') { const d = new Date(now); d.setMonth(d.getMonth() - 3); viewStart = d.toISOString().slice(0, 10); }
+  else if (period === '1m') { const d = new Date(now); d.setMonth(d.getMonth() - 1); viewStart = d.toISOString().slice(0, 10); }
+  if (viewStart < MIN_DATE) viewStart = MIN_DATE;
 
-  // SPY base: precio al inicio del período seleccionado — ambas series arrancan en 0%
+  // ── Datos reales del portfolio ────────────────────────────────
+  const allPortfolio = [...(D.history || [])].sort((a, b) => a.date.localeCompare(b.date));
+  const firstEntry = allPortfolio[0] || null;
+  const portMap = {};
+  for (const h of allPortfolio) portMap[h.date] = h;
+
+  // ── Tasa mensual compuesta (constante) desde ene-2025 al primer dato real ──
+  // Return en primer dato = (valor - invertido) / invertido
+  // (1 + monthlyRate)^meses = 1 + totalReturn  →  monthlyRate = (1+R)^(1/m) - 1
+  let monthlyRate = 0;
+  if (firstEntry && firstEntry.totalInvested > 0) {
+    const totalRet = (firstEntry.totalValue - firstEntry.totalInvested) / firstEntry.totalInvested;
+    const startMs = new Date(MIN_DATE + 'T00:00:00Z').getTime();
+    const firstMs = new Date(firstEntry.date + 'T00:00:00Z').getTime();
+    const months = (firstMs - startMs) / (30.4375 * 24 * 3600 * 1000);
+    if (months > 0) monthlyRate = Math.pow(1 + totalRet, 1 / months) - 1;
+  }
+
+  // Retorno acumulado absoluto del portfolio en cualquier fecha (desde ene-2025)
+  function _absReturn(dateStr) {
+    if (!firstEntry) return null;
+    const startMs = new Date(MIN_DATE + 'T00:00:00Z').getTime();
+    const curMs   = new Date(dateStr + 'T00:00:00Z').getTime();
+    const months  = (curMs - startMs) / (30.4375 * 24 * 3600 * 1000);
+
+    if (dateStr < firstEntry.date) {
+      // Zona interpolada: rentabilidad compuesta constante
+      return (Math.pow(1 + monthlyRate, months) - 1) * 100;
+    }
+    // Zona con datos reales: forward-fill
+    let entry = portMap[dateStr];
+    if (!entry) {
+      const prev = allPortfolio.filter(h => h.date <= dateStr);
+      entry = prev.length ? prev[prev.length - 1] : null;
+    }
+    if (!entry || firstEntry.totalInvested <= 0) return null;
+    return ((entry.totalValue - firstEntry.totalInvested) / firstEntry.totalInvested) * 100;
+  }
+
+  // ── SPY base y portfolio base en viewStart → ambos parten de 0% ──
   const spyBase = _nearestSpy(viewStart);
-  console.log('[Benchmark] periodo:', period, '| viewStart:', viewStart, '| spyBase:', spyBase);
+  const portBase = _absReturn(viewStart); // retorno absoluto en viewStart
 
-  // Eje X: primer día de cada mes desde viewStart hasta hoy
+  console.log('[Benchmark] periodo:', period, '| viewStart:', viewStart, '| spyBase:', spyBase, '| portBase:', portBase?.toFixed(2));
+
+  // ── Eje X: primer día de cada mes + fechas reales del portfolio ──
   const axisDates = [];
   const cur = new Date(viewStart + 'T00:00:00Z');
   cur.setUTCDate(1);
@@ -231,31 +273,10 @@ function _drawBenchmark() {
     axisDates.push(key);
     cur.setUTCMonth(cur.getUTCMonth() + 1);
   }
-
-  // Añadir fechas reales del portfolio dentro del rango
-  const allPortfolio = [...(D.history || [])].filter(h => h.date >= '2024-01-01').sort((a, b) => a.date.localeCompare(b.date));
   allPortfolio.filter(h => h.date >= viewStart).forEach(h => { if (!axisDates.includes(h.date)) axisDates.push(h.date); });
   axisDates.sort();
 
-  // Mapa portfolio por fecha para forward-fill
-  const portMap = {};
-  for (const h of allPortfolio) portMap[h.date] = h.totalValue;
-
-  // Portfolio base: totalValue en viewStart (o primer entry disponible si la cartera empieza después)
-  const prevEntries = allPortfolio.filter(h => h.date <= viewStart);
-  let portfolioBase, portfolioFirstDate;
-  if (prevEntries.length) {
-    portfolioBase = prevEntries[prevEntries.length - 1].totalValue;
-    portfolioFirstDate = viewStart;
-  } else if (allPortfolio.length) {
-    portfolioBase = allPortfolio[0].totalValue;
-    portfolioFirstDate = allPortfolio[0].date;
-  } else {
-    portfolioBase = null;
-    portfolioFirstDate = null;
-  }
-
-  if (!spyBase && !portfolioBase) {
+  if (spyBase == null && portBase == null) {
     if (CH.benchmark) { CH.benchmark.destroy(); CH.benchmark = null; }
     canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
     return;
@@ -263,39 +284,30 @@ function _drawBenchmark() {
 
   const labels = axisDates.map(d => new Date(d + 'T00:00:00Z').toLocaleDateString('es-ES', { month: 'short', year: '2-digit' }));
 
-  // SPY data: null para gaps → Chart.js usa spanGaps:true para interpolar
-  // Nunca NaN → Chart.js aborta el dataset si hay NaN
+  // ── SPY: rebased a 0% en viewStart ───────────────────────────
   const spyData = spyBase
     ? (() => {
         let lastPct = null;
         return axisDates.map(d => {
           const p = _nearestSpy(d);
-          if (p != null && isFinite(p)) {
-            lastPct = parseFloat(((p / spyBase - 1) * 100).toFixed(2));
-          }
-          return lastPct; // forward-fill: nunca null después del primer dato real
+          if (p != null && isFinite(p)) lastPct = parseFloat(((p / spyBase - 1) * 100).toFixed(2));
+          return lastPct;
         });
       })()
     : axisDates.map(() => null);
 
-  console.log('[SPY] spyBase:', spyBase, '| spyData[0..3]:', spyData.slice(0, 3), '| last:', spyData[spyData.length - 1]);
-
-  const portData = (() => {
-    if (!portfolioBase || !portfolioFirstDate) return axisDates.map(() => null);
-    let lastVal = null;
-    return axisDates.map(d => {
-      if (d < portfolioFirstDate) return null;
-      if (portMap[d] != null) lastVal = portMap[d];
-      if (lastVal == null) {
-        const prev = allPortfolio.filter(h => h.date <= d);
-        if (prev.length) lastVal = prev[prev.length - 1].totalValue;
-      }
-      return lastVal != null ? parseFloat(((lastVal / portfolioBase - 1) * 100).toFixed(2)) : null;
-    });
-  })();
+  // ── Portfolio: rebased a 0% en viewStart ─────────────────────
+  const portData = portBase != null
+    ? axisDates.map(d => {
+        const abs = _absReturn(d);
+        if (abs == null) return null;
+        // Rebase: ((1 + abs/100) / (1 + portBase/100) - 1) * 100
+        const rebased = ((1 + abs / 100) / (1 + portBase / 100) - 1) * 100;
+        return parseFloat(rebased.toFixed(2));
+      })
+    : axisDates.map(() => null);
 
   const datasets = [];
-  // SPY primero (debajo) → Portfolio encima
   if (spyBase && spyData.some(v => v !== null)) {
     datasets.push({
       label: 'S&P 500 (SPY)',
@@ -306,14 +318,14 @@ function _drawBenchmark() {
       borderDash: [6, 3], spanGaps: true
     });
   }
-  if (portfolioBase) {
+  if (portBase != null) {
     datasets.push({
       label: 'My Portfolio',
       data: portData,
       borderColor: '#22df8a',
       backgroundColor: 'rgba(34,223,138,.08)',
       fill: true, tension: .3, pointRadius: 3, pointBackgroundColor: '#22df8a',
-      pointBorderColor: '#0d0d1a', pointBorderWidth: 2, borderWidth: 2, spanGaps: false
+      pointBorderColor: '#0d0d1a', pointBorderWidth: 2, borderWidth: 2, spanGaps: true
     });
   }
 
