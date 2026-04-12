@@ -1,4 +1,4 @@
-:root{--bg:#060611;--bg-card:#0d0d1a;--bg-hover:#161630;--border:#1a1a35;--border-focus:#2d2d55;--text:#e2e2f0;--text-dim:#7070a0;--text-muted:#7272a0;--green:#22df8a;--green-bg:rgba(34,223,138,.08);--red:#ff4466;--red-bg:rgba(255,68,102,.08);--blue:#5588ff;--blue-bg:rgba(85,136,255,.08);--amber:#ffaa22;--amber-bg:rgba(255,170,34,.08);--purple:#aa66ff;--purple-bg:rgba(170,102,255,.08);--cyan:#22dddd}
+:root{--bg:#060611;--bg-card:#0d0d1a;--bg-hover:#161630;--border:#1a1a35;--border-focus:#2d2d55;--text:#e2e2f0;--text-dim:#a0a0b8;--text-muted:#a0a0b8;--green:#22df8a;--green-bg:rgba(34,223,138,.08);--red:#ff4466;--red-bg:rgba(255,68,102,.08);--blue:#5588ff;--blue-bg:rgba(85,136,255,.08);--amber:#ffaa22;--amber-bg:rgba(255,170,34,.08);--purple:#aa66ff;--purple-bg:rgba(170,102,255,.08);--cyan:#22dddd}
 *{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-height:100vh}
 .bg-mesh{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 600px 400px at 20% 10%,rgba(34,223,138,.04),transparent),radial-gradient(ellipse 500px 500px at 80% 80%,rgba(85,136,255,.04),transparent),radial-gradient(ellipse 400px 300px at 50% 50%,rgba(170,102,255,.03),transparent)}
 .scanline{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.015;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,.03) 2px,rgba(255,255,255,.03) 4px)}
@@ -18,12 +18,12 @@ header{display:flex;justify-content:space-between;align-items:center;flex-wrap:w
 .btn-sm{padding:5px 10px;font-size:11px}.btn-r{background:var(--red-bg);color:var(--red);border-color:rgba(255,68,102,.2)}
 .fx-strip{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;padding:10px 16px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;font-family:'IBM Plex Mono',monospace;font-size:12px}
 .fx-p{display:flex;gap:6px;align-items:center}.fx-p .l{color:var(--text-muted)}.fx-p .v{color:var(--text-dim);font-weight:500}
-.hero{text-align:center;padding:36px 16px;margin-bottom:28px;border-radius:18px;background:linear-gradient(180deg,rgba(34,223,138,.04) 0%,transparent 100%);border:1px solid rgba(34,223,138,.08);position:relative}
+.hero{text-align:center;padding:36px 16px;margin-bottom:28px;border-radius:18px;background:linear-gradient(180deg,rgba(34,223,138,.04) 0%,transparent 100%);border:1px solid rgba(34,223,138,.08);position:relative;min-height:180px}
 .hero::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:60%;height:1px;background:linear-gradient(90deg,transparent,rgba(34,223,138,.3),transparent)}
 .hero-lbl{font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:2.5px;margin-bottom:6px}
 .hero-val{font-family:'IBM Plex Mono',monospace;font-size:clamp(36px,7vw,64px);font-weight:700;letter-spacing:-2px;background:linear-gradient(135deg,var(--green),#44ddaa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1.15;margin-bottom:10px}
 .hero-sub{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-dim)}
-.sg{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:24px}
+.sg{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:24px;min-height:80px}
 .stock{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;transition:.25s}.stock:hover{border-color:var(--border-focus);transform:translateY(-1px)}
 .s-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
 .s-tk{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:700;display:flex;align-items:center;gap:8px}
@@ -92,6 +92,14 @@ td{padding:10px 14px;border-bottom:1px solid var(--border);font-family:'IBM Plex
   .brand h1{font-size:15px}
   .brand small{display:none}
   .ts,.sync-status{font-size:10px}
+}
+@media(max-width:360px){
+  .hdr-r{gap:3px}
+  #btnAdmin,#btnLogout{padding:4px 6px;font-size:10px}
+  .brand h1{font-size:13px}
+  .ts{display:none}
+  .sync-status{display:none}
+  .live-dot{display:none}
 }
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 

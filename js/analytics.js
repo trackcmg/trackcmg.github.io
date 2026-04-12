@@ -219,8 +219,8 @@ function _drawBenchmark() {
   else if (period === '3m') { const d = new Date(now); d.setMonth(d.getMonth() - 3); const s = d.toISOString().slice(0, 10); if (s > '2024-01-01') viewStart = s; }
   else if (period === '1m') { const d = new Date(now); d.setMonth(d.getMonth() - 1); const s = d.toISOString().slice(0, 10); if (s > '2024-01-01') viewStart = s; }
 
-  // Ancla SPY: siempre el primer día hábil de enero 2024
-  const spyBase = _nearestSpy('2024-01-01');
+  // SPY base: precio al inicio del período seleccionado — ambas series arrancan en 0%
+  const spyBase = _nearestSpy(viewStart);
   console.log('[Benchmark] periodo:', period, '| viewStart:', viewStart, '| spyBase:', spyBase);
 
   // Eje X: primer día de cada mes desde viewStart hasta hoy
@@ -239,21 +239,29 @@ function _drawBenchmark() {
   allPortfolio.filter(h => h.date >= viewStart).forEach(h => { if (!axisDates.includes(h.date)) axisDates.push(h.date); });
   axisDates.sort();
 
-  // Base del portfolio: primer valor registrado desde enero 2024
-  const portfolioFirstDate = allPortfolio[0]?.date;
-  const portfolioBase = allPortfolio.length > 0
-    ? (allPortfolio[0].totalInvested > 0 ? allPortfolio[0].totalInvested : allPortfolio[0].totalValue)
-    : null;
+  // Mapa portfolio por fecha para forward-fill
+  const portMap = {};
+  for (const h of allPortfolio) portMap[h.date] = h.totalValue;
+
+  // Portfolio base: totalValue en viewStart (o primer entry disponible si la cartera empieza después)
+  const prevEntries = allPortfolio.filter(h => h.date <= viewStart);
+  let portfolioBase, portfolioFirstDate;
+  if (prevEntries.length) {
+    portfolioBase = prevEntries[prevEntries.length - 1].totalValue;
+    portfolioFirstDate = viewStart;
+  } else if (allPortfolio.length) {
+    portfolioBase = allPortfolio[0].totalValue;
+    portfolioFirstDate = allPortfolio[0].date;
+  } else {
+    portfolioBase = null;
+    portfolioFirstDate = null;
+  }
 
   if (!spyBase && !portfolioBase) {
     if (CH.benchmark) { CH.benchmark.destroy(); CH.benchmark = null; }
     canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
     return;
   }
-
-  // Mapa portfolio por fecha para forward-fill
-  const portMap = {};
-  for (const h of allPortfolio) portMap[h.date] = h.totalValue;
 
   const labels = axisDates.map(d => new Date(d + 'T00:00:00Z').toLocaleDateString('es-ES', { month: 'short', year: '2-digit' }));
 
