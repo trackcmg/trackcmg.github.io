@@ -8,18 +8,26 @@
 //  No hay secretos en el cÃ³digo; SUPABASE_ANON_KEY es pÃºblica
 //  y estÃ¡ protegida por RLS del lado del servidor.
 // ============================================================
-import { STORAGE_MODE, SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
+import { STORAGE_MODE, SUPABASE_URL, SUPABASE_ANON_KEY, PROXY_URL } from './config.js';
 import { toast } from './utils.js';
 import { loadDataFromObj, buildDataObj, saveLocal, updateSyncStatus } from './storage.js';
 export { updateSyncStatus };
 
 export let _cloudReady = false;
 
-// InicializaciÃ³n global del cliente Supabase
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-// user_id estÃ¡tico para este proyecto personal (mono-usuario)
+// user_id estatico para este proyecto personal (mono-usuario)
 const UID = 'default_user';
+
+// Lazy-init del cliente Supabase: se crea la primera vez que se necesita.
+// Evita que el modulo falle si el CDN de Supabase carga despues del modulo JS.
+let _supabaseClient = null;
+function _getSupabase() {
+  if (!_supabaseClient) {
+    if (!window.supabase) throw new Error('[Supabase] CDN no cargado aun. Comprueba el orden de <script> en index.html.');
+    _supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+  return _supabaseClient;
+}
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  BACKEND: Supabase â€” lectura (6 SELECTs en paralelo)
@@ -33,6 +41,7 @@ async function _loadFromSupabase() {
   }
 
   try {
+    const sb = _getSupabase();
     const [
       { data: holdingsRows,  error: e1 },
       { data: tradesRows,    error: e2 },
@@ -41,13 +50,13 @@ async function _loadFromSupabase() {
       { data: historyRows,   error: e5 },
       { data: settingsRow,   error: e6 },
     ] = await Promise.all([
-      supabase.from('holdings').select('payload').eq('user_id', UID),
-      supabase.from('closed_trades').select('payload').eq('user_id', UID),
-      supabase.from('media').select('type, payload').eq('user_id', UID),
-      supabase.from('gym').select('payload').eq('user_id', UID),
-      supabase.from('history').select('snapped_at, payload').eq('user_id', UID)
+      sb.from('holdings').select('payload').eq('user_id', UID),
+      sb.from('closed_trades').select('payload').eq('user_id', UID),
+      sb.from('media').select('type, payload').eq('user_id', UID),
+      sb.from('gym').select('payload').eq('user_id', UID),
+      sb.from('history').select('snapped_at, payload').eq('user_id', UID)
         .order('snapped_at', { ascending: true }),
-      supabase.from('settings').select('cash, total_invested').eq('user_id', UID)
+      sb.from('settings').select('cash, total_invested').eq('user_id', UID)
         .maybeSingle(),
     ]);
 
@@ -68,6 +77,7 @@ async function _loadFromSupabase() {
       totalInvested: settingsRow?.total_invested ?? 0,
     };
 
+    // Base de datos vacia: inicializar D con valores por defecto (no es un error)
     loadDataFromObj(obj, true);
     saveLocal();
     _cloudReady = true;
@@ -94,24 +104,25 @@ async function _saveToSupabase() {
 
   try {
     // 1. Borrar registros previos del usuario (arrays que se reescriben completamente)
+    const sb = _getSupabase();
     await Promise.all([
-      supabase.from('holdings').delete().eq('user_id', UID),
-      supabase.from('closed_trades').delete().eq('user_id', UID),
-      supabase.from('media').delete().eq('user_id', UID),
-      supabase.from('gym').delete().eq('user_id', UID),
+      sb.from('holdings').delete().eq('user_id', UID),
+      sb.from('closed_trades').delete().eq('user_id', UID),
+      sb.from('media').delete().eq('user_id', UID),
+      sb.from('gym').delete().eq('user_id', UID),
     ]);
 
     // 2. Insertar datos actuales
     const ops = [];
 
     if (data.holdings.length) {
-      ops.push(supabase.from('holdings').insert(
+      ops.push(sb.from('holdings').insert(
         data.holdings.map(h => ({ user_id: UID, ticker: h.ticker, payload: h }))
       ));
     }
 
     if (data.closedTrades.length) {
-      ops.push(supabase.from('closed_trades').insert(
+      ops.push(sb.from('closed_trades').insert(
         data.closedTrades.map(t => ({ user_id: UID, ticker: t.ticker, payload: t }))
       ));
     }
@@ -121,24 +132,22 @@ async function _saveToSupabase() {
       ...data.movies.map(m => ({ user_id: UID, type: 'movie', payload: m })),
       ...data.series.map(s => ({ user_id: UID, type: 'serie', payload: s })),
     ];
-    if (mediaAll.length) ops.push(supabase.from('media').insert(mediaAll));
+    if (mediaAll.length) ops.push(sb.from('media').insert(mediaAll));
 
     if (data.gym.length) {
-      ops.push(supabase.from('gym').insert(
+      ops.push(sb.from('gym').insert(
         data.gym.map(g => ({ user_id: UID, log_date: g.date, payload: g }))
       ));
     }
 
-    // History: upsert para preservar snapshots histÃ³ricos sin duplicados
     if (data.history.length) {
-      ops.push(supabase.from('history').upsert(
+      ops.push(sb.from('history').upsert(
         data.history.map(h => ({ user_id: UID, snapped_at: h.date, payload: h })),
         { onConflict: 'user_id,snapped_at' }
       ));
     }
 
-    // Settings: upsert escalar (cash + totalInvested)
-    ops.push(supabase.from('settings').upsert(
+    ops.push(sb.from('settings').upsert(
       { user_id: UID, cash: data.cash, total_invested: data.totalInvested,
         updated_at: new Date().toISOString() },
       { onConflict: 'user_id' }
@@ -164,17 +173,67 @@ async function _saveToSupabase() {
 //  ROUTER PÃšBLICO â€” Ãºnica interfaz que consume el resto de la app
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
+// ════════════════════════════════════════════════════════════════════════════
+//  BACKEND: GAS — fallback / modo alternativo
+//  Usa PROXY_URL (mismo endpoint GAS) para getData / saveData.
+//  Lectura es anonima; escritura requiere que GAS este configurado sin pw.
+// ════════════════════════════════════════════════════════════════════════════
+
+async function _loadFromGAS() {
+  if (!PROXY_URL) { console.warn('[GAS] PROXY_URL no configurada.'); updateSyncStatus('local'); return false; }
+  try {
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 20000);
+    const res = await fetch(PROXY_URL + '?action=getData&t=' + Date.now(), { signal: ctrl.signal });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    if (!text || text === '{}' || text === 'No URL' || text === 'Blocked') {
+      updateSyncStatus('local'); return false;
+    }
+    let j;
+    try { j = JSON.parse(text); } catch { updateSyncStatus('local'); return false; }
+    if (j && j.holdings) {
+      loadDataFromObj(j, true); saveLocal(); updateSyncStatus('ok'); return true;
+    }
+    return false;
+  } catch (e) {
+    console.warn('[GAS] _loadFromGAS:', e.message);
+    updateSyncStatus(e.name === 'AbortError' ? 'local' : 'err');
+    return false;
+  }
+}
+
+async function _saveToGAS() {
+  if (!PROXY_URL) { updateSyncStatus('local'); return false; }
+  try {
+    const payload = JSON.stringify({ data: JSON.stringify(buildDataObj()) });
+    const res = await fetch(PROXY_URL, {
+      method: 'POST', redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain' }, body: payload
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    toast('Synced', 'ok'); updateSyncStatus('ok'); return true;
+  } catch (e) {
+    console.warn('[GAS] _saveToGAS:', e.message);
+    toast('Sync failed', 'err'); updateSyncStatus('err'); return false;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  ROUTER PUBLICO — unica interfaz que consume el resto de la app
+// ════════════════════════════════════════════════════════════════════════════
+
 export async function fetchDataFromCloud() {
   if (STORAGE_MODE === 'supabase') return await _loadFromSupabase();
-  throw new Error('GAS Mode requiere configuraciÃ³n manual de seguridad.');
+  return await _loadFromGAS();
 }
 
 export async function pushDataToCloud() {
   if (STORAGE_MODE === 'supabase') return await _saveToSupabase();
-  throw new Error('GAS Mode requiere configuraciÃ³n manual de seguridad.');
+  return await _saveToGAS();
 }
 
-// Guarda localmente y envÃ­a a Supabase
+// Guarda localmente y envia a la nube
 export async function saveAndSync() {
   saveLocal();
   return await pushDataToCloud();
