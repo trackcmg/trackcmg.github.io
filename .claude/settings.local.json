@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ':*)",
+      "Bash(node -e \"new \\(require\\('module'\\)\\)\\(\\)._compile\\(require\\('fs'\\).readFileSync\\('js/analytics.js','utf8'\\).replace\\(/import .*/g,''\\).replace\\(/export /g,''\\), 'analytics.js'\\); console.log\\('OK'\\)\")"
+    ]
+  }
+}
