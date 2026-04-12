@@ -1,6 +1,7 @@
 // ============================================================
 //  app.js — Punto de entrada. Orquesta todos los módulos.
 // ============================================================
+import { initSecrets } from './secrets.js';
 import { loadData } from './storage.js';
 import { fetchDataFromCloud, updateSyncStatus } from './cloud.js';
 import { refreshPortfolio, renderPortfolio, renderHistory, toggleHoldingDetail } from './portfolio.js';
@@ -218,6 +219,7 @@ document.addEventListener('click', function (e) {  // En modo lectura no se proc
 
 // ── Inicialización ───────────────────────────────────────────
 async function init() {
+  await initSecrets();
   loadData();
   document.getElementById('gymDate').value = new Date().toISOString().slice(0, 10);
 

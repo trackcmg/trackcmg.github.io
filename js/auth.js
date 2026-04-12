@@ -5,7 +5,7 @@
 //  Fallback: comparación SHA-256 local (hasta que GAS implemente ?action=auth)
 //  Sin dependencias circulares: comunica resultado vía CustomEvents.
 // ============================================================
-import { GAS_URL, PW_HASH } from './config.js';
+import { getGasUrl, getPwHash } from './config.js';
 import { _authed, setAuthed, _pendingAction, setPendingAction, setToken } from './state.js';
 import { toast } from './utils.js';
 
@@ -66,7 +66,7 @@ export async function checkAuth() {
     const ctrl = new AbortController();
     const tid = setTimeout(() => ctrl.abort(), 10000);
     const res = await fetch(
-      GAS_URL + '?action=auth&pw=' + encodeURIComponent(hash),
+      getGasUrl() + '?action=auth&pw=' + encodeURIComponent(hash),
       { signal: ctrl.signal, redirect: 'follow' }
     );
     clearTimeout(tid);
@@ -90,7 +90,7 @@ export async function checkAuth() {
 
   // ── Fallback SHA-256 local ────────────────────────────────
   if (!authenticated) {
-    if (hash !== PW_HASH) {
+    if (hash !== getPwHash()) {
       document.getElementById('authErr').style.display = 'block';
       return;
     }
