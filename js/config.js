@@ -1,33 +1,17 @@
 // ============================================================
-//  config.js — Constantes de la aplicación (ZERO SECRETS)
-//
-//  POLÍTICA DE SEGURIDAD: Este archivo NO contiene secretos.
-//  Todas las URLs privadas y hashes se leen desde localStorage
-//  a través de js/secrets.js (clave: APP_SECRETS).
+//  config.js — Constantes de la aplicación
 // ============================================================
 
-// Helpers para leer secretos en tiempo de ejecución
-function _getSecrets() {
-  try { return JSON.parse(localStorage.getItem('APP_SECRETS') || '{}'); } catch { return {}; }
-}
+export const STORAGE_MODE = 'supabase'; // 'supabase' | 'gas'
 
-// URL del Web App de Google Apps Script — leída de APP_SECRETS.GAS_URL
-export function getGasUrl() { return _getSecrets().GAS_URL || ''; }
+// --- SUPABASE CONFIG (Main Database) ---
+export const SUPABASE_URL      = 'https://qwpoyyrddchdbsxpvvaa.supabase.co';
+export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3cG95eXJkZGNoZGJzeHB2dmFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5MzM1OTYsImV4cCI6MjA5MTUwOTU5Nn0.10QOc9w_Lhh7NG2OtYEC2Rm5C-VqH4Pb0k99aN1E0DI';
 
-// URL del proxy GAS para Yahoo Finance — leída de APP_SECRETS.PROXY_URL (fallback a GAS_URL)
-export function getProxyUrl() { return _getSecrets().PROXY_URL || _getSecrets().GAS_URL || ''; }
+// --- PROXY CONFIG (Yahoo Fetcher via GAS) ---
+export const PROXY_URL = 'https://script.google.com/macros/s/AKfycbzSrJ7ZPEWRU2tJugXIywr0jHQeUCCRlnrIIVfKdzU0N65d_quPzCclFc-WNBdbYWpu/exec';
 
-// Hash SHA-256 de contraseña — leído de APP_SECRETS.PW_HASH
-export function getPwHash() { return _getSecrets().PW_HASH || ''; }
-
-// Modo de almacenamiento activo: 'gas' | 'supabase'
-export function getStorageMode() { return _getSecrets().STORAGE_MODE || 'gas'; }
-
-// Credenciales Supabase — leídas de APP_SECRETS
-export function getSupabaseUrl() { return _getSecrets().SUPABASE_URL || ''; }
-export function getSupabaseKey() { return _getSecrets().SUPABASE_KEY || ''; }
-
-// ── Constantes estáticas (no son secretos) ──────────────────
+// ── Constantes estáticas ────────────────────────────────────
 
 // Tipos de cambio estáticos (fallback de emergencia si las APIs de FX fallan)
 export const TRADE_FX = { EUR: 1, USD: 0.8696, CAD: 0.6369, GBP: 1.1574 };
@@ -44,11 +28,3 @@ export const FALLBACK = {
   movies: [],
   series: []
 };
-
-// ── Alias síncronos usados internamente (para compatibilidad con imports directos) ──
-// cloud.js y auth.js deben migrar a los getters anteriores; estos permiten
-// que el código antiguo que importa GAS_URL / PW_HASH siga funcionando
-// leyendo siempre de localStorage en lugar de un valor hardcodeado.
-export const GAS_URL = /** @deprecated usar getGasUrl() */ '';
-export const PROXY_URL = /** @deprecated usar getProxyUrl() */ '';
-export const PW_HASH = /** @deprecated usar getPwHash() */ '';

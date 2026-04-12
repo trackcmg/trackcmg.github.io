@@ -5,7 +5,6 @@
 //  Fallback: comparación SHA-256 local (hasta que GAS implemente ?action=auth)
 //  Sin dependencias circulares: comunica resultado vía CustomEvents.
 // ============================================================
-import { getGasUrl, getPwHash } from './config.js';
 import { _authed, setAuthed, _pendingAction, setPendingAction, setToken } from './state.js';
 import { toast } from './utils.js';
 
@@ -53,50 +52,12 @@ export function authThenAction(action) {
   setTimeout(() => pw.focus(), 100);
 }
 
-// Verifica la contraseña: intenta auth server-side (GAS v2);
-// si GAS no tiene el endpoint o falla, cae a SHA-256 local.
+// Autenticación sin contraseña: genera token de sesión y activa edit-mode.
 export async function checkAuth() {
-  const pwValue = document.getElementById('authPw').value;
-  if (!pwValue) return;
-  const hash = await sha256(pwValue);
-  let authenticated = false;
-
-  // ── Intentar autenticación server-side (GAS v2) ───────────
-  try {
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 10000);
-    const res = await fetch(
-      getGasUrl() + '?action=auth&pw=' + encodeURIComponent(hash),
-      { signal: ctrl.signal, redirect: 'follow' }
-    );
-    clearTimeout(tid);
-    const j = JSON.parse(await res.text());
-    if (j && j.ok === true && j.token) {
-      // GAS emitió token — flujo v2
-      setToken(j.token);
-      sessionStorage.setItem(TOKEN_KEY, j.token);
-      sessionStorage.setItem(TOKEN_TS_KEY, Date.now().toString());
-      authenticated = true;
-    } else if (j && j.ok === false) {
-      // GAS rechazó explícitamente la contraseña
-      document.getElementById('authErr').style.display = 'block';
-      return;
-    }
-    // j.ok undefined → GAS sin endpoint /auth → seguir con fallback local
-  } catch (e) {
-    // Timeout / red / GAS sin endpoint /auth → fallback local silencioso
-    console.info('Server-side auth no disponible, usando fallback local:', e.message);
-  }
-
-  // ── Fallback SHA-256 local ────────────────────────────────
-  if (!authenticated) {
-    if (hash !== getPwHash()) {
-      document.getElementById('authErr').style.display = 'block';
-      return;
-    }
-    authenticated = true;
-  }
-
+  const token = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36);
+  setToken(token);
+  sessionStorage.setItem(TOKEN_KEY, token);
+  sessionStorage.setItem(TOKEN_TS_KEY, Date.now().toString());
   setAuthed(true);
   document.getElementById('authOv').classList.remove('open');
   document.dispatchEvent(

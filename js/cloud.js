@@ -1,167 +1,181 @@
-// ============================================================
-//  cloud.js — Router de backend dual (GAS  ↔  Supabase)
+﻿// ============================================================
+//  cloud.js â€” Backend Supabase (Fase 7.2)
 //
-//  Fase 7: Arquitectura dual-backend.
-//  - STORAGE_MODE = 'gas'      → usa Google Apps Script (actual)
-//  - STORAGE_MODE = 'supabase' → usa Supabase (Fase 7.2)
+//  STORAGE_MODE = 'supabase' â†’ lectura/escritura via Supabase JS
+//  STORAGE_MODE = 'gas'      â†’ lanza error (requiere config manual)
 //
-//  La clave APP_SECRETS en localStorage controla el modo.
-//  Ningún secreto vive en el código fuente.
+//  Estrategia de escritura: Wipe & Insert por user_id.
+//  No hay secretos en el cÃ³digo; SUPABASE_ANON_KEY es pÃºblica
+//  y estÃ¡ protegida por RLS del lado del servidor.
 // ============================================================
-import { getGasUrl, getPwHash, getStorageMode } from './config.js';
-import { D, _authed, _token } from './state.js';
+import { STORAGE_MODE, SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { toast } from './utils.js';
 import { loadDataFromObj, buildDataObj, saveLocal, updateSyncStatus } from './storage.js';
 export { updateSyncStatus };
 
 export let _cloudReady = false;
 
-// ── Utilidad de parseo GAS ────────────────────────────────────────────────────
-export function _parseGASResponse(text) {
-  try { return JSON.parse(text); } catch { /* not pure JSON */ }
-  const m = text.match(/\{[^]*\}/);
-  if (m) { try { return JSON.parse(m[0]); } catch { /* noop */ } }
-  return null;
-}
+// InicializaciÃ³n global del cliente Supabase
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ════════════════════════════════════════════════════════════════════════════
-//  BACKEND: GAS — lógica heredada renombrada a _loadFromGAS / _saveToGAS
-// ════════════════════════════════════════════════════════════════════════════
+// user_id estÃ¡tico para este proyecto personal (mono-usuario)
+const UID = 'default_user';
 
-async function _loadFromGAS() {
-  const GAS_URL = getGasUrl();
-  if (!GAS_URL) { updateSyncStatus('local'); return false; }
-  try {
-    const controller = new AbortController();
-    setTimeout(() => controller.abort(), 20000);
-    const tokenParam = _token ? '&token=' + encodeURIComponent(_token) : '';
-    const res = await fetch(GAS_URL + '?action=getData&t=' + Date.now() + tokenParam, { signal: controller.signal });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const text = await res.text();
-    console.log('Cloud GET response:', text.substring(0, 200));
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  BACKEND: Supabase â€” lectura (6 SELECTs en paralelo)
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-    if (!text || text === '{}' || text === 'No URL' || text === 'Blocked') {
-      _cloudReady = (text !== 'No URL' && text !== 'Blocked');
-      updateSyncStatus(_cloudReady ? 'ok' : 'local');
-      return false;
-    }
-
-    const j = JSON.parse(text);
-    if (j && j.holdings) {
-      _cloudReady = true;
-      const hadLocalHistory = (D.history && D.history.length) || 0;
-      loadDataFromObj(j, true);
-      saveLocal();
-      if (hadLocalHistory && D.history.length > (j.history || []).length) _saveToGAS();
-      updateSyncStatus('ok');
-      return true;
-    }
-
-    _cloudReady = true;
+async function _loadFromSupabase() {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.warn('[Supabase] URL o ANON_KEY no configuradas. Cargando datos locales.');
+    updateSyncStatus('local');
     return false;
+  }
+
+  try {
+    const [
+      { data: holdingsRows,  error: e1 },
+      { data: tradesRows,    error: e2 },
+      { data: mediaRows,     error: e3 },
+      { data: gymRows,       error: e4 },
+      { data: historyRows,   error: e5 },
+      { data: settingsRow,   error: e6 },
+    ] = await Promise.all([
+      supabase.from('holdings').select('payload').eq('user_id', UID),
+      supabase.from('closed_trades').select('payload').eq('user_id', UID),
+      supabase.from('media').select('type, payload').eq('user_id', UID),
+      supabase.from('gym').select('payload').eq('user_id', UID),
+      supabase.from('history').select('snapped_at, payload').eq('user_id', UID)
+        .order('snapped_at', { ascending: true }),
+      supabase.from('settings').select('cash, total_invested').eq('user_id', UID)
+        .maybeSingle(),
+    ]);
+
+    for (const err of [e1, e2, e3, e4, e5, e6]) {
+      if (err) throw err;
+    }
+
+    // Mapeo SQL â†’ estructura del objeto D
+    const obj = {
+      holdings:      (holdingsRows || []).map(r => r.payload),
+      closedTrades:  (tradesRows   || []).map(r => r.payload),
+      books:         (mediaRows    || []).filter(r => r.type === 'book').map(r => r.payload),
+      movies:        (mediaRows    || []).filter(r => r.type === 'movie').map(r => r.payload),
+      series:        (mediaRows    || []).filter(r => r.type === 'serie').map(r => r.payload),
+      gym:           (gymRows      || []).map(r => r.payload),
+      history:       (historyRows  || []).map(r => r.payload),
+      cash:          settingsRow?.cash           ?? 0,
+      totalInvested: settingsRow?.total_invested ?? 0,
+    };
+
+    loadDataFromObj(obj, true);
+    saveLocal();
+    _cloudReady = true;
+    updateSyncStatus('ok');
+    return true;
   } catch (e) {
-    console.warn('GAS fetch failed:', e.name, e.message);
-    updateSyncStatus(e.name === 'AbortError' ? 'local' : 'err');
+    console.error('[Supabase] _loadFromSupabase:', e.message);
+    updateSyncStatus('err');
     return false;
   }
 }
 
-async function _saveToGAS() {
-  const GAS_URL = getGasUrl();
-  const PW_HASH  = getPwHash();
-  if (!GAS_URL) { updateSyncStatus('local'); return false; }
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  BACKEND: Supabase â€” escritura (Wipe & Insert)
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+
+async function _saveToSupabase() {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    updateSyncStatus('local');
+    return false;
+  }
+
+  const data = buildDataObj();
+
   try {
-    const payload = JSON.stringify({ password: PW_HASH, token: _token || '', data: JSON.stringify(buildDataObj()) });
-    let text = '';
-    try {
-      const res = await fetch(GAS_URL, {
-        method: 'POST',
-        redirect: 'follow',
-        headers: { 'Content-Type': 'text/plain' },
-        body: payload
-      });
-      text = await res.text();
-      console.log('Cloud POST status:', res.status, 'response:', text.substring(0, 300));
-    } catch (fetchErr) {
-      console.warn('POST fetch error (verifying):', fetchErr.message);
-      return await _verifyGASSync();
+    // 1. Borrar registros previos del usuario (arrays que se reescriben completamente)
+    await Promise.all([
+      supabase.from('holdings').delete().eq('user_id', UID),
+      supabase.from('closed_trades').delete().eq('user_id', UID),
+      supabase.from('media').delete().eq('user_id', UID),
+      supabase.from('gym').delete().eq('user_id', UID),
+    ]);
+
+    // 2. Insertar datos actuales
+    const ops = [];
+
+    if (data.holdings.length) {
+      ops.push(supabase.from('holdings').insert(
+        data.holdings.map(h => ({ user_id: UID, ticker: h.ticker, payload: h }))
+      ));
     }
 
-    const j = _parseGASResponse(text);
-    if (j) {
-      if (j.error) { console.warn('Cloud sync:', j.error); toast('Sync: ' + j.error, 'err'); updateSyncStatus('err'); return false; }
-      toast('Synced', 'ok');
-      updateSyncStatus('ok');
-      return true;
+    if (data.closedTrades.length) {
+      ops.push(supabase.from('closed_trades').insert(
+        data.closedTrades.map(t => ({ user_id: UID, ticker: t.ticker, payload: t }))
+      ));
     }
 
-    console.warn('POST response not JSON, verifying...', text.substring(0, 120));
-    return await _verifyGASSync();
+    const mediaAll = [
+      ...data.books.map(b  => ({ user_id: UID, type: 'book',  payload: b })),
+      ...data.movies.map(m => ({ user_id: UID, type: 'movie', payload: m })),
+      ...data.series.map(s => ({ user_id: UID, type: 'serie', payload: s })),
+    ];
+    if (mediaAll.length) ops.push(supabase.from('media').insert(mediaAll));
+
+    if (data.gym.length) {
+      ops.push(supabase.from('gym').insert(
+        data.gym.map(g => ({ user_id: UID, log_date: g.date, payload: g }))
+      ));
+    }
+
+    // History: upsert para preservar snapshots histÃ³ricos sin duplicados
+    if (data.history.length) {
+      ops.push(supabase.from('history').upsert(
+        data.history.map(h => ({ user_id: UID, snapped_at: h.date, payload: h })),
+        { onConflict: 'user_id,snapped_at' }
+      ));
+    }
+
+    // Settings: upsert escalar (cash + totalInvested)
+    ops.push(supabase.from('settings').upsert(
+      { user_id: UID, cash: data.cash, total_invested: data.totalInvested,
+        updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    ));
+
+    const results = await Promise.all(ops);
+    for (const { error } of results) {
+      if (error) throw error;
+    }
+
+    toast('Synced', 'ok');
+    updateSyncStatus('ok');
+    return true;
   } catch (e) {
-    console.warn('GAS push:', e.name, e.message);
+    console.error('[Supabase] _saveToSupabase:', e.message);
     toast('Sync failed', 'err');
     updateSyncStatus('err');
     return false;
   }
 }
 
-async function _verifyGASSync() {
-  const GAS_URL = getGasUrl();
-  try {
-    await new Promise(r => setTimeout(r, 1200));
-    const res = await fetch(GAS_URL + '?action=getData&t=' + Date.now());
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const j = JSON.parse(await res.text());
-    if (j && j.holdings) { toast('Synced', 'ok'); updateSyncStatus('ok'); return true; }
-  } catch (e) { console.warn('Verify failed:', e); }
-  toast('Sync failed', 'err');
-  updateSyncStatus('err');
-  return false;
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-//  BACKEND: Supabase — reservado para Fase 7.2
-//  Los métodos están declarados y lanzarán un aviso claro hasta que
-//  se implemente la lógica de lectura/escritura.
-// ════════════════════════════════════════════════════════════════════════════
-
-async function _loadFromSupabase() {
-  // TODO Fase 7.2: implementar SELECT desde tablas PostgreSQL via Supabase JS client
-  console.warn('[Supabase] _loadFromSupabase: not yet implemented (Phase 7.2)');
-  updateSyncStatus('local');
-  return false;
-}
-
-async function _saveToSupabase() {
-  // TODO Fase 7.2: implementar UPSERT hacia tablas PostgreSQL via Supabase JS client
-  console.warn('[Supabase] _saveToSupabase: not yet implemented (Phase 7.2)');
-  updateSyncStatus('local');
-  return false;
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-//  ROUTER PÚBLICO — única interfaz que consume el resto de la app
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  ROUTER PÃšBLICO â€” Ãºnica interfaz que consume el resto de la app
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export async function fetchDataFromCloud() {
-  switch (getStorageMode()) {
-    case 'supabase': return await _loadFromSupabase();
-    case 'gas':
-    default:         return await _loadFromGAS();
-  }
+  if (STORAGE_MODE === 'supabase') return await _loadFromSupabase();
+  throw new Error('GAS Mode requiere configuraciÃ³n manual de seguridad.');
 }
 
 export async function pushDataToCloud() {
-  switch (getStorageMode()) {
-    case 'supabase': return await _saveToSupabase();
-    case 'gas':
-    default:         return await _saveToGAS();
-  }
+  if (STORAGE_MODE === 'supabase') return await _saveToSupabase();
+  throw new Error('GAS Mode requiere configuraciÃ³n manual de seguridad.');
 }
 
-// Guarda localmente y, si está autenticado, también en la nube
+// Guarda localmente y envÃ­a a Supabase
 export async function saveAndSync() {
   saveLocal();
-  if (_authed) return await pushDataToCloud();
-  return true;
+  return await pushDataToCloud();
 }

@@ -1,7 +1,6 @@
 // ============================================================
 //  app.js — Punto de entrada. Orquesta todos los módulos.
 // ============================================================
-import { initSecrets } from './secrets.js';
 import { loadData } from './storage.js';
 import { fetchDataFromCloud, updateSyncStatus } from './cloud.js';
 import { refreshPortfolio, renderPortfolio, renderHistory, toggleHoldingDetail } from './portfolio.js';
@@ -219,7 +218,6 @@ document.addEventListener('click', function (e) {  // En modo lectura no se proc
 
 // ── Inicialización ───────────────────────────────────────────
 async function init() {
-  await initSecrets();
   loadData();
   document.getElementById('gymDate').value = new Date().toISOString().slice(0, 10);
 
@@ -230,18 +228,10 @@ async function init() {
     btnTheme.textContent = isLight ? '☀' : '☽';
   }
 
-  if (restoreSession()) {
-    // Sesión válida: desbloquear UI directamente
-    _applyAuthUI();
-    await _postAuthInit();
-  } else {
-    // VIEW-LOCK: bloquear todo hasta autenticación desde el segundo 0
-    _lockMode = true;
-    const authOv = document.getElementById('authOv');
-    authOv.classList.add('open', 'auth-locked');
-    document.getElementById('authPw')?.focus();
-    renderCalculator();
-  }
+  // Sin view-lock: la app carga directamente.
+  // Si hay sesión activa, revelar controles de edición.
+  if (restoreSession()) _applyAuthUI();
+  await _postAuthInit();
 
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState === 'visible' && !_lockMode) {

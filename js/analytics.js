@@ -5,7 +5,7 @@
 import { D } from './state.js';
 import { F, ttOpts, legOpts } from './utils.js';
 import { fxR, valEur, fetchStock } from './portfolio.js';
-import { getProxyUrl } from './config.js';
+import { PROXY_URL } from './config.js';
 
 // Caché de charts para destruir antes de re-render
 const CH = {};
@@ -165,7 +165,7 @@ export async function renderBenchmark() {
     try {
       // range=5y es el formato más fiable del endpoint v8 del proxy
       const url = `https://query1.finance.yahoo.com/v8/finance/chart/SPY?range=5y&interval=1d`;
-      const proxyUrl = `${getProxyUrl()}?url=${encodeURIComponent(url)}`;
+      const proxyUrl = `${PROXY_URL}?url=${encodeURIComponent(url)}`;
       const res = await fetch(proxyUrl);
       const raw = await res.text();
       console.log('[SPY] respuesta cruda (300 chars):', raw.slice(0, 300));
