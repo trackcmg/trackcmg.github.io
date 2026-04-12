@@ -237,6 +237,8 @@ function _drawBenchmark() {
   }
 
   // Retorno acumulado absoluto del portfolio en cualquier fecha (desde ene-2025)
+  // Zona interpolada: rentabilidad compuesta constante desde MIN_DATE
+  // Zona real: (totalValue - totalInvested) / totalInvested  (= ALL-TIME%)
   function _absReturn(dateStr) {
     if (!firstEntry) return null;
     const startMs = new Date(MIN_DATE + 'T00:00:00Z').getTime();
@@ -244,26 +246,19 @@ function _drawBenchmark() {
     const months  = (curMs - startMs) / (30.4375 * 24 * 3600 * 1000);
 
     if (dateStr < firstEntry.date) {
-      // Zona interpolada: rentabilidad compuesta constante
       return (Math.pow(1 + monthlyRate, months) - 1) * 100;
     }
-    // Zona con datos reales: forward-fill
+    // Zona con datos reales: forward-fill, return = (value - invested) / invested
     let entry = portMap[dateStr];
     if (!entry) {
       const prev = allPortfolio.filter(h => h.date <= dateStr);
       entry = prev.length ? prev[prev.length - 1] : null;
     }
-    if (!entry || firstEntry.totalInvested <= 0) return null;
-    return ((entry.totalValue - firstEntry.totalInvested) / firstEntry.totalInvested) * 100;
+    if (!entry || entry.totalInvested <= 0) return null;
+    return ((entry.totalValue - entry.totalInvested) / entry.totalInvested) * 100;
   }
 
-  // ── SPY base y portfolio base en viewStart → ambos parten de 0% ──
-  const spyBase = _nearestSpy(viewStart);
-  const portBase = _absReturn(viewStart); // retorno absoluto en viewStart
-
-  console.log('[Benchmark] periodo:', period, '| viewStart:', viewStart, '| spyBase:', spyBase, '| portBase:', portBase?.toFixed(2));
-
-  // ── Eje X: primer día de cada mes + fechas reales del portfolio ──
+  // ── Eje X: solo primer día de cada mes (proporcional) ──────────
   const axisDates = [];
   const cur = new Date(viewStart + 'T00:00:00Z');
   cur.setUTCDate(1);
@@ -273,10 +268,8 @@ function _drawBenchmark() {
     axisDates.push(key);
     cur.setUTCMonth(cur.getUTCMonth() + 1);
   }
-  allPortfolio.filter(h => h.date >= viewStart).forEach(h => { if (!axisDates.includes(h.date)) axisDates.push(h.date); });
-  axisDates.sort();
 
-  if (spyBase == null && portBase == null) {
+  if (!axisDates.length || !firstEntry) {
     if (CH.benchmark) { CH.benchmark.destroy(); CH.benchmark = null; }
     canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
     return;
@@ -285,30 +278,33 @@ function _drawBenchmark() {
   const labels = axisDates.map(d => new Date(d + 'T00:00:00Z').toLocaleDateString('es-ES', { month: 'short', year: '2-digit' }));
 
   // ── SPY: rebased a 0% en viewStart ───────────────────────────
-  const spyData = spyBase
+  const spyBase0 = _nearestSpy(axisDates[0]);
+  const spyData = spyBase0
     ? (() => {
-        let lastPct = null;
-        return axisDates.map(d => {
+        let lastPct = 0;
+        return axisDates.map((d, i) => {
+          if (i === 0) return 0;
           const p = _nearestSpy(d);
-          if (p != null && isFinite(p)) lastPct = parseFloat(((p / spyBase - 1) * 100).toFixed(2));
+          if (p != null && isFinite(p)) lastPct = parseFloat(((p / spyBase0 - 1) * 100).toFixed(2));
           return lastPct;
         });
       })()
     : axisDates.map(() => null);
 
-  // ── Portfolio: rebased a 0% en viewStart ─────────────────────
-  const portData = portBase != null
-    ? axisDates.map(d => {
+  // Portfolio: rebased a 0% en primer punto del eje
+  const portBase0 = _absReturn(axisDates[0]);
+  const portData = portBase0 != null
+    ? axisDates.map((d, i) => {
+        if (i === 0) return 0;
         const abs = _absReturn(d);
         if (abs == null) return null;
-        // Rebase: ((1 + abs/100) / (1 + portBase/100) - 1) * 100
-        const rebased = ((1 + abs / 100) / (1 + portBase / 100) - 1) * 100;
+        const rebased = ((1 + abs / 100) / (1 + portBase0 / 100) - 1) * 100;
         return parseFloat(rebased.toFixed(2));
       })
     : axisDates.map(() => null);
 
   const datasets = [];
-  if (spyBase && spyData.some(v => v !== null)) {
+  if (spyBase0 && spyData.some(v => v !== null)) {
     datasets.push({
       label: 'S&P 500 (SPY)',
       data: spyData,
@@ -318,7 +314,7 @@ function _drawBenchmark() {
       borderDash: [6, 3], spanGaps: true
     });
   }
-  if (portBase != null) {
+  if (portBase0 != null) {
     datasets.push({
       label: 'My Portfolio',
       data: portData,
