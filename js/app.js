@@ -246,65 +246,139 @@ async function init() {
 
 init();
 
-// ── Migration Bridge ─────────────────────────────────────────
-// Hide notice if user previously dismissed permanently
-if (localStorage.getItem('HIDE_MIGRATION_NOTICE') === '1') {
-  const bar = document.getElementById('migration-bar');
-  if (bar) bar.style.display = 'none';
+// ════════════════════════════════════════════════════════════════════════════
+//  MIGRATION BRIDGE — Hidden Pro Feature
+//  Trigger: triple-click on the dashboard title  OR  Ctrl+Shift+M
+//  Remove this entire block after a successful migration.
+// ════════════════════════════════════════════════════════════════════════════
+
+// SHA-256 helper (Web Crypto API)
+async function _sha256hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-document.getElementById('btn-migrate-logic')?.addEventListener('click', async () => {
-  // Step 1: broker warning
-  const step1 = confirm(
-    '\u26A0\uFE0F MARKET VOLATILITY WARNING\n\n' +
-    'You are about to initiate a cross-platform asset liquidation.\n' +
-    'This operation will migrate all data from Google Legacy Servers to the Supabase High-Frequency Vault.\n\n' +
-    'Do you wish to proceed with this high-risk maneuver?'
-  );
-  if (!step1) {
-    if (confirm('Hide this migration notice permanently?')) {
-      localStorage.setItem('HIDE_MIGRATION_NOTICE', '1');
-      const bar = document.getElementById('migration-bar');
-      if (bar) bar.style.display = 'none';
-    }
-    return;
+// Inject the migration terminal modal (only once)
+function _showMigrationModal() {
+  if (document.getElementById('migration-overlay')) return; // already open
+
+  const overlay = document.createElement('div');
+  overlay.id = 'migration-overlay';
+  overlay.style.cssText = [
+    'position:fixed', 'inset:0', 'z-index:10000',
+    'background:rgba(6,6,17,.88)', 'display:flex',
+    'align-items:center', 'justify-content:center',
+    'font-family:"IBM Plex Mono",monospace',
+  ].join(';');
+
+  overlay.innerHTML = `
+    <div style="background:#0d0d1f;border:1px solid #3a3a7a;border-radius:10px;padding:32px 28px;max-width:480px;width:90%;box-shadow:0 0 40px rgba(85,51,255,.3)">
+      <div style="color:#5533ff;font-size:11px;letter-spacing:2px;margin-bottom:4px">// CLASSIFIED TERMINAL v2</div>
+      <h2 style="color:#e0e0ff;margin:0 0 6px;font-size:18px">🚀 Migration Bridge</h2>
+      <p style="color:#8888aa;font-size:12px;margin:0 0 20px;line-height:1.6">
+        Cross-platform asset liquidation from <strong style="color:#5533ff">Google Legacy</strong>
+        to <strong style="color:#22df8a">Supabase Vault</strong>.<br>
+        This is a one-way, irreversible operation.
+      </p>
+      <div style="margin-bottom:14px">
+        <label style="color:#8888aa;font-size:11px;display:block;margin-bottom:5px">MASTER ACCESS KEY</label>
+        <input id="mig-pw" type="password" placeholder="Enter password…"
+          style="width:100%;box-sizing:border-box;background:#0a0a1a;border:1px solid #3a3a6a;color:#e0e0ff;padding:9px 12px;border-radius:6px;font-family:inherit;font-size:13px;outline:none">
+        <div style="color:#8888aa;font-size:10px;margin-top:4px">Auto-hashed with SHA-256 before transmission. Leave blank if GAS is public.</div>
+      </div>
+      <div id="mig-status" style="min-height:18px;font-size:11px;color:#22df8a;margin-bottom:16px"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button id="mig-cancel" style="background:transparent;color:#778;border:1px solid #3a3a6a;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:12px">Cancel</button>
+        <button id="mig-execute" style="background:#5533ff;color:#fff;border:none;border-radius:6px;padding:8px 18px;cursor:pointer;font-size:13px;font-weight:600">⚡ Execute Bridge</button>
+      </div>
+      <div style="margin-top:18px;border-top:1px solid #1a1a3a;padding-top:12px;display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="mig-hide" style="accent-color:#5533ff">
+        <label for="mig-hide" style="color:#556;font-size:11px;cursor:pointer">Don't show this tool again</label>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  const statusEl  = overlay.querySelector('#mig-status');
+  const pwInput   = overlay.querySelector('#mig-pw');
+  const executeBtn = overlay.querySelector('#mig-execute');
+  const cancelBtn = overlay.querySelector('#mig-cancel');
+  const hideChk   = overlay.querySelector('#mig-hide');
+
+  function _close() {
+    if (hideChk.checked) localStorage.setItem('HIDE_MIGRATION_NOTICE', '1');
+    overlay.remove();
   }
 
-  // Step 2: double-check
-  const step2 = confirm(
-    '\uD83D\uDEA8 FINAL AUTHORIZATION\n\n' +
-    'This action is irreversible and will overwrite any existing data in the new Vault.\n\n' +
-    'Are you ABSOLUTELY certain? (Your future wealth depends on this).'
-  );
-  if (!step2) return;
+  cancelBtn.addEventListener('click', _close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) _close(); });
 
-  // Step 3: authentication
-  const password = prompt(
-    '\uD83D\uDD10 ENCRYPTED ACCESS REQUIRED\n\n' +
-    'Please enter your Master Access Key (Password or Hash) to authorize the data bridge.\n' +
-    '(Leave blank if your GAS endpoint does not require authentication.)'
-  );
-  // null = cancelled
-  if (password === null) return;
+  executeBtn.addEventListener('click', async () => {
+    // Step 1 — broker warning
+    const step1 = confirm(
+      '\u26A0\uFE0F MARKET VOLATILITY WARNING\n\n' +
+      'You are about to initiate a cross-platform asset liquidation from ' +
+      'Google Legacy Servers to the Supabase High-Frequency Vault.\n\n' +
+      'Do you wish to proceed with this high-risk maneuver?'
+    );
+    if (!step1) return;
 
-  const btn = document.getElementById('btn-migrate-logic');
-  btn.disabled = true;
-  btn.textContent = 'Executing bridge...';
+    // Step 2 — double-check
+    const step2 = confirm(
+      '\uD83D\uDEA8 FINAL AUTHORIZATION\n\n' +
+      'This action is irreversible and will overwrite any existing data in the Vault.\n\n' +
+      'Are you ABSOLUTELY certain? (Your future wealth depends on this).'
+    );
+    if (!step2) return;
 
-  const ok = await migrateFromGAS(password);
-  if (ok) {
-    alert('\u2705 MIGRATION SUCCESSFUL. Assets secured in the new Vault.\n\nThe page will now reload.');
-    location.reload();
-  } else {
-    btn.disabled = false;
-    btn.textContent = '\uD83D\uDE80 Migrate from Google';
+    executeBtn.disabled = true;
+    executeBtn.textContent = 'Connecting…';
+    statusEl.style.color = '#5533ff';
+    statusEl.textContent = '\u29D7 Hashing credentials…';
+
+    // Auto-hash the password (never send plain text)
+    const rawPw  = pwInput.value;
+    const pwHash = rawPw ? await _sha256hex(rawPw) : '';
+
+    statusEl.textContent = '\u29D7 Fetching data from Google Legacy Servers…';
+
+    const result = await migrateFromGAS(pwHash);
+
+    if (result && result.ok) {
+      statusEl.style.color = '#22df8a';
+      statusEl.textContent =
+        '\u2705 MIGRATION SUCCESSFUL. Assets Liquidated: ' +
+        result.holdings + ' Holdings, ' + result.trades + ' Trades. ' +
+        'Database synchronized.';
+      if (hideChk.checked) localStorage.setItem('HIDE_MIGRATION_NOTICE', '1');
+      setTimeout(() => { alert('\u2705 MIGRATION SUCCESSFUL.\n\nAssets Liquidated: ' + result.holdings + ' Holdings, ' + result.trades + ' Trades.\n\nThe page will now reload.'); location.reload(); }, 600);
+    } else {
+      statusEl.style.color = 'var(--red, #ff4466)';
+      statusEl.textContent = '\u274C TRANSACTION ABORTED. Check console for details.';
+      executeBtn.disabled = false;
+      executeBtn.textContent = '\u26A1 Execute Bridge';
+    }
+  });
+
+  setTimeout(() => pwInput.focus(), 80);
+}
+
+// — Trigger 1: triple-click on dashboard title
+let _titleClickCount = 0, _titleClickTimer = null;
+document.querySelector('h1')?.addEventListener('click', () => {
+  _titleClickCount++;
+  clearTimeout(_titleClickTimer);
+  _titleClickTimer = setTimeout(() => { _titleClickCount = 0; }, 600);
+  if (_titleClickCount >= 3) {
+    _titleClickCount = 0;
+    if (localStorage.getItem('HIDE_MIGRATION_NOTICE') !== '1') _showMigrationModal();
   }
 });
 
-document.getElementById('btn-migrate-dismiss')?.addEventListener('click', () => {
-  if (confirm('Hide this migration notice permanently?')) {
-    localStorage.setItem('HIDE_MIGRATION_NOTICE', '1');
+// — Trigger 2: Ctrl+Shift+M
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.shiftKey && e.key === 'M') {
+    e.preventDefault();
+    _showMigrationModal();
   }
-  const bar = document.getElementById('migration-bar');
-  if (bar) bar.style.display = 'none';
 });

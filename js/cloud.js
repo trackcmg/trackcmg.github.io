@@ -247,7 +247,7 @@ export async function saveAndSync() {
 export async function migrateFromGAS(password) {
   if (!PROXY_URL) {
     alert('TRANSACTION ABORTED: PROXY_URL is not configured in config.js.');
-    return false;
+    return { ok: false };
   }
 
   // Step A: read data from GAS (password forwarded for server-side auth)
@@ -264,19 +264,19 @@ export async function migrateFromGAS(password) {
     const raw = await res.text();
     if (!raw || raw === '{}' || raw === 'No URL' || raw === 'Blocked' || raw === 'Unauthorized') {
       alert('TRANSACTION ABORTED: GAS returned an empty or blocked response: "' + raw + '"');
-      return false;
+      return { ok: false };
     }
     // Parse: handle both raw JSON string and already-parsed object
     gasData = (typeof raw === 'string') ? JSON.parse(raw) : raw;
     // If GAS wrapped in an error object
     if (gasData.error) {
       alert('TRANSACTION ABORTED: GAS error — ' + gasData.error);
-      return false;
+      return { ok: false };
     }
   } catch (e) {
     alert('TRANSACTION ABORTED: Could not reach Google Legacy Servers.\n' + e.message);
     console.error('[Migration] fetch GAS:', e);
-    return false;
+    return { ok: false };
   }
 
   // Flexible key extraction to handle different GAS response shapes
@@ -295,7 +295,7 @@ export async function migrateFromGAS(password) {
       'WARNING: No holdings or trades were found in the GAS response.\n' +
       'The data format may be unexpected.\n\nProceed anyway with empty data?'
     );
-    if (!proceed) return false;
+    if (!proceed) return { ok: false };
   }
 
   console.log('[Migration] Data received from GAS:', {
@@ -359,10 +359,12 @@ export async function migrateFromGAS(password) {
     for (const { error } of results) { if (error) throw error; }
 
     console.log('[Migration] Complete success.');
-    return true;
+    return { ok: true, holdings: holdings.length, trades: trades.length,
+             books: books.length, movies: movies.length, series: series.length,
+             gym: gym.length, history: history.length };
   } catch (e) {
     alert('TRANSACTION ABORTED: Supabase write error.\n' + e.message);
     console.error('[Migration] Supabase write:', e);
-    return false;
+    return { ok: false };
   }
 }
