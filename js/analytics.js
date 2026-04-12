@@ -258,24 +258,31 @@ function _drawBenchmark() {
     return ((entry.totalValue - entry.totalInvested) / entry.totalInvested) * 100;
   }
 
-  // ── Eje X: solo primer día de cada mes (proporcional) ──────────
+  // ── Eje X: muestreo adaptativo según período ──────────────────
+  // 1m → diario, 3m → semanal, 6m → quincenal, 1y/all �� mensual
+  const stepDays = period === '1m' ? 1 : period === '3m' ? 7 : period === '6m' ? 14 : 30;
   const axisDates = [];
   const cur = new Date(viewStart + 'T00:00:00Z');
-  cur.setUTCDate(1);
   while (true) {
-    const key = cur.getUTCFullYear() + '-' + String(cur.getUTCMonth() + 1).padStart(2, '0') + '-01';
+    const key = cur.getUTCFullYear() + '-' + String(cur.getUTCMonth() + 1).padStart(2, '0') + '-' + String(cur.getUTCDate()).padStart(2, '0');
     if (key > todayStr) break;
     axisDates.push(key);
-    cur.setUTCMonth(cur.getUTCMonth() + 1);
+    cur.setUTCDate(cur.getUTCDate() + stepDays);
   }
+  // Siempre incluir hoy como último punto
+  if (axisDates.length && axisDates[axisDates.length - 1] !== todayStr) axisDates.push(todayStr);
 
-  if (!axisDates.length || !firstEntry) {
+  if (axisDates.length < 2 || !firstEntry) {
     if (CH.benchmark) { CH.benchmark.destroy(); CH.benchmark = null; }
     canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
     return;
   }
 
-  const labels = axisDates.map(d => new Date(d + 'T00:00:00Z').toLocaleDateString('es-ES', { month: 'short', year: '2-digit' }));
+  // Formato de label adaptado al período
+  const labelOpts = stepDays <= 7
+    ? { day: 'numeric', month: 'short' }
+    : { month: 'short', year: '2-digit' };
+  const labels = axisDates.map(d => new Date(d + 'T00:00:00Z').toLocaleDateString('es-ES', labelOpts));
 
   // ── SPY: rebased a 0% en viewStart ───────────────────────────
   const spyBase0 = _nearestSpy(axisDates[0]);
