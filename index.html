@@ -24,7 +24,7 @@
 <span class="sync-status" id="syncStatus" style="color:var(--text-muted)">Local</span>
 <button class="btn" id="btnTheme" title="Toggle theme" aria-label="Toggle light/dark theme">&#x263D;</button>
 <button class="btn" id="btnRefresh">&#x21bb;</button>
-<button class="btn" id="btnAuth">&#x1F512; Login</button>
+<button class="btn" id="btnAuth" title="Sign out" style="font-size:11px;display:none">&#x21aa; Me</button>
 <button class="btn" id="btnAdmin" style="display:none" title="Toggle edit mode" aria-label="Toggle edit mode">&#x270F; Edit</button></div>
 </header>
 <div class="tab-bar" id="tabBar">
@@ -130,7 +130,42 @@
 </div>
 
 </div><div class="overlay" id="ov"><div class="modal" id="mod"></div></div>
-<div class="overlay" id="authOv"><div class="modal" style="max-width:340px"><h2>Track CMG</h2><p>Prove that you are an authorized AI.</p><div class="fg"><input type="password" id="authPw" placeholder="Password"></div><div class="m-btns"><button class="btn" id="btnAuthCancel">Cancel</button><button class="btn btn-g" id="btnAuthSubmit">Enter</button></div><div id="authErr" style="color:var(--red);font-size:12px;margin-top:8px;display:none">Wrong password</div></div></div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     LOGIN OVERLAY — Institutional Access Portal
+     Visible by default. Hidden by app.js once Supabase session confirmed.
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="loginOv" style="position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:rgba(4,4,12,.97);backdrop-filter:blur(8px)">
+  <div style="background:#07071a;border:1px solid #1a1a4a;border-radius:12px;padding:44px 40px;max-width:400px;width:90%;text-align:center;box-shadow:0 0 60px rgba(85,51,255,.25)">
+    <img src="icons/icon-512.png" alt="Track CMG" style="width:76px;border-radius:18px;margin-bottom:22px;box-shadow:0 0 28px rgba(85,51,255,.45)">
+    <div style="color:#5533ff;font-size:10px;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px;font-family:'IBM Plex Mono',monospace">Institutional Access Portal</div>
+    <h2 style="color:#e0e0ff;margin:0 0 4px;font-size:22px;font-family:'Sora',sans-serif;font-weight:700">Track CMG</h2>
+    <p style="color:#445;font-size:12px;margin:0 0 30px;font-family:'IBM Plex Mono',monospace">Authorized Personnel Only</p>
+
+    <div style="text-align:left;margin-bottom:14px">
+      <label style="color:#8888aa;font-size:10px;letter-spacing:2px;text-transform:uppercase;display:block;margin-bottom:6px;font-family:'IBM Plex Mono',monospace">Email Address</label>
+      <input id="loginEmail" type="email" placeholder="user@institution.com" autocomplete="email"
+        style="width:100%;box-sizing:border-box;background:#0a0a1f;border:1px solid #2a2a5a;border-radius:7px;color:#e0e0ff;padding:11px 14px;font-size:13px;font-family:'IBM Plex Mono',monospace;outline:none;transition:border .2s"
+        onfocus="this.style.borderColor='#5533ff'" onblur="this.style.borderColor='#2a2a5a'">
+    </div>
+    <div style="text-align:left;margin-bottom:22px">
+      <label style="color:#8888aa;font-size:10px;letter-spacing:2px;text-transform:uppercase;display:block;margin-bottom:6px;font-family:'IBM Plex Mono',monospace">Access Key</label>
+      <input id="loginPw" type="password" placeholder="••••••••••••" autocomplete="current-password"
+        style="width:100%;box-sizing:border-box;background:#0a0a1f;border:1px solid #2a2a5a;border-radius:7px;color:#e0e0ff;padding:11px 14px;font-size:13px;font-family:'IBM Plex Mono',monospace;outline:none;transition:border .2s"
+        onfocus="this.style.borderColor='#5533ff'" onblur="this.style.borderColor='#2a2a5a'">
+    </div>
+
+    <button id="btnLogin"
+      style="width:100%;background:#5533ff;color:#fff;border:none;border-radius:8px;padding:13px;font-size:14px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;font-family:'IBM Plex Mono',monospace;transition:opacity .2s"
+      onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+      Authorize Access
+    </button>
+    <div id="loginErr" style="color:#ff4466;font-size:11px;margin-top:10px;min-height:16px;font-family:'IBM Plex Mono',monospace"></div>
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #111130;color:#333;font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:1px">
+      ACCESS RESTRICTED · NO PUBLIC REGISTRATION
+    </div>
+  </div>
+</div>
 </div>
 
 <script type="module" src="js/app.js"></script>

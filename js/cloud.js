@@ -11,12 +11,14 @@
 import { STORAGE_MODE, SUPABASE_URL, SUPABASE_ANON_KEY, PROXY_URL } from './config.js';
 import { toast } from './utils.js';
 import { loadDataFromObj, buildDataObj, saveLocal, updateSyncStatus } from './storage.js';
+import { _currentUser } from './state.js';
 export { updateSyncStatus };
 
 export let _cloudReady = false;
 
-// user_id estatico para este proyecto personal (mono-usuario)
-const UID = 'default_user';
+// UID dinámico: refleja al usuario autenticado. Fallback a 'default_user' antes del login
+// (y para datos heredados aun no reclamados vía claimLegacyData).
+function _getUID() { return (_currentUser && _currentUser.id) || 'default_user'; }
 
 // Lazy-init del cliente Supabase: se crea la primera vez que se necesita.
 // Evita que el modulo falle si el CDN de Supabase carga despues del modulo JS.
@@ -29,11 +31,15 @@ function _getSupabase() {
   return _supabaseClient;
 }
 
+// Shared singleton for auth.js (avoids creating a second Supabase client).
+export function getSupabaseClient() { return _getSupabase(); }
+
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  BACKEND: Supabase â€” lectura (6 SELECTs en paralelo)
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 async function _loadFromSupabase() {
+  const UID = _getUID();
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     console.warn('[Supabase] URL o ANON_KEY no configuradas. Cargando datos locales.');
     updateSyncStatus('local');
@@ -95,6 +101,7 @@ async function _loadFromSupabase() {
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 async function _saveToSupabase() {
+  const UID = _getUID();
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     updateSyncStatus('local');
     return false;
@@ -245,6 +252,7 @@ export async function saveAndSync() {
 // ════════════════════════════════════════════════════════════════════════════
 
 export async function migrateFromGAS(password) {
+  const UID = _getUID();
   if (!PROXY_URL) {
     alert('TRANSACTION ABORTED: PROXY_URL is not configured in config.js.');
     return { ok: false };
@@ -368,3 +376,48 @@ export async function migrateFromGAS(password) {
     return { ok: false };
   }
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+//  CLAIM LEGACY DATA — Data Adoption Protocol (Phase 7.3)
+//  Called once after the first real login to re-assign all rows that were
+//  written as 'default_user' to the authenticated user's actual UID.
+//
+//  Requires RLS policy:
+//    USING (user_id = auth.uid()::text OR user_id = 'default_user')
+//    WITH CHECK (user_id = auth.uid()::text)
+// ════════════════════════════════════════════════════════════════════════════
+export async function claimLegacyData(user) {
+  if (!user?.id) return false;
+  const uid  = user.id;
+  const sb   = _getSupabase();
+
+  // Probe: check if there are any unclaimed legacy rows
+  const { count } = await sb
+    .from('holdings')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', 'default_user');
+
+  if (!count) {
+    console.log('[Auth] claimLegacyData: no legacy rows found.');
+    return false;
+  }
+
+  console.log('[Auth] claimLegacyData: claiming', count, 'legacy holdings rows…');
+
+  const tables = ['holdings', 'closed_trades', 'media', 'gym', 'history', 'settings'];
+  const results = await Promise.all(
+    tables.map(t => sb.from(t).update({ user_id: uid }).eq('user_id', 'default_user'))
+  );
+
+  const errors = results.filter(r => r.error);
+  if (errors.length) {
+    console.error('[Auth] claimLegacyData partial errors:', errors.map(r => r.error));
+    toast('\u26a0\ufe0f Partial claim \u2014 check console.', 'err');
+    return false;
+  }
+
+  console.log('[Auth] claimLegacyData: all tables claimed for UID', uid);
+  toast('\u2705 Legacy assets successfully secured in your private vault.', 'ok');
+  return true;
+}
+

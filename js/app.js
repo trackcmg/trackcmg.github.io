@@ -2,13 +2,13 @@
 //  app.js — Punto de entrada. Orquesta todos los módulos.
 // ============================================================
 import { loadData } from './storage.js';
-import { fetchDataFromCloud, updateSyncStatus, migrateFromGAS } from './cloud.js';
+import { fetchDataFromCloud, updateSyncStatus, migrateFromGAS, claimLegacyData } from './cloud.js';
 import { refreshPortfolio, renderPortfolio, renderHistory, toggleHoldingDetail } from './portfolio.js';
 import { renderTrades, toggleTradeDetail } from './trades.js';
 import { addGymEntry, renderGym } from './gym.js';
 import { renderBooks, renderMovies, renderSeries } from './media.js';
 import { openEditModal, openAddModal, closeModal } from './modals.js';
-import { authThenAction, checkAuth, restoreSession } from './auth.js';
+import { initAuth, signIn, signOut } from './auth.js';
 import { toast } from './utils.js';
 import { renderAnalytics, renderBenchmark } from './analytics.js';
 import { renderCalculator, syncCalculatorCapital } from './calculator.js';
@@ -34,14 +34,30 @@ function doAction(action) {
   else if (action === 'addHolding') openAddModal('holding');
 }
 
-// ── Helper: aplicar estado autenticado a la UI (modo lectura por defecto) ──
-function _applyAuthUI() {
-  // Solo revela el botón Admin; los botones de edición permanecen ocultos
-  // hasta que el usuario active explícitamente el modo edición.
+// ── Helper: aplicar estado autenticado a la UI ──────────────────
+function _applyAuthUI(user) {
+  const ab = document.getElementById('btnAuth');
+  if (ab) {
+    const label = user?.email ? user.email.split('@')[0] : 'Me';
+    ab.innerHTML = '↪ ' + label;
+    ab.title = 'Sign out';
+    ab.style.fontSize = '11px';
+    ab.style.display = '';  // make visible
+  }
   const adminBtn = document.getElementById('btnAdmin');
   if (adminBtn) adminBtn.style.display = '';
-  const ab = document.getElementById('btnAuth');
-  if (ab) { ab.innerHTML = '&#x1F513; Authed'; ab.classList.add('btn-g'); }
+}
+
+// ── Login overlay helpers ─────────────────────────────────
+function _showLoginOverlay() {
+  const el = document.getElementById('loginOv');
+  if (el) el.style.display = 'flex';
+}
+function _hideLoginOverlay() {
+  const el = document.getElementById('loginOv');
+  if (el) el.style.display = 'none';
+  const errEl = document.getElementById('loginErr');
+  if (errEl) errEl.textContent = '';
 }
 
 // ── Modo edición: muestra/oculta controles de escritura ───────────────
@@ -68,8 +84,7 @@ function _applyEditMode(on) {
   else renderAll();
 }
 
-// ── Flag de bloqueo de vista (view-lock) ───────────────────────
-let _lockMode = false;
+// ── Flag de bloqueo de vista (eliminado en Fase 7.3) ──────────
 let _rfInterval = null;
 
 // ── Post-auth: render + fetch + intervalo ────────────────────
@@ -83,18 +98,25 @@ async function _postAuthInit() {
   if (!ok) updateSyncStatus('local');
 }
 
-// ── Event: autenticación correcta ────────────────────────────────
-document.addEventListener('dashboard:auth-success', async e => {
-  _lockMode = false;
-  document.getElementById('authOv').classList.remove('auth-locked');
-  _applyAuthUI();
+// ── Handlers de Supabase Auth ─────────────────────────────────
+async function _handleLogin(user, isNewLogin) {
+  _hideLoginOverlay();
+  _applyAuthUI(user);
+  if (isNewLogin) {
+    // Reclamar datos heredados de 'default_user' si existen
+    await claimLegacyData(user);
+  }
   await _postAuthInit();
-  const pendingAction = e.detail;
-  if (pendingAction && pendingAction !== 'none') doAction(pendingAction);
-});
+}
 
-// ── Event: acción de acceso rápido (ya autenticado) ──────────
-document.addEventListener('dashboard:action', e => { doAction(e.detail); });
+function _handleLogout() {
+  _applyEditMode(false);
+  const ab = document.getElementById('btnAuth');
+  if (ab) { ab.innerHTML = '&#x1F512; Login'; ab.title = ''; ab.style.fontSize = ''; }
+  const adminBtn = document.getElementById('btnAdmin');
+  if (adminBtn) adminBtn.style.display = 'none';
+  _showLoginOverlay();
+}
 
 // ── Sistema de pestañas ──────────────────────────────────────
 let _benchmarkLoaded = false;
@@ -145,37 +167,40 @@ document.getElementById('btnTheme')?.addEventListener('click', () => {
 });
 
 // ── Listeners de botones de la barra superior ────────────────
+// btnAuth actúa como Sign Out cuando hay sesión activa
+document.getElementById('btnAuth')?.addEventListener('click', () => signOut());
 document.getElementById('btnRefresh')?.addEventListener('click', () => refreshPortfolio());
-document.getElementById('btnAuth')?.addEventListener('click', () => authThenAction('none'));
 document.getElementById('btnAdmin')?.addEventListener('click', () => _applyEditMode(!_editMode));
-document.getElementById('btnAddHolding')?.addEventListener('click', () => authThenAction('addHolding'));
-document.getElementById('btnAddTrade')?.addEventListener('click', () => authThenAction('addTrade'));
-document.getElementById('btnAddBook')?.addEventListener('click', () => authThenAction('addBook'));
-document.getElementById('btnAddMovie')?.addEventListener('click', () => authThenAction('addMovie'));
-document.getElementById('btnAddSeries')?.addEventListener('click', () => authThenAction('addSeries'));
+document.getElementById('btnAddHolding')?.addEventListener('click', () => doAction('addHolding'));
+document.getElementById('btnAddTrade')?.addEventListener('click', () => doAction('addTrade'));
+document.getElementById('btnAddBook')?.addEventListener('click', () => doAction('addBook'));
+document.getElementById('btnAddMovie')?.addEventListener('click', () => doAction('addMovie'));
+document.getElementById('btnAddSeries')?.addEventListener('click', () => doAction('addSeries'));
 document.getElementById('btnGymAdd')?.addEventListener('click', () => addGymEntry());
 
-// ── Listeners del overlay de auth ────────────────────────────
-document.getElementById('btnAuthCancel')?.addEventListener('click', () => {
-  // En view-lock, no se puede cancelar; redirigir al campo de contraseña
-  if (_lockMode) { document.getElementById('authPw')?.focus(); return; }
-  document.getElementById('authOv').classList.remove('open');
-});
-document.getElementById('btnAuthSubmit')?.addEventListener('click', () => checkAuth());
-document.getElementById('authPw')?.addEventListener('keydown', e => { if (e.key === 'Enter') checkAuth(); });
+// ── Login overlay: submit handler ─────────────────────────────
+async function _doLogin() {
+  const email = document.getElementById('loginEmail')?.value.trim();
+  const pw    = document.getElementById('loginPw')?.value;
+  const errEl = document.getElementById('loginErr');
+  const btn   = document.getElementById('btnLogin');
+  if (!email || !pw) { if (errEl) errEl.textContent = 'Email and password required.'; return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Authorizing…'; }
+  const { error } = await signIn(email, pw);
+  if (btn) { btn.disabled = false; btn.textContent = 'Authorize Access'; }
+  if (error) {
+    if (errEl) errEl.textContent = error.message || 'Invalid credentials.';
+  }
+  // On success, onAuthStateChange fires automatically → _handleLogin → hides overlay
+}
+document.getElementById('btnLogin')?.addEventListener('click', _doLogin);
+document.getElementById('loginPw')?.addEventListener('keydown', e => { if (e.key === 'Enter') _doLogin(); });
+document.getElementById('loginEmail')?.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginPw')?.focus(); });
 
-// ── Cerrar modal al hacer click en el overlay ────────────────
+// ── Cerrar modal genérico al hacer click en el overlay ────────
 document.getElementById('ov')?.addEventListener('click', e => {
   if (e.target === document.getElementById('ov')) closeModal();
 });
-document.getElementById('authOv')?.addEventListener('click', e => {
-  if (e.target === document.getElementById('authOv')) {
-    if (_lockMode) { document.getElementById('authPw')?.focus(); return; }
-    document.getElementById('authOv').classList.remove('open');
-  }
-});
-
-// ── Filtros de libros, films y series ────────────────────────
 document.getElementById('booksSearch')?.addEventListener('input', () => renderBooks());
 document.getElementById('booksSort')?.addEventListener('change', () => renderBooks());
 document.getElementById('booksFilter')?.addEventListener('change', () => renderBooks());
@@ -228,13 +253,20 @@ async function init() {
     btnTheme.textContent = isLight ? '☀' : '☽';
   }
 
-  // Sin view-lock: la app carga directamente.
-  // Si hay sesión activa, revelar controles de edición.
-  if (restoreSession()) _applyAuthUI();
-  await _postAuthInit();
+  // Ocultar btnAdmin hasta que haya sesión activa
+  const adminBtn = document.getElementById('btnAdmin');
+  if (adminBtn) adminBtn.style.display = 'none';
+
+  // Render inicial con datos locales (sin esperar a la nube)
+  renderAll();
+  renderCalculator();
+
+  // Configurar auth de Supabase:
+  // onAuthStateChange disparará inmediatamente si hay sesión guardada.
+  initAuth(_handleLogin, _handleLogout);
 
   document.addEventListener('visibilitychange', async () => {
-    if (document.visibilityState === 'visible' && !_lockMode) {
+    if (document.visibilityState === 'visible') {
       const ok = await fetchDataFromCloud();
       if (ok) renderAll();
     }
