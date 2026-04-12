@@ -14,8 +14,9 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-<meta name="description" content="Track CMG - Private Investment Portfolio and Asset Management Dashboard.">  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script><script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
+<meta name="description" content="Track CMG - Private Investment Portfolio and Asset Management Dashboard.">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -142,11 +143,11 @@
      Visible by default. Hidden by app.js once Supabase session confirmed.
      ═══════════════════════════════════════════════════════════════ -->
 <div id="loginOv" style="position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:rgba(4,4,12,.97);backdrop-filter:blur(8px)">
-  <div style="background:#07071a;border:1px solid #1a1a4a;border-radius:12px;padding:44px 40px;max-width:400px;width:90%;text-align:center;box-shadow:0 0 60px rgba(85,51,255,.25)">
+  <div style="background:#07071a;border:1px solid #1a1a4a;border-radius:12px;padding:44px 40px;max-width:400px;width:90%;text-align:center;box-shadow:0 0 60px rgba(85,51,255,.25);min-height:520px">
     <img src="icons/logo-ui.webp" alt="Track CMG" width="76" height="76" style="width:76px;border-radius:18px;margin-bottom:22px;box-shadow:0 0 28px rgba(85,51,255,.45)">
     <div style="color:#5533ff;font-size:10px;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px;font-family:'IBM Plex Mono',monospace">Institutional Access Portal</div>
     <h2 style="color:#e0e0ff;margin:0 0 4px;font-size:22px;font-family:'Sora',sans-serif;font-weight:700">Track CMG</h2>
-    <p style="color:#445;font-size:12px;margin:0 0 30px;font-family:'IBM Plex Mono',monospace">Authorized Personnel Only</p>
+    <p style="color:#7777aa;font-size:12px;margin:0 0 30px;font-family:'IBM Plex Mono',monospace">Authorized Personnel Only</p>
 
     <div style="text-align:left;margin-bottom:14px">
       <label style="color:#8888aa;font-size:10px;letter-spacing:2px;text-transform:uppercase;display:block;margin-bottom:6px;font-family:'IBM Plex Mono',monospace">Email Address</label>
@@ -167,13 +168,15 @@
       Authorize Access
     </button>
     <div id="loginErr" style="color:#ff4466;font-size:11px;margin-top:10px;min-height:16px;font-family:'IBM Plex Mono',monospace"></div>
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #111130;color:#333;font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:1px">
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #111130;color:#5a5a7a;font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:1px">
       ACCESS RESTRICTED · NO PUBLIC REGISTRATION
     </div>
   </div>
 </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
 <script type="module" src="js/app.js"></script>
 <script>
   if ('serviceWorker' in navigator) {

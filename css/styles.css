@@ -37,7 +37,7 @@ header{display:flex;justify-content:space-between;align-items:center;flex-wrap:w
 .cg{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;margin-bottom:16px}
 .card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px}
 .card h2{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;font-weight:500}
-.ch{position:relative;width:100%}.ch-s{height:260px}.ch-l{height:360px}
+.ch{position:relative;width:100%}.ch-s{height:260px;min-height:260px;contain:layout style}.ch-l{height:360px;min-height:360px;contain:layout style}
 .tbl-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border)}table{width:100%;border-collapse:collapse;font-size:13px}
 th{background:var(--bg-hover);color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:600;padding:12px 14px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--border)}
 td{padding:10px 14px;border-bottom:1px solid var(--border);font-family:'IBM Plex Mono',monospace;font-size:12px;white-space:nowrap}tr:last-child td{border-bottom:none}tr:hover td{background:var(--bg-hover)}
