@@ -1,4 +1,4 @@
-:root{--bg:#060611;--bg-card:#0d0d1a;--bg-hover:#161630;--border:#1a1a35;--border-focus:#2d2d55;--text:#e2e2f0;--text-dim:#7070a0;--text-muted:#404068;--green:#22df8a;--green-bg:rgba(34,223,138,.08);--red:#ff4466;--red-bg:rgba(255,68,102,.08);--blue:#5588ff;--blue-bg:rgba(85,136,255,.08);--amber:#ffaa22;--amber-bg:rgba(255,170,34,.08);--purple:#aa66ff;--purple-bg:rgba(170,102,255,.08);--cyan:#22dddd}
+:root{--bg:#060611;--bg-card:#0d0d1a;--bg-hover:#161630;--border:#1a1a35;--border-focus:#2d2d55;--text:#e2e2f0;--text-dim:#7070a0;--text-muted:#7272a0;--green:#22df8a;--green-bg:rgba(34,223,138,.08);--red:#ff4466;--red-bg:rgba(255,68,102,.08);--blue:#5588ff;--blue-bg:rgba(85,136,255,.08);--amber:#ffaa22;--amber-bg:rgba(255,170,34,.08);--purple:#aa66ff;--purple-bg:rgba(170,102,255,.08);--cyan:#22dddd}
 *{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-height:100vh}
 .bg-mesh{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 600px 400px at 20% 10%,rgba(34,223,138,.04),transparent),radial-gradient(ellipse 500px 500px at 80% 80%,rgba(85,136,255,.04),transparent),radial-gradient(ellipse 400px 300px at 50% 50%,rgba(170,102,255,.03),transparent)}
 .scanline{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.015;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,.03) 2px,rgba(255,255,255,.03) 4px)}
@@ -36,7 +36,7 @@ header{display:flex;justify-content:space-between;align-items:center;flex-wrap:w
 .up{color:var(--green)}.dn{color:var(--red)}
 .cg{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;margin-bottom:16px}
 .card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px}
-.card h3{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;font-weight:500}
+.card h2{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;font-weight:500}
 .ch{position:relative;width:100%}.ch-s{height:260px}.ch-l{height:360px}
 .tbl-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border)}table{width:100%;border-collapse:collapse;font-size:13px}
 th{background:var(--bg-hover);color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:600;padding:12px 14px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--border)}

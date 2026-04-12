@@ -11,7 +11,11 @@
 <title>Track CMG</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
-<link rel="apple-touch-icon" href="icons/icon-192.png">  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script><script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<meta name="description" content="Professional Asset Management Dashboard and Private Vault. Track CMG institutional access.">  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script><script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -19,7 +23,7 @@
 <div class="bg-mesh"></div><div class="scanline"></div>
 <div class="wrap">
 <header>
-<div class="brand"><img src="icons/icon-192.png" class="logo-small" alt="Track CMG logo"><div><h1>Track CMG</h1><small>by CMG</small></div></div>
+<div class="brand"><img src="icons/icon-192.png" class="logo-small" alt="Track CMG logo" width="32" height="32"><div><h1>Track CMG</h1><small>by CMG</small></div></div>
 <div class="hdr-r"><div class="live-dot" id="dot"></div><span class="ts" id="ts">Loading...</span>
 <span class="sync-status" id="syncStatus" style="color:var(--text-muted)">Local</span>
 <button class="btn" id="btnTheme" title="Toggle theme" aria-label="Toggle light/dark theme">&#x263D;</button>
@@ -27,6 +31,7 @@
 <button class="btn" id="btnAdmin" style="display:none" title="Toggle edit mode" aria-label="Toggle edit mode">&#x270F; Edit</button>
 <button class="btn" id="btnLogout" style="display:none" title="Log Out">Log Out</button></div>
 </header>
+<main role="main">
 <div class="tab-bar" id="tabBar">
 <button class="tab-btn active" data-tab="portfolio">Portfolio</button>
 <button class="tab-btn" data-tab="trades">Closed Trades</button>
@@ -42,24 +47,24 @@
 <div class="hero"><div class="hero-lbl">Portfolio Value</div><div class="hero-val" id="hVal">---,-- &euro;</div><div id="hRoi"></div><div class="hero-sub" id="hSub"></div></div>
 <div id="portfolioEditWrap" class="add-section" style="justify-content:flex-end;margin-bottom:16px;gap:8px"><button class="btn btn-sm btn-g" id="btnAddHolding">+ Add Position</button></div>
 <div class="sg" id="sGrid"></div>
-<div class="cg"><div class="card"><h3>Allocation</h3><div class="ch ch-s"><canvas id="cD"></canvas></div></div><div class="card"><h3>Value Breakdown (EUR)</h3><div class="ch ch-s"><canvas id="cB"></canvas></div></div></div>
+<div class="cg"><div class="card"><h2>Allocation</h2><div class="ch ch-s"><canvas id="cD"></canvas></div></div><div class="card"><h2>Value Breakdown (EUR)</h2><div class="ch ch-s"><canvas id="cB"></canvas></div></div></div>
 <!-- NEW: Historical chart + Monthly returns -->
-<div class="cg"><div class="card" style="grid-column:1/-1"><h3>Invested vs Portfolio Value</h3><div class="ch ch-l"><canvas id="cHistory"></canvas></div></div></div>
-<div class="card" style="margin-bottom:24px"><h3>Monthly Returns</h3>
+<div class="cg"><div class="card" style="grid-column:1/-1"><h2>Invested vs Portfolio Value</h2><div class="ch ch-l"><canvas id="cHistory"></canvas></div></div></div>
+<div class="card" style="margin-bottom:24px"><h2>Monthly Returns</h2>
 <div class="tbl-wrap" id="monthlyTable"></div>
 <div id="monthlyPag" style="display:flex;justify-content:center;gap:8px;margin-top:12px"></div></div>
 </div>
 
 <div class="tab-content" id="tab-trades">
 <div class="sum-grid" id="tradesSummary"></div>
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px"><h3 style="font-size:14px;font-weight:600">Closed Positions</h3><button class="btn btn-sm btn-g" id="btnAddTrade" style="display:none">+ Add Trade</button></div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px"><h2 style="font-size:14px;font-weight:600">Closed Positions</h2><button class="btn btn-sm btn-g" id="btnAddTrade" style="display:none">+ Add Trade</button></div>
 <div class="tbl-wrap" id="tradesTable"></div>
-<div class="cg" style="margin-top:20px"><div class="card"><h3>Net P&amp;L by Position</h3><div class="ch ch-s"><canvas id="cTrades"></canvas></div></div><div class="card"><h3>Capital Deployed vs Returned</h3><div class="ch ch-s"><canvas id="cCapital"></canvas></div></div></div>
+<div class="cg" style="margin-top:20px"><div class="card"><h2>Net P&amp;L by Position</h2><div class="ch ch-s"><canvas id="cTrades"></canvas></div></div><div class="card"><h2>Capital Deployed vs Returned</h2><div class="ch ch-s"><canvas id="cCapital"></canvas></div></div></div>
 </div>
 
 <div class="tab-content" id="tab-gym">
 <div class="gym-form add-section" id="gymForm"><div class="fg"><label>Date</label><input type="date" id="gymDate"></div><div class="fg"><label>Weight (kg)</label><input type="number" id="gymWeight" step="0.1" placeholder="78.5"></div><div class="fg"><label>Body Fat (%)</label><input type="number" id="gymBf" step="0.1" placeholder="15.0"></div><button class="btn btn-g" id="btnGymAdd" style="height:38px;align-self:flex-end">Add</button></div>
-<div class="card" style="margin-bottom:20px"><h3>Weight &amp; Body Fat Progress</h3><div class="ch ch-l"><canvas id="cGym"></canvas></div></div>
+<div class="card" style="margin-bottom:20px"><h2>Weight &amp; Body Fat Progress</h2><div class="ch ch-l"><canvas id="cGym"></canvas></div></div>
 <div class="tbl-wrap" id="gymTable"></div>
 </div>
 
@@ -94,13 +99,13 @@
 <div class="tab-content" id="tab-analytics">
 <div class="sum-grid" id="analyticsSummary"></div>
 <div class="cg">
-  <div class="card"><h3>Sector Allocation</h3><div class="ch ch-s"><canvas id="cSector"></canvas></div></div>
-  <div class="card"><h3>Currency Exposure (EUR)</h3><div class="ch ch-s"><canvas id="cCurrency"></canvas></div></div>
+  <div class="card"><h2>Sector Allocation</h2><div class="ch ch-s"><canvas id="cSector"></canvas></div></div>
+  <div class="card"><h2>Currency Exposure (EUR)</h2><div class="ch ch-s"><canvas id="cCurrency"></canvas></div></div>
 </div>
 <div class="cg">
   <div class="card" style="grid-column:1/-1">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
-      <h3 style="margin:0">Cumulative Return vs S&amp;P 500 (SPY)</h3>
+      <h2 style="margin:0">Cumulative Return vs S&amp;P 500 (SPY)</h2>
       <select id="benchmarkPeriod" class="input" style="display:none"><!-- replaced by #benchmarkBtns --></select>
       <div id="benchmarkBtns" class="bench-grp">
         <button class="bench-btn active" data-period="all">ALL</button>
@@ -114,7 +119,7 @@
   </div>
 </div>
 <div class="card" style="margin-bottom:24px">
-  <h3>Compound Interest Calculator</h3>
+  <h2>Compound Interest Calculator</h2>
   <div class="calc-wrap" id="calcWrap">
     <div class="calc-inputs">
       <div class="fg"><label>Initial capital (€)</label><input type="number" id="calcCapital" value="10000" min="0" step="100"></div>
@@ -128,6 +133,7 @@
   <div class="ch ch-l" style="margin-top:20px"><canvas id="cCalc"></canvas></div>
 </div>
 </div>
+</main>
 
 </div><div class="overlay" id="ov"><div class="modal" id="mod"></div></div>
 
@@ -137,7 +143,7 @@
      ═══════════════════════════════════════════════════════════════ -->
 <div id="loginOv" style="position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:rgba(4,4,12,.97);backdrop-filter:blur(8px)">
   <div style="background:#07071a;border:1px solid #1a1a4a;border-radius:12px;padding:44px 40px;max-width:400px;width:90%;text-align:center;box-shadow:0 0 60px rgba(85,51,255,.25)">
-    <img src="icons/icon-512.png" alt="Track CMG" style="width:76px;border-radius:18px;margin-bottom:22px;box-shadow:0 0 28px rgba(85,51,255,.45)">
+    <img src="icons/icon-512.png" alt="Track CMG" width="76" height="76" style="width:76px;border-radius:18px;margin-bottom:22px;box-shadow:0 0 28px rgba(85,51,255,.45)">
     <div style="color:#5533ff;font-size:10px;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px;font-family:'IBM Plex Mono',monospace">Institutional Access Portal</div>
     <h2 style="color:#e0e0ff;margin:0 0 4px;font-size:22px;font-family:'Sora',sans-serif;font-weight:700">Track CMG</h2>
     <p style="color:#445;font-size:12px;margin:0 0 30px;font-family:'IBM Plex Mono',monospace">Authorized Personnel Only</p>
