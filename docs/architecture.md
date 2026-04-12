@@ -1,7 +1,7 @@
 ﻿# Track CMG — System Architecture
 
-> **Document Version:** 2.0 (Phase 7.2 — Supabase Primary)
-> **Last Updated:** April 12, 2026
+> **Document Version:** 3.0 (Phase 7.3 — Supabase Auth + Lighthouse Sprint)
+> **Last Updated:** April 2026
 > **Status:** Authoritative Source of Truth
 > **Branch:** `develop`
 
@@ -19,17 +19,15 @@ repository contradicts the information here, this file takes precedence.
    - 4.1 [Hybrid Storage Strategy](#41-hybrid-storage-strategy)
    - 4.2 [Load Sequence on App Start](#42-load-sequence-on-app-start)
    - 4.3 [Proxy Pattern — Yahoo Finance via GAS](#43-proxy-pattern--yahoo-finance-via-gas)
-5. [Migration & Security Protocols](#5-migration--security-protocols)
-   - 5.1 [Hidden Migration Bridge](#51-hidden-migration-bridge)
-   - 5.2 [SHA-256 Security Flow](#52-sha-256-security-flow)
-   - 5.3 [Wipe & Insert Policy](#53-wipe--insert-policy)
+5. [Data Integrity Protocols](#5-data-integrity-protocols)
+   - 5.1 [Wipe & Insert Policy](#51-wipe--insert-policy)
 6. [Database Schema](#6-database-schema)
    - 6.1 [JSONB Payload Strategy](#61-jsonb-payload-strategy)
    - 6.2 [Table Reference](#62-table-reference)
    - 6.3 [Row-Level Security](#63-row-level-security)
 7. [Configuration Reference](#7-configuration-reference)
 8. [Application State Model](#8-application-state-model)
-9. [Authentication Model](#9-authentication-model)
+9. [Authentication Model](#9-authentication-model) — Supabase Auth (email + password)
 10. [Offline & Error Handling](#10-offline--error-handling)
 
 ---
@@ -70,7 +68,7 @@ graph TD
         GAS_YAHOO["Yahoo Finance\nUrlFetchApp"]
         GAS_LEGACY["Google Sheets\n(Deprecated — Migration Source)"]
         GAS_PROXY -->|"?action=quote"| GAS_YAHOO
-        GAS_PROXY -->|"?action=getData"| GAS_LEGACY
+        %% GAS_LEGACY removed — migration completed
     end
 
     Browser -->|"Supabase JS SDK\nSELECT · DELETE · INSERT · UPSERT"| SB_API
@@ -90,7 +88,7 @@ graph TD
 |-----------|------|------------|
 | User Browser | Render UI, execute business logic, manage all state | Vanilla JS ES6 Modules, Chart.js |
 | Supabase | Persistent CRUD storage | PostgreSQL + PostgREST |
-| Google Apps Script | CORS proxy for Yahoo Finance; legacy migration source | Google Apps Script `doGet()` |
+| Google Apps Script | CORS proxy for Yahoo Finance (live stock quotes only) | Google Apps Script `doGet()` |
 | GitHub Pages | Static file hosting | Git + GitHub Pages |
 
 ---
@@ -183,16 +181,23 @@ migration workflow. It is **not** the production default.
 
 ### 4.2 Load Sequence on App Start
 
+The app is fully **auth-gated**: all data loading happens after Supabase confirms a
+authenticated session. Unauthenticated visitors only see the login overlay.
+
 ```
 app.init()
- └─ restoreSession()        ← check sessionStorage for valid token (TTL 8 h)
- └─ loadData()
-      ├─ loadLocal()         ← hydrate D from localStorage instantly (sync)
-      └─ fetchDataFromCloud() ← async; Supabase 6 parallel SELECTs
-           ├─ loadDataFromObj(obj, merge=true)
-           ├─ saveLocal()      ← write merged cloud state back to localStorage
-           └─ updateSyncStatus('ok' | 'err' | 'local')
- └─ renderAll()              ← paint UI from D
+ └─ supabase.auth.onAuthStateChange(event, session)
+      ├─ 'SIGNED_IN'  → _handleLogin(user)
+      │                   └─ _postAuthInit()
+      │                        ├─ loadData()
+      │                        │    ├─ loadLocal()         ← sync hydration from localStorage
+      │                        │    └─ fetchDataFromCloud() ← 6 parallel Supabase SELECTs
+      │                        │         ├─ loadDataFromObj(obj, merge=true)
+      │                        │         ├─ saveLocal()    ← write merged state to localStorage
+      │                        │         └─ updateSyncStatus('ok' | 'err' | 'local')
+      │                        └─ renderAll()             ← paint UI (7 deferred tasks)
+      │
+      └─ 'SIGNED_OUT' → _handleLogout() → show login overlay, clear edit controls
 ```
 
 > **Empty database is not an error.** If Supabase returns zero rows across all tables
@@ -219,86 +224,24 @@ Browser                        GAS Web App                    Yahoo Finance
   │◄── JSON (CORS-free) ────────────│                               │
 ```
 
-`PROXY_URL` in `config.js` holds the deployed GAS Web App URL. This is the same
-endpoint used for the legacy `getData` action and the migration bridge.
+`PROXY_URL` in `config.js` holds the deployed GAS Web App URL. It is used exclusively
+for live stock quote requests (`?action=quote`).
 
 ---
 
-## 5. Migration & Security Protocols
+## 5. Data Integrity Protocols
 
-### 5.1 Hidden Migration Bridge
+### 5.1 Wipe & Insert Policy
 
-The Migration Bridge is a **one-time developer tool** that transfers all data from
-legacy Google Sheets (via GAS) to Supabase. It is intentionally hidden from the
-production UI to prevent accidental activation by non-technical users.
-
-#### Activation Triggers
-
-| Method | Mechanic |
-|--------|----------|
-| **Triple-click** | Click the `<h1>Track CMG</h1>` dashboard title 3 times within 600 ms |
-| **Keyboard shortcut** | `Ctrl + Shift + M` anywhere on the page |
-
-Both triggers call `_showMigrationModal()` in `app.js`, which **dynamically injects**
-the modal HTML into `<body>` at runtime. The modal does not exist in `index.html`
-source — it is created entirely in JavaScript to keep the easter egg invisible to
-casual source inspection.
-
-#### Suppression Flag
-
-```js
-localStorage.setItem('HIDE_MIGRATION_NOTICE', '1');
-```
-
-If a user checks "Don't show this tool again" in the modal, the triple-click trigger
-is suppressed on subsequent visits. The keyboard shortcut (`Ctrl+Shift+M`) always
-works regardless of this flag — it is reserved for developer access.
-
-> ⚠️ **After a successful migration:** Remove the entire `// MIGRATION BRIDGE` block
-> from `app.js` and the `migrateFromGAS()` export from `cloud.js`. The triple-click
-> listener on `document.querySelector('h1')` can also be removed.
-
-### 5.2 SHA-256 Security Flow
-
-The password entered in the migration modal is **never transmitted in plain text**.
-
-```
-User types password in <input type="password">
-         │
-         ▼
-  _sha256hex(rawPassword)                        [app.js]
-    └─ crypto.subtle.digest('SHA-256',
-         new TextEncoder().encode(rawPassword))
-    └─ ArrayBuffer → hex string (64 characters)
-         │
-         ▼
-  migrateFromGAS(hexHash)                        [cloud.js]
-    └─ fetch(PROXY_URL
-         + '?action=getData'
-         + '&t=' + Date.now()
-         + '&pwd=' + encodeURIComponent(hexHash))
-         │
-         ▼
-  GAS doGet(e)                                   [Google Apps Script]
-    └─ Compare e.parameter.pwd against stored hash
-    └─ Match  → return full data JSON
-    └─ No match → return { "error": "Unauthorized" }
-```
-
-The SHA-256 hash is computed entirely within the browser using the **Web Crypto API**
-(`crypto.subtle`) — zero external libraries, zero network round-trips for hashing.
-
-### 5.3 Wipe & Insert Policy
-
-Every `_saveToSupabase()` and `migrateFromGAS()` call follows a **Wipe & Insert**
-strategy for array-type data:
+Every `_saveToSupabase()` call follows a **Wipe & Insert** strategy for array-type
+data:
 
 ```
 Phase 1 — DELETE
-  DELETE FROM holdings      WHERE user_id = 'default_user'
-  DELETE FROM closed_trades WHERE user_id = 'default_user'
-  DELETE FROM media         WHERE user_id = 'default_user'
-  DELETE FROM gym           WHERE user_id = 'default_user'
+  DELETE FROM holdings      WHERE user_id = <authenticated_uid>
+  DELETE FROM closed_trades WHERE user_id = <authenticated_uid>
+  DELETE FROM media         WHERE user_id = <authenticated_uid>
+  DELETE FROM gym           WHERE user_id = <authenticated_uid>
 
 Phase 2 — INSERT
   INSERT INTO holdings      (new rows from D.holdings)
@@ -351,7 +294,7 @@ Data integrity is the responsibility of the JavaScript application layer (`stora
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | `id` | `uuid` | PK, `gen_random_uuid()` | Row identifier |
-| `user_id` | `text` | NOT NULL | Owner. Currently always `'default_user'` |
+| `user_id` | `text` | NOT NULL | Authenticated user UUID (`auth.uid()`) |
 | `ticker` | `text` | NOT NULL | Stock ticker (e.g. `'AAPL'`). Promoted for indexing |
 | `payload` | `jsonb` | NOT NULL | Full holding object |
 | `created_at` | `timestamptz` | default `now()` | Auto-set by Supabase |
@@ -461,18 +404,18 @@ ALTER TABLE gym           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE history       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings      ENABLE ROW LEVEL SECURITY;
 
--- Allow all operations for the hardcoded default user
--- (anon key is the only credential used by the frontend)
-CREATE POLICY "allow_default_user" ON holdings
-  FOR ALL USING (user_id = 'default_user') WITH CHECK (user_id = 'default_user');
+-- Allow all operations for the authenticated user (Phase 7.3+)
+CREATE POLICY "allow_owner" ON holdings
+  FOR ALL
+  USING      (user_id = auth.uid()::text)
+  WITH CHECK (user_id = auth.uid()::text);
 
--- Repeat for every table
+-- Repeat for every table (see docs/SETUP.md for the full SQL script)
 ```
 
-> ⚠️ **Fase 7.3 Multi-User Upgrade:** When Supabase Auth is introduced, replace
-> `user_id = 'default_user'` with `user_id = auth.uid()::text` in all RLS policies,
-> and replace `const UID = 'default_user'` in `cloud.js` with the authenticated
-> user's UID obtained from `(await supabase.auth.getUser()).data.user.id`.
+The authenticated user's UID is obtained from
+`supabase.auth.onAuthStateChange((_e, session) => session?.user?.id)`
+and used as `user_id` in all INSERT and DELETE operations in `cloud.js`.
 
 ---
 
@@ -513,9 +456,7 @@ state.js
 │   ├── books[]
 │   ├── movies[]
 │   └── series[]
-├── _authed          — boolean: user is in edit-mode
-├── _token           — session token string (stored in sessionStorage, TTL 8 h)
-└── _pendingAction   — deferred action waiting for auth to complete
+└── _authed          — boolean: Supabase session is active (user is logged in)
 ```
 
 `D` is the canonical in-memory representation of the database. All renders read from
@@ -526,20 +467,33 @@ or at minimum `saveLocal()` (localStorage only, no cloud push).
 
 ## 9. Authentication Model
 
-Track CMG implements a **session-based, password-free** edit-mode gate:
+Track CMG implements **Supabase Auth** (email + password) as its authentication gate.
+No data is loaded or rendered until a valid session is established.
 
-1. On load, `restoreSession()` checks `sessionStorage` for a valid token (TTL: 8 h).
-2. If no valid token exists, the app loads in **read-only mode** — all data is visible,
-   no edit controls are shown.
-3. Any edit action calls `authThenAction(action)`, which shows the auth overlay.
-4. `checkAuth()` on submit generates a random UUID token via `crypto.randomUUID()`
-   and stores it in `sessionStorage`. No server round-trip; no password comparison.
-5. The token gates the edit-mode UI only. It is **not** sent to Supabase.
+### Flow
 
-**Security model:** UI-level access control. Data integrity and access control at the
-storage level is enforced by **Supabase RLS**. The `ANON_KEY` + RLS model means that
-any actor who knows the Supabase URL and key can write data directly via the REST API.
-For a single-user personal dashboard, this is an accepted and understood trade-off.
+1. On load, `app.init()` registers a listener:
+   `supabase.auth.onAuthStateChange(event, session)`.
+2. If Supabase restores a valid session from storage (e.g. returning user), the
+   `SIGNED_IN` event fires immediately — no login prompt shown.
+3. Otherwise, the login overlay is shown. The user submits email + password.
+4. `supabase.auth.signInWithPassword({ email, password })` is called.
+5. On success, `SIGNED_IN` fires → `_handleLogin(user)` → `_postAuthInit()` →
+   data loads and the UI renders.
+6. On logout (`btnLogout` click → `supabase.auth.signOut()`), `SIGNED_OUT` fires →
+   `_handleLogout()` → login overlay shown, all edit controls hidden.
+
+### Security Model
+
+| Layer | Mechanism |
+|-------|-----------|
+| **Auth gate** | Supabase Auth; no render before `SIGNED_IN` |
+| **Transport** | HTTPS (GitHub Pages + Supabase API) |
+| **Storage-level isolation** | RLS `auth.uid()::text = user_id`; anon key can only access the authenticated user's rows |
+| **No service key** | `SUPABASE_ANON_KEY` in `config.js` is the public key; the service role key is never used in frontend code |
+
+The `ANON_KEY` is intentionally public and safe to commit. Its access surface is
+exactly what RLS policies allow — nothing more.
 
 ---
 
@@ -553,6 +507,6 @@ For a single-user personal dashboard, this is an accepted and understood trade-o
 | GAS proxy unreachable (price fetch) | Quote fields show `N/A`; no crash; chart renders with cached prices |
 | `window.supabase` CDN not yet loaded | `_getSupabase()` throws a clear error; caught by calling function; graceful fallback |
 | `SUPABASE_URL` or `ANON_KEY` not set | `_loadFromSupabase` / `_saveToSupabase` short-circuit immediately; status → `'local'` |
-| Migration: GAS returns `{ error }` | `migrateFromGAS()` returns `{ ok: false }`; user shown alert; Supabase not touched |
-| Migration: Supabase write fails mid-batch | Caught; user alerted; Supabase may be in partial state; no automatic rollback |
+| Login fails (wrong credentials) | `supabase.auth.signInWithPassword()` returns error; toast shown; login overlay remains |
+| Session expired | `onAuthStateChange` fires `SIGNED_OUT`; user redirected to login overlay |
 

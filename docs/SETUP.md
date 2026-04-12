@@ -1,7 +1,7 @@
 # Track CMG — Setup & Configuration Guide
 
-> **Document Version:** 1.0
-> **Last Updated:** April 12, 2026
+> **Document Version:** 2.0
+> **Last Updated:** April 2026
 > **Audience:** Developer setting up the project from scratch or onboarding a new
 > Supabase project.
 
@@ -17,13 +17,13 @@ functional Track CMG deployment. Follow the steps in order.
    - 2.1 [Create the Project](#21-create-the-project)
    - 2.2 [Run the Database Schema SQL](#22-run-the-database-schema-sql)
    - 2.3 [Enable Row-Level Security](#23-enable-row-level-security)
+   - 2.4 [Create the Auth User](#24-create-the-auth-user)
 3. [Configure `js/config.js`](#3-configure-jsconfigjs)
 4. [Google Apps Script Setup](#4-google-apps-script-setup)
 5. [Local Preview](#5-local-preview)
 6. [Deployment (GitHub Pages)](#6-deployment-github-pages)
 7. [First-Run Checklist](#7-first-run-checklist)
-8. [Migrating from Legacy GAS Storage](#8-migrating-from-legacy-gas-storage)
-9. [Resetting the Database](#9-resetting-the-database)
+8. [Resetting the Database](#8-resetting-the-database)
 
 ---
 
@@ -237,15 +237,13 @@ export const FALLBACK = {
 
 ## 4. Google Apps Script Setup
 
-The GAS Web App serves two purposes:
-1. **Yahoo Finance proxy** — fetches real-time stock prices (bypasses browser CORS).
-2. **Migration source** — exposes legacy Google Sheets data for the one-time migration.
+The GAS Web App serves as a **Yahoo Finance proxy** — it fetches real-time stock
+prices server-side, bypassing browser CORS restrictions.
 
 ### Deploy a new GAS Web App
 
 1. Go to [script.google.com](https://script.google.com) and create a new project.
-2. Paste your GAS code (the `doGet(e)` handler that handles `?action=quote` and
-   `?action=getData`).
+2. Paste your GAS code (the `doGet(e)` handler that handles `?action=quote`).
 3. Click **Deploy → New deployment**.
 4. Select type: **Web app**.
 5. Set **Execute as:** `Me`.
@@ -262,8 +260,6 @@ The GAS Web App serves two purposes:
 | Query Parameter | Value | Response |
 |-----------------|-------|----------|
 | `?action=quote&ticker=AAPL` | Stock ticker | JSON with `{ regularMarketPrice, ... }` |
-| `?action=getData` | _(none)_ | JSON with `{ holdings, closedTrades, books, ... }` |
-| `?action=getData&pwd=<sha256>` | SHA-256 password hash | Same as above if hash matches |
 
 ---
 
@@ -326,63 +322,32 @@ automatic deployment.
 After completing the setup, verify the following in the browser console and UI:
 
 - [ ] Page loads without JS errors in the console
-- [ ] Sync status indicator shows `✓` (green) — not `!` (error) or `○` (local)
+- [ ] The login overlay is shown on first visit
+- [ ] Logging in with the credentials created in step 2.4 succeeds
+- [ ] Sync status indicator shows `✓` (green) after login — not `!` (error) or `○` (local)
 - [ ] Opening the browser DevTools → Network tab shows successful requests to
       `*.supabase.co` (status 200)
 - [ ] Adding a holding and saving triggers a `pushDataToCloud()` with no errors
-- [ ] Refreshing the page reloads the same data (Supabase persistence confirmed)
+- [ ] Refreshing the page restores the session and reloads the same data
+      (Supabase persistence confirmed)
 - [ ] Quote prices load for at least one ticker (GAS proxy working)
-- [ ] `Ctrl+Shift+M` opens the Migration Bridge modal (if migration is needed)
+- [ ] Logging out via the header button returns to the login overlay
 
 ---
 
-## 8. Migrating from Legacy GAS Storage
+## 8. Resetting the Database
 
-If you have existing data in Google Sheets (via the legacy GAS backend), follow this
-procedure **once** after setting up Supabase.
-
-> ⚠️ **The migration overwrites all existing Supabase data.** Run it only on a fresh
-> Supabase project, or accept that all current Supabase data will be replaced.
-
-### Procedure
-
-1. Ensure `PROXY_URL` in `config.js` points to the GAS Web App that has access to
-   the legacy Google Sheet data.
-2. Open the Track CMG dashboard in the browser.
-3. Activate the Migration Bridge using either:
-   - **Triple-click** on the `Track CMG` title (3 clicks within 600 ms)
-   - **`Ctrl + Shift + M`** keyboard shortcut
-4. The classified terminal modal appears. Enter the migration password if your GAS
-   endpoint requires one (it will be SHA-256 hashed automatically before transmission).
-5. Click **⚡ Execute Bridge**.
-6. Confirm both broker-style warning dialogs.
-7. Wait for the status line to show `✅ MIGRATION SUCCESSFUL`.
-8. The page will reload automatically. Verify your data appears correctly.
-
-### Post-Migration Cleanup
-
-After a confirmed successful migration:
-
-1. Delete the `// MIGRATION BRIDGE` block from `js/app.js` (triple-click listener,
-   keyboard listener, `_sha256hex()` helper, `_showMigrationModal()` function).
-2. Delete the `export async function migrateFromGAS(password)` export from
-   `js/cloud.js`.
-3. Commit with message: `chore: remove migration bridge (post-migration cleanup)`.
-
----
-
-## 9. Resetting the Database
-
-To wipe all data and start fresh:
+To wipe all data and start fresh, run in the Supabase SQL Editor:
 
 ```sql
 -- ⚠️ DESTRUCTIVE — irreversible. Run in Supabase SQL Editor.
-DELETE FROM holdings      WHERE user_id = 'default_user';
-DELETE FROM closed_trades WHERE user_id = 'default_user';
-DELETE FROM media         WHERE user_id = 'default_user';
-DELETE FROM gym           WHERE user_id = 'default_user';
-DELETE FROM history       WHERE user_id = 'default_user';
-DELETE FROM settings      WHERE user_id = 'default_user';
+-- Replace <your-user-id> with the UUID from Authentication → Users.
+DELETE FROM holdings      WHERE user_id = '<your-user-id>';
+DELETE FROM closed_trades WHERE user_id = '<your-user-id>';
+DELETE FROM media         WHERE user_id = '<your-user-id>';
+DELETE FROM gym           WHERE user_id = '<your-user-id>';
+DELETE FROM history       WHERE user_id = '<your-user-id>';
+DELETE FROM settings      WHERE user_id = '<your-user-id>';
 ```
 
 After running this, refresh the app. It will boot into a clean empty state
