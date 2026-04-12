@@ -238,3 +238,123 @@ export async function saveAndSync() {
   saveLocal();
   return await pushDataToCloud();
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+//  MIGRATION BRIDGE — mueve datos de GAS a Supabase de una sola vez.
+//  Uso unico. Eliminar este bloque (y el boton en index.html) tras migrar.
+// ════════════════════════════════════════════════════════════════════════════
+
+export async function migrateFromGAS() {
+  if (!PROXY_URL) {
+    alert('PROXY_URL no esta configurada en config.js.');
+    return false;
+  }
+
+  // Paso A: leer datos desde GAS (GET anonimo)
+  let gasData;
+  try {
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 25000);
+    const res = await fetch(PROXY_URL + '?action=getData&t=' + Date.now(), { signal: ctrl.signal });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    if (!text || text === '{}' || text === 'No URL' || text === 'Blocked') {
+      alert('GAS devolvio una respuesta vacia o bloqueada: "' + text + '"');
+      return false;
+    }
+    gasData = JSON.parse(text);
+  } catch (e) {
+    alert('Error al leer desde GAS:\n' + e.message);
+    console.error('[Migration] fetch GAS:', e);
+    return false;
+  }
+
+  if (!gasData || !gasData.holdings) {
+    alert('Los datos de GAS no tienen el formato esperado (falta holdings).');
+    return false;
+  }
+
+  console.log('[Migration] Datos recibidos de GAS:', {
+    holdings: gasData.holdings?.length,
+    closedTrades: gasData.closedTrades?.length,
+    books: gasData.books?.length,
+    movies: gasData.movies?.length,
+    series: gasData.series?.length,
+    gym: gasData.gym?.length,
+    history: gasData.history?.length,
+    cash: gasData.cash,
+    totalInvested: gasData.totalInvested,
+  });
+
+  // Paso B: volcar a Supabase (Wipe & Insert completo)
+  const sb = _getSupabase();
+
+  try {
+    // Limpiar tablas del usuario
+    console.log('[Migration] Limpiando tablas de Supabase...');
+    const delResults = await Promise.all([
+      sb.from('holdings').delete().eq('user_id', UID),
+      sb.from('closed_trades').delete().eq('user_id', UID),
+      sb.from('media').delete().eq('user_id', UID),
+      sb.from('gym').delete().eq('user_id', UID),
+      sb.from('history').delete().eq('user_id', UID),
+    ]);
+    for (const { error } of delResults) {
+      if (error) throw error;
+    }
+
+    // Insertar cada categoria
+    const ops = [];
+
+    if (gasData.holdings?.length) {
+      ops.push(sb.from('holdings').insert(
+        gasData.holdings.map(h => ({ user_id: UID, ticker: h.ticker, payload: h }))
+      ));
+    }
+    if (gasData.closedTrades?.length) {
+      ops.push(sb.from('closed_trades').insert(
+        gasData.closedTrades.map(t => ({ user_id: UID, ticker: t.ticker, payload: t }))
+      ));
+    }
+
+    const mediaAll = [
+      ...(gasData.books  || []).map(b => ({ user_id: UID, type: 'book',  payload: b })),
+      ...(gasData.movies || []).map(m => ({ user_id: UID, type: 'movie', payload: m })),
+      ...(gasData.series || []).map(s => ({ user_id: UID, type: 'serie', payload: s })),
+    ];
+    if (mediaAll.length) ops.push(sb.from('media').insert(mediaAll));
+
+    if (gasData.gym?.length) {
+      ops.push(sb.from('gym').insert(
+        gasData.gym.map(g => ({ user_id: UID, log_date: g.date, payload: g }))
+      ));
+    }
+    if (gasData.history?.length) {
+      ops.push(sb.from('history').upsert(
+        gasData.history.map(h => ({ user_id: UID, snapped_at: h.date, payload: h })),
+        { onConflict: 'user_id,snapped_at' }
+      ));
+    }
+
+    // Paso D: settings (cash + totalInvested)
+    ops.push(sb.from('settings').upsert(
+      { user_id: UID, cash: gasData.cash ?? 0,
+        total_invested: gasData.totalInvested ?? 0,
+        updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    ));
+
+    console.log('[Migration] Ejecutando ' + ops.length + ' inserciones...');
+    const results = await Promise.all(ops);
+    for (const { error } of results) {
+      if (error) throw error;
+    }
+
+    console.log('[Migration] Exito total.');
+    return true;
+  } catch (e) {
+    alert('Error al escribir en Supabase:\n' + e.message);
+    console.error('[Migration] Supabase write:', e);
+    return false;
+  }
+}

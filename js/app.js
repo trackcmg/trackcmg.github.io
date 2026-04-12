@@ -2,7 +2,7 @@
 //  app.js — Punto de entrada. Orquesta todos los módulos.
 // ============================================================
 import { loadData } from './storage.js';
-import { fetchDataFromCloud, updateSyncStatus } from './cloud.js';
+import { fetchDataFromCloud, updateSyncStatus, migrateFromGAS } from './cloud.js';
 import { refreshPortfolio, renderPortfolio, renderHistory, toggleHoldingDetail } from './portfolio.js';
 import { renderTrades, toggleTradeDetail } from './trades.js';
 import { addGymEntry, renderGym } from './gym.js';
@@ -245,3 +245,23 @@ async function init() {
 }
 
 init();
+
+// ── Migration Bridge ─────────────────────────────────────────
+document.getElementById('btn-migrate-logic')?.addEventListener('click', async () => {
+  const btn = document.getElementById('btn-migrate-logic');
+  btn.disabled = true;
+  btn.textContent = 'Migrando...';
+  const ok = await migrateFromGAS();
+  if (ok) {
+    alert('\u2705 Migracion completada. La pagina se recargara ahora.');
+    location.reload();
+  } else {
+    btn.disabled = false;
+    btn.textContent = '\uD83D\uDE80 Migrar desde Google';
+  }
+});
+
+document.getElementById('btn-migrate-dismiss')?.addEventListener('click', () => {
+  const bar = document.getElementById('migration-bar');
+  if (bar) bar.style.display = 'none';
+});
