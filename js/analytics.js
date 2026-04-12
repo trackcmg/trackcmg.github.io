@@ -56,8 +56,6 @@ function _renderSummaryCards() {
   const yieldPct = totalInv > 0 ? (totalDivEur / totalInv) * 100 : 0;
 
   el.innerHTML = [
-    { lbl: 'Total Return (Real.+Lat.)', val: (totalReturn >= 0 ? '+' : '') + F(totalReturn) + ' €', cls: totalReturn >= 0 ? 'up' : 'dn' },
-    { lbl: 'Return %', val: (totalReturnPct >= 0 ? '+' : '') + F(totalReturnPct) + '%', cls: totalReturnPct >= 0 ? 'up' : 'dn' },
     { lbl: 'Realized P&L', val: (realizedPnl >= 0 ? '+' : '') + F(realizedPnl) + ' €', cls: realizedPnl >= 0 ? 'up' : 'dn' },
     { lbl: 'Unrealized P&L', val: (latentPnl >= 0 ? '+' : '') + F(latentPnl) + ' €', cls: latentPnl >= 0 ? 'up' : 'dn' },
     { lbl: 'Dividends (EUR)', val: F(totalDivEur) + ' €', cls: totalDivEur > 0 ? 'up' : '' },
@@ -212,12 +210,20 @@ function _drawBenchmark() {
   const now = new Date();
   const todayStr = now.toISOString().slice(0, 10);
 
-  // La ventana de vista nunca retrocede antes de enero 2024
-  let viewStart = '2024-01-01';
-  if (period === '1y') { const d = new Date(now); d.setFullYear(d.getFullYear() - 1); const s = d.toISOString().slice(0, 10); if (s > '2024-01-01') viewStart = s; }
-  else if (period === '6m') { const d = new Date(now); d.setMonth(d.getMonth() - 6); const s = d.toISOString().slice(0, 10); if (s > '2024-01-01') viewStart = s; }
-  else if (period === '3m') { const d = new Date(now); d.setMonth(d.getMonth() - 3); const s = d.toISOString().slice(0, 10); if (s > '2024-01-01') viewStart = s; }
-  else if (period === '1m') { const d = new Date(now); d.setMonth(d.getMonth() - 1); const s = d.toISOString().slice(0, 10); if (s > '2024-01-01') viewStart = s; }
+  // La ventana de vista nunca retrocede antes de enero 2025
+  const MIN_DATE = '2025-01-01';
+  const allPortfolioAll = [...(D.history || [])].sort((a, b) => a.date.localeCompare(b.date));
+  const firstDataDate = allPortfolioAll.length ? allPortfolioAll[0].date : MIN_DATE;
+
+  let viewStart;
+  if (period === 'all') { viewStart = firstDataDate; }
+  else if (period === 'max') { viewStart = MIN_DATE; }
+  else if (period === '1y') { const d = new Date(now); d.setFullYear(d.getFullYear() - 1); viewStart = d.toISOString().slice(0, 10); }
+  else if (period === '6m') { const d = new Date(now); d.setMonth(d.getMonth() - 6); viewStart = d.toISOString().slice(0, 10); }
+  else if (period === '3m') { const d = new Date(now); d.setMonth(d.getMonth() - 3); viewStart = d.toISOString().slice(0, 10); }
+  else if (period === '1m') { const d = new Date(now); d.setMonth(d.getMonth() - 1); viewStart = d.toISOString().slice(0, 10); }
+  else { viewStart = firstDataDate; }
+  if (viewStart < MIN_DATE) viewStart = MIN_DATE;
 
   // SPY base: precio al inicio del período seleccionado — ambas series arrancan en 0%
   const spyBase = _nearestSpy(viewStart);
@@ -235,7 +241,7 @@ function _drawBenchmark() {
   }
 
   // Añadir fechas reales del portfolio dentro del rango
-  const allPortfolio = [...(D.history || [])].filter(h => h.date >= '2024-01-01').sort((a, b) => a.date.localeCompare(b.date));
+  const allPortfolio = [...(D.history || [])].filter(h => h.date >= MIN_DATE).sort((a, b) => a.date.localeCompare(b.date));
   allPortfolio.filter(h => h.date >= viewStart).forEach(h => { if (!axisDates.includes(h.date)) axisDates.push(h.date); });
   axisDates.sort();
 
@@ -243,18 +249,32 @@ function _drawBenchmark() {
   const portMap = {};
   for (const h of allPortfolio) portMap[h.date] = h.totalValue;
 
-  // Portfolio base: totalValue en viewStart (o primer entry disponible si la cartera empieza después)
-  const prevEntries = allPortfolio.filter(h => h.date <= viewStart);
+  // Portfolio base: siempre usamos totalInvested del primer dato como base (= 0% return)
+  // Si viewStart es anterior al primer dato real, interpolamos linealmente
+  const firstEntry = allPortfolio[0] || null;
   let portfolioBase, portfolioFirstDate;
-  if (prevEntries.length) {
-    portfolioBase = prevEntries[prevEntries.length - 1].totalValue;
-    portfolioFirstDate = viewStart;
-  } else if (allPortfolio.length) {
-    portfolioBase = allPortfolio[0].totalValue;
-    portfolioFirstDate = allPortfolio[0].date;
+  if (firstEntry) {
+    portfolioBase = firstEntry.totalInvested; // base = lo invertido → 0% al inicio de la interpolación
+    portfolioFirstDate = viewStart; // siempre arrancamos desde viewStart (interpolado si hace falta)
   } else {
     portfolioBase = null;
     portfolioFirstDate = null;
+  }
+
+  // Retorno real en el primer dato: (valor - invertido) / invertido * 100
+  const firstReturnPct = firstEntry && firstEntry.totalInvested > 0
+    ? ((firstEntry.totalValue - firstEntry.totalInvested) / firstEntry.totalInvested) * 100
+    : 0;
+
+  // Función de interpolación lineal para fechas antes del primer dato real
+  function _interpolateReturn(dateStr) {
+    if (!firstEntry || dateStr >= firstEntry.date) return null; // no interpolar
+    const startMs = new Date(viewStart + 'T00:00:00Z').getTime();
+    const firstMs = new Date(firstEntry.date + 'T00:00:00Z').getTime();
+    const curMs   = new Date(dateStr + 'T00:00:00Z').getTime();
+    if (firstMs <= startMs) return firstReturnPct;
+    const t = (curMs - startMs) / (firstMs - startMs);
+    return t * firstReturnPct; // 0% en viewStart → firstReturnPct en primer dato
   }
 
   if (!spyBase && !portfolioBase) {
@@ -286,7 +306,11 @@ function _drawBenchmark() {
     if (!portfolioBase || !portfolioFirstDate) return axisDates.map(() => null);
     let lastVal = null;
     return axisDates.map(d => {
-      if (d < portfolioFirstDate) return null;
+      // Antes del primer dato real: interpolar linealmente
+      if (firstEntry && d < firstEntry.date) {
+        const interp = _interpolateReturn(d);
+        return interp != null ? parseFloat(interp.toFixed(2)) : null;
+      }
       if (portMap[d] != null) lastVal = portMap[d];
       if (lastVal == null) {
         const prev = allPortfolio.filter(h => h.date <= d);
