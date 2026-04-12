@@ -5,6 +5,55 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.0.0] — 2026-04-XX — Fase 7.3 + Lighthouse Sprint
+
+### Added
+- **Supabase Auth gate** (`supabase.auth.signInWithPassword`): the app no longer
+  renders any data until a valid Supabase session is established.
+  - `supabase.auth.onAuthStateChange` drives `_handleLogin` / `_handleLogout`
+  - `btnLogout` header button → `supabase.auth.signOut()`
+  - Login overlay shown on `SIGNED_OUT`; hidden on `SIGNED_IN`
+
+### Changed
+- **RLS policies** updated from `user_id = 'default_user'` to
+  `user_id = auth.uid()::text` on all 6 tables (`holdings`, `closed_trades`,
+  `media`, `gym`, `history`, `settings`).
+- **SPY benchmark** anchored to `viewStart` (`_nearestSpy(viewStart)`) instead of
+  hardcoded `2024-01-01` — benchmark % is now relative to the selected time window.
+- **Portfolio base** for benchmark uses `totalValue` at `viewStart`, not
+  `totalInvested`.
+- `renderAll()` fragmented: `renderPortfolio()` runs synchronously; 7 remaining
+  modules deferred with `setTimeout(fn, 0)` to break long tasks (TBT reduction).
+- **Google Fonts** loaded asynchronously (preload + `media="print"` + `onload`
+  pattern) — eliminates render-blocking font CSS.
+- Scripts moved to end of `<body>` with `defer`.
+- `main` element: `min-height:100vh; contain:content`.
+- `.ch-s` / `.ch-l`: `contain:layout style` (CLS → 0).
+- `.cg`, `.hero`, `.sg`: explicit `min-height` values to pre-allocate layout space.
+- CSS custom properties `--ff-sans` / `--ff-mono` with system-font fallback stacks.
+- `--text-dim` / `--text-muted` raised to `#a0a0b8` (WCAG AA contrast).
+- Login card: `min-height:520px` to prevent CLS during auth state transitions.
+- **Lighthouse 100/100 achieved** across Performance, Accessibility, Best Practices,
+  and SEO (mobile and desktop).
+- Logo replaced: `icon-192/512.png` → `icons/logo-ui.webp` in `<img>` header
+  (manifest icons unchanged).
+- Added `preconnect` hints for Supabase CDN and Cloudflare CDNs.
+- `<main role="main">` landmark added.
+- All content headings standardised to `<h2>` (removed `<h3>` in main sections).
+- `<meta name="description">` added for SEO.
+- `lang="es"` on `<html>`.
+
+### Removed
+- **Migration Bridge**: `_showMigrationModal()`, `_sha256hex()`, triple-click
+  listener, and `Ctrl+Shift+M` handler removed from `app.js` after successful
+  GAS → Supabase migration.
+- `migrateFromGAS()` export removed from `cloud.js`.
+- `claimLegacyData()` removed — no legacy fallback for `default_user`.
+- `btnAuth` → replaced with `btnLogout` throughout HTML and all JS modules.
+- Legacy `restoreSession()` / `sessionStorage` token flow removed from `app.js`.
+
+---
+
 ## [1.0.0] — 2026-04-11 — Fase 5: Analítica Pro y Refinamiento Final
 
 ### Added

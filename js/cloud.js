@@ -1,123 +1,379 @@
+﻿// ============================================================
+//  cloud.js â€” Backend Supabase (Fase 7.2)
+//
+//  STORAGE_MODE = 'supabase' â†’ lectura/escritura via Supabase JS
+//  STORAGE_MODE = 'gas'      â†’ lanza error (requiere config manual)
+//
+//  Estrategia de escritura: Wipe & Insert por user_id.
+//  No hay secretos en el cÃ³digo; SUPABASE_ANON_KEY es pÃºblica
+//  y estÃ¡ protegida por RLS del lado del servidor.
 // ============================================================
-//  cloud.js — Comunicación con Google Apps Script
-// ============================================================
-import { GAS_URL, PW_HASH } from './config.js';
-import { D, _authed, _token } from './state.js';
+import { STORAGE_MODE, SUPABASE_URL, SUPABASE_ANON_KEY, PROXY_URL } from './config.js';
 import { toast } from './utils.js';
 import { loadDataFromObj, buildDataObj, saveLocal, updateSyncStatus } from './storage.js';
-// Re-export updateSyncStatus para compatibilidad con imports desde cloud.js
+import { _currentUser } from './state.js';
 export { updateSyncStatus };
 
 export let _cloudReady = false;
 
-// Intenta parsear la respuesta de GAS (puede venir con prefijo HTML)
-export function _parseGASResponse(text) {
-  try { return JSON.parse(text); } catch (e) { /* not pure JSON */ }
-  const m = text.match(/\{[^]*\}/);
-  if (m) { try { return JSON.parse(m[0]); } catch (e) { /* noop */ } }
-  return null;
+// UID dinámico: refleja al usuario autenticado. Fallback a 'default_user' antes del login.
+function _getUID() { return (_currentUser && _currentUser.id) || 'default_user'; }
+
+// Lazy-init del cliente Supabase: se crea la primera vez que se necesita.
+// Evita que el modulo falle si el CDN de Supabase carga despues del modulo JS.
+let _supabaseClient = null;
+function _getSupabase() {
+  if (!_supabaseClient) {
+    if (!window.supabase) throw new Error('[Supabase] CDN no cargado aun. Comprueba el orden de <script> en index.html.');
+    _supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+  return _supabaseClient;
 }
 
-// Descarga datos desde GAS y los fusiona con el estado local
-export async function fetchDataFromCloud() {
-  try {
-    const controller = new AbortController();
-    setTimeout(() => controller.abort(), 20000);
-    const tokenParam = _token ? '&token=' + encodeURIComponent(_token) : '';
-    const res = await fetch(GAS_URL + '?action=getData&t=' + Date.now() + tokenParam, { signal: controller.signal });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const text = await res.text();
-    console.log('Cloud GET response:', text.substring(0, 200));
+// Shared singleton for auth.js (avoids creating a second Supabase client).
+export function getSupabaseClient() { return _getSupabase(); }
 
-    if (!text || text === '{}' || text === 'No URL' || text === 'Blocked') {
-      _cloudReady = (text !== 'No URL' && text !== 'Blocked');
-      updateSyncStatus(_cloudReady ? 'ok' : 'local');
-      return false;
-    }
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  BACKEND: Supabase â€” lectura (6 SELECTs en paralelo)
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-    const j = JSON.parse(text);
-    if (j && j.holdings) {
-      _cloudReady = true;
-      const hadLocalHistory = (D.history && D.history.length) || 0;
-      loadDataFromObj(j, true);
-      saveLocal();
-      // Si el local tiene entradas que la nube no tenía, sincronizar de vuelta
-      if (hadLocalHistory && D.history.length > (j.history || []).length) {
-        pushDataToCloud();
-      }
-      updateSyncStatus('ok');
-      return true;
-    }
-
-    _cloudReady = true;
+async function _loadFromSupabase() {
+  const UID = _getUID();
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.warn('[Supabase] URL o ANON_KEY no configuradas. Cargando datos locales.');
+    updateSyncStatus('local');
     return false;
+  }
+
+  try {
+    const sb = _getSupabase();
+    const [
+      { data: holdingsRows,  error: e1 },
+      { data: tradesRows,    error: e2 },
+      { data: mediaRows,     error: e3 },
+      { data: gymRows,       error: e4 },
+      { data: historyRows,   error: e5 },
+      { data: settingsRow,   error: e6 },
+    ] = await Promise.all([
+      sb.from('holdings').select('payload').eq('user_id', UID),
+      sb.from('closed_trades').select('payload').eq('user_id', UID),
+      sb.from('media').select('type, payload').eq('user_id', UID),
+      sb.from('gym').select('payload').eq('user_id', UID),
+      sb.from('history').select('snapped_at, payload').eq('user_id', UID)
+        .order('snapped_at', { ascending: true }),
+      sb.from('settings').select('cash, total_invested').eq('user_id', UID)
+        .maybeSingle(),
+    ]);
+
+    for (const err of [e1, e2, e3, e4, e5, e6]) {
+      if (err) throw err;
+    }
+
+    // Mapeo SQL â†’ estructura del objeto D
+    const obj = {
+      holdings:      (holdingsRows || []).map(r => r.payload),
+      closedTrades:  (tradesRows   || []).map(r => r.payload),
+      books:         (mediaRows    || []).filter(r => r.type === 'book').map(r => r.payload),
+      movies:        (mediaRows    || []).filter(r => r.type === 'movie').map(r => r.payload),
+      series:        (mediaRows    || []).filter(r => r.type === 'serie').map(r => r.payload),
+      gym:           (gymRows      || []).map(r => r.payload),
+      history:       (historyRows  || []).map(r => r.payload),
+      cash:          settingsRow?.cash           ?? 0,
+      totalInvested: settingsRow?.total_invested ?? 0,
+    };
+
+    // Base de datos vacia: inicializar D con valores por defecto (no es un error)
+    loadDataFromObj(obj, true);
+    saveLocal();
+    _cloudReady = true;
+    updateSyncStatus('ok');
+    return true;
   } catch (e) {
-    console.warn('Cloud fetch failed:', e.name, e.message);
-    updateSyncStatus(e.name === 'AbortError' ? 'local' : 'err');
+    console.error('[Supabase] _loadFromSupabase:', e.message);
+    updateSyncStatus('err');
     return false;
   }
 }
 
-// Envía el estado actual a GAS
-export async function pushDataToCloud() {
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  BACKEND: Supabase â€” escritura (Wipe & Insert)
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+
+async function _saveToSupabase() {
+  const UID = _getUID();
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    updateSyncStatus('local');
+    return false;
+  }
+
+  const data = buildDataObj();
+
   try {
-    const payload = JSON.stringify({ password: PW_HASH, token: _token || '', data: JSON.stringify(buildDataObj()) });
-    let text = '';
-    try {
-      const res = await fetch(GAS_URL, {
-        method: 'POST',
-        redirect: 'follow',
-        headers: { 'Content-Type': 'text/plain' },
-        body: payload
-      });
-      text = await res.text();
-      console.log('Cloud POST status:', res.status, 'response:', text.substring(0, 300));
-    } catch (fetchErr) {
-      console.warn('POST fetch error (verifying):', fetchErr.message);
-      return await _verifySync();
+    // 1. Borrar registros previos del usuario (arrays que se reescriben completamente)
+    const sb = _getSupabase();
+    await Promise.all([
+      sb.from('holdings').delete().eq('user_id', UID),
+      sb.from('closed_trades').delete().eq('user_id', UID),
+      sb.from('media').delete().eq('user_id', UID),
+      sb.from('gym').delete().eq('user_id', UID),
+    ]);
+
+    // 2. Insertar datos actuales
+    const ops = [];
+
+    if (data.holdings.length) {
+      ops.push(sb.from('holdings').insert(
+        data.holdings.map(h => ({ user_id: UID, ticker: h.ticker, payload: h }))
+      ));
     }
 
-    const j = _parseGASResponse(text);
-    if (j) {
-      if (j.error) {
-        console.warn('Cloud sync:', j.error);
-        toast('Sync: ' + j.error, 'err');
-        updateSyncStatus('err');
-        return false;
-      }
-      toast('Synced', 'ok');
-      updateSyncStatus('ok');
-      return true;
+    if (data.closedTrades.length) {
+      ops.push(sb.from('closed_trades').insert(
+        data.closedTrades.map(t => ({ user_id: UID, ticker: t.ticker, payload: t }))
+      ));
     }
 
-    console.warn('POST response not JSON, verifying...', text.substring(0, 120));
-    return await _verifySync();
+    const mediaAll = [
+      ...data.books.map(b  => ({ user_id: UID, type: 'book',  payload: b })),
+      ...data.movies.map(m => ({ user_id: UID, type: 'movie', payload: m })),
+      ...data.series.map(s => ({ user_id: UID, type: 'serie', payload: s })),
+    ];
+    if (mediaAll.length) ops.push(sb.from('media').insert(mediaAll));
+
+    if (data.gym.length) {
+      ops.push(sb.from('gym').insert(
+        data.gym.map(g => ({ user_id: UID, log_date: g.date, payload: g }))
+      ));
+    }
+
+    if (data.history.length) {
+      ops.push(sb.from('history').upsert(
+        data.history.map(h => ({ user_id: UID, snapped_at: h.date, payload: h })),
+        { onConflict: 'user_id,snapped_at' }
+      ));
+    }
+
+    ops.push(sb.from('settings').upsert(
+      { user_id: UID, cash: data.cash, total_invested: data.totalInvested,
+        updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    ));
+
+    const results = await Promise.all(ops);
+    for (const { error } of results) {
+      if (error) throw error;
+    }
+
+    toast('Synced', 'ok');
+    updateSyncStatus('ok');
+    return true;
   } catch (e) {
-    console.warn('Cloud push:', e.name, e.message);
+    console.error('[Supabase] _saveToSupabase:', e.message);
     toast('Sync failed', 'err');
     updateSyncStatus('err');
     return false;
   }
 }
 
-// Verifica que el push se reflejó en GAS (GET de comprobación)
-async function _verifySync() {
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  ROUTER PÃšBLICO â€” Ãºnica interfaz que consume el resto de la app
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+
+// ════════════════════════════════════════════════════════════════════════════
+//  BACKEND: GAS — fallback / modo alternativo
+//  Usa PROXY_URL (mismo endpoint GAS) para getData / saveData.
+//  Lectura es anonima; escritura requiere que GAS este configurado sin pw.
+// ════════════════════════════════════════════════════════════════════════════
+
+async function _loadFromGAS() {
+  if (!PROXY_URL) { console.warn('[GAS] PROXY_URL no configurada.'); updateSyncStatus('local'); return false; }
   try {
-    await new Promise(r => setTimeout(r, 1200));
-    const res = await fetch(GAS_URL + '?action=getData&t=' + Date.now());
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 20000);
+    const res = await fetch(PROXY_URL + '?action=getData&t=' + Date.now(), { signal: ctrl.signal });
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    const j = JSON.parse(await res.text());
-    if (j && j.holdings) { toast('Synced', 'ok'); updateSyncStatus('ok'); return true; }
-  } catch (e) { console.warn('Verify failed:', e); }
-  toast('Sync failed', 'err');
-  updateSyncStatus('err');
-  return false;
+    const text = await res.text();
+    if (!text || text === '{}' || text === 'No URL' || text === 'Blocked') {
+      updateSyncStatus('local'); return false;
+    }
+    let j;
+    try { j = JSON.parse(text); } catch { updateSyncStatus('local'); return false; }
+    if (j && j.holdings) {
+      loadDataFromObj(j, true); saveLocal(); updateSyncStatus('ok'); return true;
+    }
+    return false;
+  } catch (e) {
+    console.warn('[GAS] _loadFromGAS:', e.message);
+    updateSyncStatus(e.name === 'AbortError' ? 'local' : 'err');
+    return false;
+  }
 }
 
-// Guarda localmente y, si está autenticado, también en la nube
-// Retorna true si la sincronización en la nube fue exitosa (o si no hay auth).
+async function _saveToGAS() {
+  if (!PROXY_URL) { updateSyncStatus('local'); return false; }
+  try {
+    const payload = JSON.stringify({ data: JSON.stringify(buildDataObj()) });
+    const res = await fetch(PROXY_URL, {
+      method: 'POST', redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain' }, body: payload
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    toast('Synced', 'ok'); updateSyncStatus('ok'); return true;
+  } catch (e) {
+    console.warn('[GAS] _saveToGAS:', e.message);
+    toast('Sync failed', 'err'); updateSyncStatus('err'); return false;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  ROUTER PUBLICO — unica interfaz que consume el resto de la app
+// ════════════════════════════════════════════════════════════════════════════
+
+export async function fetchDataFromCloud() {
+  if (STORAGE_MODE === 'supabase') return await _loadFromSupabase();
+  return await _loadFromGAS();
+}
+
+export async function pushDataToCloud() {
+  if (STORAGE_MODE === 'supabase') return await _saveToSupabase();
+  return await _saveToGAS();
+}
+
+// Guarda localmente y envia a la nube
 export async function saveAndSync() {
   saveLocal();
-  if (_authed) return await pushDataToCloud();
-  return true;
+  return await pushDataToCloud();
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+//  MIGRATION BRIDGE — mueve datos de GAS a Supabase de una sola vez.
+//  Uso unico. Eliminar este bloque (y el boton en index.html) tras migrar.
+// ════════════════════════════════════════════════════════════════════════════
+
+export async function migrateFromGAS(password) {
+  const UID = _getUID();
+  if (!PROXY_URL) {
+    alert('TRANSACTION ABORTED: PROXY_URL is not configured in config.js.');
+    return { ok: false };
+  }
+
+  // Step A: read data from GAS (password forwarded for server-side auth)
+  let gasData;
+  try {
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 25000);
+    const pwParam = password ? '&pwd=' + encodeURIComponent(password) : '';
+    const res = await fetch(
+      PROXY_URL + '?action=getData&t=' + Date.now() + pwParam,
+      { signal: ctrl.signal }
+    );
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const raw = await res.text();
+    if (!raw || raw === '{}' || raw === 'No URL' || raw === 'Blocked' || raw === 'Unauthorized') {
+      alert('TRANSACTION ABORTED: GAS returned an empty or blocked response: "' + raw + '"');
+      return { ok: false };
+    }
+    // Parse: handle both raw JSON string and already-parsed object
+    gasData = (typeof raw === 'string') ? JSON.parse(raw) : raw;
+    // If GAS wrapped in an error object
+    if (gasData.error) {
+      alert('TRANSACTION ABORTED: GAS error — ' + gasData.error);
+      return { ok: false };
+    }
+  } catch (e) {
+    alert('TRANSACTION ABORTED: Could not reach Google Legacy Servers.\n' + e.message);
+    console.error('[Migration] fetch GAS:', e);
+    return { ok: false };
+  }
+
+  // Flexible key extraction to handle different GAS response shapes
+  const holdings     = gasData.holdings     || gasData.assets  || [];
+  const trades       = gasData.closedTrades || gasData.trades  || [];
+  const books        = gasData.books   || [];
+  const movies       = gasData.movies  || [];
+  const series       = gasData.series  || [];
+  const gym          = gasData.gym     || [];
+  const history      = gasData.history || [];
+  const cash         = gasData.cash          ?? 0;
+  const totalInvested = gasData.totalInvested ?? gasData.invested ?? 0;
+
+  if (!holdings.length && !trades.length) {
+    const proceed = confirm(
+      'WARNING: No holdings or trades were found in the GAS response.\n' +
+      'The data format may be unexpected.\n\nProceed anyway with empty data?'
+    );
+    if (!proceed) return { ok: false };
+  }
+
+  console.log('[Migration] Data received from GAS:', {
+    holdings: holdings.length, trades: trades.length,
+    books: books.length, movies: movies.length, series: series.length,
+    gym: gym.length, history: history.length, cash, totalInvested,
+  });
+
+  // Step B: write to Supabase (Wipe & Insert)
+  const sb = _getSupabase();
+
+  try {
+    console.log('[Migration] Wiping Supabase tables...');
+    const delResults = await Promise.all([
+      sb.from('holdings').delete().eq('user_id', UID),
+      sb.from('closed_trades').delete().eq('user_id', UID),
+      sb.from('media').delete().eq('user_id', UID),
+      sb.from('gym').delete().eq('user_id', UID),
+      sb.from('history').delete().eq('user_id', UID),
+    ]);
+    for (const { error } of delResults) { if (error) throw error; }
+
+    const ops = [];
+
+    if (holdings.length) {
+      ops.push(sb.from('holdings').insert(
+        holdings.map(h => ({ user_id: UID, ticker: h.ticker, payload: h }))
+      ));
+    }
+    if (trades.length) {
+      ops.push(sb.from('closed_trades').insert(
+        trades.map(t => ({ user_id: UID, ticker: t.ticker, payload: t }))
+      ));
+    }
+    const mediaAll = [
+      ...books.map(b  => ({ user_id: UID, type: 'book',  payload: b })),
+      ...movies.map(m => ({ user_id: UID, type: 'movie', payload: m })),
+      ...series.map(s => ({ user_id: UID, type: 'serie', payload: s })),
+    ];
+    if (mediaAll.length) ops.push(sb.from('media').insert(mediaAll));
+
+    if (gym.length) {
+      ops.push(sb.from('gym').insert(
+        gym.map(g => ({ user_id: UID, log_date: g.date, payload: g }))
+      ));
+    }
+    if (history.length) {
+      ops.push(sb.from('history').upsert(
+        history.map(h => ({ user_id: UID, snapped_at: h.date, payload: h })),
+        { onConflict: 'user_id,snapped_at' }
+      ));
+    }
+    ops.push(sb.from('settings').upsert(
+      { user_id: UID, cash, total_invested: totalInvested,
+        updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    ));
+
+    console.log('[Migration] Executing ' + ops.length + ' insert operations...');
+    const results = await Promise.all(ops);
+    for (const { error } of results) { if (error) throw error; }
+
+    console.log('[Migration] Complete success.');
+    return { ok: true, holdings: holdings.length, trades: trades.length,
+             books: books.length, movies: movies.length, series: series.length,
+             gym: gym.length, history: history.length };
+  } catch (e) {
+    alert('TRANSACTION ABORTED: Supabase write error.\n' + e.message);
+    console.error('[Migration] Supabase write:', e);
+    return { ok: false };
+  }
+}
+
+

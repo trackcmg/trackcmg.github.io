@@ -19,3 +19,7 @@ export function setPendingAction(v) { _pendingAction = v; }
 // Token de sesión emitido por GAS (Fase 2). null = auth local sin token.
 export let _token = null;
 export function setToken(v) { _token = v; }
+
+// Usuario autenticado activo (objeto Supabase Auth User). null = sin sesión.
+export let _currentUser = null;
+export function setCurrentUser(v) { _currentUser = v; }

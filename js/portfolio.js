@@ -320,7 +320,7 @@ function rStocks() {
     const _inEditModeCash = document.body.classList.contains('edit-mode');
     if (_inEditModeCash) { cel.dataset.editType = 'cash'; cel.style.cursor = 'pointer'; }
     cel.innerHTML = `<div class="s-top"><div>
-      <div class="s-tk" style="color:#667788">CASH <span class="tag" style="background:rgba(102,119,136,.12);color:#667788">EUR</span></div>
+      <div class="s-tk" style="color:#a0a0b8">CASH <span class="tag" style="background:rgba(160,160,184,.12);color:#a0a0b8">EUR</span></div>
       <div class="s-nm">Cash & totals${_inEditModeCash ? ' \u00b7 click to edit' : ''}</div>
     </div></div>
     <div class="s-pr">${F(D.cash)} <span class="cur">EUR</span></div>`;
