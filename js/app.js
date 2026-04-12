@@ -2,7 +2,7 @@
 //  app.js — Punto de entrada. Orquesta todos los módulos.
 // ============================================================
 import { loadData } from './storage.js';
-import { fetchDataFromCloud, updateSyncStatus, migrateFromGAS, claimLegacyData } from './cloud.js';
+import { fetchDataFromCloud, updateSyncStatus, migrateFromGAS } from './cloud.js';
 import { refreshPortfolio, renderPortfolio, renderHistory, toggleHoldingDetail } from './portfolio.js';
 import { renderTrades, toggleTradeDetail } from './trades.js';
 import { addGymEntry, renderGym } from './gym.js';
@@ -35,15 +35,9 @@ function doAction(action) {
 }
 
 // ── Helper: aplicar estado autenticado a la UI ──────────────────
-function _applyAuthUI(user) {
-  const ab = document.getElementById('btnAuth');
-  if (ab) {
-    const label = user?.email ? user.email.split('@')[0] : 'Me';
-    ab.innerHTML = '↪ ' + label;
-    ab.title = 'Sign out';
-    ab.style.fontSize = '11px';
-    ab.style.display = '';  // make visible
-  }
+function _applyAuthUI(_user) {
+  const lb = document.getElementById('btnLogout');
+  if (lb) lb.style.display = '';
   const adminBtn = document.getElementById('btnAdmin');
   if (adminBtn) adminBtn.style.display = '';
 }
@@ -102,17 +96,13 @@ async function _postAuthInit() {
 async function _handleLogin(user, isNewLogin) {
   _hideLoginOverlay();
   _applyAuthUI(user);
-  if (isNewLogin) {
-    // Reclamar datos heredados de 'default_user' si existen
-    await claimLegacyData(user);
-  }
   await _postAuthInit();
 }
 
 function _handleLogout() {
   _applyEditMode(false);
-  const ab = document.getElementById('btnAuth');
-  if (ab) { ab.innerHTML = '&#x1F512; Login'; ab.title = ''; ab.style.fontSize = ''; }
+  const lb = document.getElementById('btnLogout');
+  if (lb) lb.style.display = 'none';
   const adminBtn = document.getElementById('btnAdmin');
   if (adminBtn) adminBtn.style.display = 'none';
   _showLoginOverlay();
@@ -167,8 +157,8 @@ document.getElementById('btnTheme')?.addEventListener('click', () => {
 });
 
 // ── Listeners de botones de la barra superior ────────────────
-// btnAuth actúa como Sign Out cuando hay sesión activa
-document.getElementById('btnAuth')?.addEventListener('click', () => signOut());
+// btnLogout — Sign out
+document.getElementById('btnLogout')?.addEventListener('click', () => signOut());
 document.getElementById('btnRefresh')?.addEventListener('click', () => refreshPortfolio());
 document.getElementById('btnAdmin')?.addEventListener('click', () => _applyEditMode(!_editMode));
 document.getElementById('btnAddHolding')?.addEventListener('click', () => doAction('addHolding'));

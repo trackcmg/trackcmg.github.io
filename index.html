@@ -24,8 +24,8 @@
 <span class="sync-status" id="syncStatus" style="color:var(--text-muted)">Local</span>
 <button class="btn" id="btnTheme" title="Toggle theme" aria-label="Toggle light/dark theme">&#x263D;</button>
 <button class="btn" id="btnRefresh">&#x21bb;</button>
-<button class="btn" id="btnAuth" title="Sign out" style="font-size:11px;display:none">&#x21aa; Me</button>
-<button class="btn" id="btnAdmin" style="display:none" title="Toggle edit mode" aria-label="Toggle edit mode">&#x270F; Edit</button></div>
+<button class="btn" id="btnAdmin" style="display:none" title="Toggle edit mode" aria-label="Toggle edit mode">&#x270F; Edit</button>
+<button class="btn" id="btnLogout" style="display:none" title="Log Out">Log Out</button></div>
 </header>
 <div class="tab-bar" id="tabBar">
 <button class="tab-btn active" data-tab="portfolio">Portfolio</button>
@@ -119,7 +119,7 @@
     <div class="calc-inputs">
       <div class="fg"><label>Initial capital (€)</label><input type="number" id="calcCapital" value="10000" min="0" step="100"></div>
       <div class="fg"><label>Monthly contribution (€)</label><input type="number" id="calcMonthly" value="1000" min="0" step="50"></div>
-      <div class="fg"><label>Annual return (%)</label><input type="number" id="calcRate" value="15" step="0.1" min="0" max="100"></div>
+      <div class="fg"><label>Annual return (%)</label><input type="number" id="calcRate" value="25" step="0.1" min="0" max="100"></div>
       <div class="fg"><label>Years</label><input type="number" id="calcYears" value="20" min="1" max="50" step="1"></div>
       <button class="btn btn-g" id="btnCalc" style="width:100%;justify-content:center">Calculate</button>
     </div>

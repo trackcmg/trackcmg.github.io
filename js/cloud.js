@@ -16,8 +16,7 @@ export { updateSyncStatus };
 
 export let _cloudReady = false;
 
-// UID dinámico: refleja al usuario autenticado. Fallback a 'default_user' antes del login
-// (y para datos heredados aun no reclamados vía claimLegacyData).
+// UID dinámico: refleja al usuario autenticado. Fallback a 'default_user' antes del login.
 function _getUID() { return (_currentUser && _currentUser.id) || 'default_user'; }
 
 // Lazy-init del cliente Supabase: se crea la primera vez que se necesita.
@@ -377,47 +376,4 @@ export async function migrateFromGAS(password) {
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-//  CLAIM LEGACY DATA — Data Adoption Protocol (Phase 7.3)
-//  Called once after the first real login to re-assign all rows that were
-//  written as 'default_user' to the authenticated user's actual UID.
-//
-//  Requires RLS policy:
-//    USING (user_id = auth.uid()::text OR user_id = 'default_user')
-//    WITH CHECK (user_id = auth.uid()::text)
-// ════════════════════════════════════════════════════════════════════════════
-export async function claimLegacyData(user) {
-  if (!user?.id) return false;
-  const uid  = user.id;
-  const sb   = _getSupabase();
-
-  // Probe: check if there are any unclaimed legacy rows
-  const { count } = await sb
-    .from('holdings')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', 'default_user');
-
-  if (!count) {
-    console.log('[Auth] claimLegacyData: no legacy rows found.');
-    return false;
-  }
-
-  console.log('[Auth] claimLegacyData: claiming', count, 'legacy holdings rows…');
-
-  const tables = ['holdings', 'closed_trades', 'media', 'gym', 'history', 'settings'];
-  const results = await Promise.all(
-    tables.map(t => sb.from(t).update({ user_id: uid }).eq('user_id', 'default_user'))
-  );
-
-  const errors = results.filter(r => r.error);
-  if (errors.length) {
-    console.error('[Auth] claimLegacyData partial errors:', errors.map(r => r.error));
-    toast('\u26a0\ufe0f Partial claim \u2014 check console.', 'err');
-    return false;
-  }
-
-  console.log('[Auth] claimLegacyData: all tables claimed for UID', uid);
-  toast('\u2705 Legacy assets successfully secured in your private vault.', 'ok');
-  return true;
-}
 

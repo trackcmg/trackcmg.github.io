@@ -7,7 +7,7 @@ header{display:flex;justify-content:space-between;align-items:center;flex-wrap:w
 .brand{display:flex;align-items:center;gap:10px}.brand-mark{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,var(--green),var(--blue));display:grid;place-items:center;font-weight:800;font-size:16px;color:var(--bg)}
 .logo-small{width:32px;height:32px;border-radius:8px;object-fit:cover;flex-shrink:0}
 .brand h1{font-size:17px;font-weight:700;letter-spacing:-.5px}.brand small{color:var(--text-dim);font-size:11px}
-.hdr-r{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 2s infinite}
+.hdr-r{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:nowrap;flex:1}.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 2s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}.ts{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-dim)}
 .sync-status{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid var(--border)}
 .tab-bar{display:flex;gap:0;padding:0;margin-bottom:24px;overflow-x:auto;-webkit-overflow-scrolling:touch}.tab-bar::-webkit-scrollbar{display:none}
@@ -73,7 +73,7 @@ td{padding:10px 14px;border-bottom:1px solid var(--border);font-family:'IBM Plex
 
 @media(max-width:640px){
   .sg,.cg{grid-template-columns:1fr}.hero-val{font-size:32px}
-  .fx-strip{flex-direction:column;gap:6px}header{flex-direction:column;align-items:flex-start}
+  .fx-strip{flex-direction:column;gap:6px}
   .tab-btn{padding:10px 14px;font-size:12px}.media-grid{grid-template-columns:1fr}
   .sum-grid{grid-template-columns:1fr 1fr}
   .modal{width:96%;max-width:none;padding:20px;border-radius:14px}
@@ -82,10 +82,16 @@ td{padding:10px 14px;border-bottom:1px solid var(--border);font-family:'IBM Plex
   .filter-bar{flex-direction:column}.filter-bar input,.filter-bar select{width:100%;min-width:0}
   .gym-form{flex-direction:column}.gym-form .fg{min-width:0}
   .tbl-wrap{font-size:11px}td,th{padding:8px 10px}
-  .hdr-r{width:100%;justify-content:space-between}
-  .btn{padding:8px 16px;font-size:13px}
   .m-card-title{font-size:15px}
   .m-card-opinion{font-size:13px}
+}
+@media(max-width:600px){
+  header{gap:6px}
+  .hdr-r{gap:5px}
+  #btnAdmin,#btnLogout{padding:5px 8px;font-size:11px}
+  .brand h1{font-size:15px}
+  .brand small{display:none}
+  .ts,.sync-status{font-size:10px}
 }
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 
