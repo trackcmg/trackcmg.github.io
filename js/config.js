@@ -2,7 +2,7 @@
 //  config.js — Constantes de la aplicación
 // ============================================================
 
-export const STORAGE_MODE = 'supabase'; // 'supabase' | 'gas'
+export const STORAGE_MODE = 'gas'; // 'supabase' | 'gas'
 
 // --- SUPABASE CONFIG (Main Database) ---
 export const SUPABASE_URL      = 'https://qwpoyyrddchdbsxpvvaa.supabase.co';
