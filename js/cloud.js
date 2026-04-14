@@ -209,15 +209,22 @@ async function _loadFromGAS() {
   }
 }
 
+const GAS_PW_HASH = '3b45022ab36728cdae12e709e945bba267c50ee8a91e6e4388539a8e03a3fdcd';
+
 async function _saveToGAS() {
   if (!PROXY_URL) { updateSyncStatus('local'); return false; }
   try {
-    const payload = JSON.stringify({ data: JSON.stringify(buildDataObj()) });
+    const payload = JSON.stringify({ password: GAS_PW_HASH, data: JSON.stringify(buildDataObj()) });
     const res = await fetch(PROXY_URL, {
       method: 'POST', redirect: 'follow',
       headers: { 'Content-Type': 'text/plain' }, body: payload
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    let j = null;
+    try { j = JSON.parse(text); } catch {}
+    if (!j) { const m = text.match(/\{[^]*\}/); if (m) { try { j = JSON.parse(m[0]); } catch {} } }
+    if (j && j.error) { console.warn('[GAS] save error:', j.error); toast('Sync: ' + j.error, 'err'); updateSyncStatus('err'); return false; }
     toast('Synced', 'ok'); updateSyncStatus('ok'); return true;
   } catch (e) {
     console.warn('[GAS] _saveToGAS:', e.message);
