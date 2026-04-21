@@ -2,13 +2,13 @@
 //  config.js — Constantes de la aplicación
 // ============================================================
 
-export const STORAGE_MODE = 'gas'; // 'supabase' | 'gas'
+// --- GOOGLE SIGN-IN ---
+// Client ID de OAuth 2.0 (GCP → APIs & Services → Credentials).
+// La allowlist de emails (hasheados) vive en Script Properties del GAS;
+// nunca se publica en el repo.
+export const GOOGLE_CLIENT_ID = '1029819457033-i79lmor8j7e2t26ib7m2ldmnpiv9un1p.apps.googleusercontent.com';
 
-// --- SUPABASE CONFIG (Main Database) ---
-export const SUPABASE_URL      = 'https://qwpoyyrddchdbsxpvvaa.supabase.co';
-export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3cG95eXJkZGNoZGJzeHB2dmFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5MzM1OTYsImV4cCI6MjA5MTUwOTU5Nn0.10QOc9w_Lhh7NG2OtYEC2Rm5C-VqH4Pb0k99aN1E0DI';
-
-// --- PROXY CONFIG (Yahoo Fetcher via GAS) ---
+// --- STORAGE (Drive vía Apps Script) ---
 export const PROXY_URL = 'https://script.google.com/macros/s/AKfycbyWUy-SpQFdJZnI1TWeL68pu5gdax4Tj6ZHg_pSY-R2HWzaHB4KDZo44se5vMdu_8xV/exec';
 
 // ── Constantes estáticas ────────────────────────────────────

@@ -20,6 +20,6 @@ export function setPendingAction(v) { _pendingAction = v; }
 export let _token = null;
 export function setToken(v) { _token = v; }
 
-// Usuario autenticado activo (objeto Supabase Auth User). null = sin sesión.
+// Usuario autenticado activo ({id, email}). null = sin sesión.
 export let _currentUser = null;
 export function setCurrentUser(v) { _currentUser = v; }
