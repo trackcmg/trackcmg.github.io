@@ -232,9 +232,9 @@ async function init() {
   const adminBtn = document.getElementById('btnAdmin');
   if (adminBtn) adminBtn.style.display = 'none';
 
-  // Si hay id_token guardado y no ha caducado, ocultar el login overlay
-  // inmediatamente para evitar el flash de login en recargas.
-  const storedToken = localStorage.getItem('g_id_token');
+  // Si hay session token guardado, ocultar el login overlay inmediatamente
+  // para evitar el flash de login en recargas (auth.js lo valida al instante).
+  const storedToken = localStorage.getItem('track_session');
   if (storedToken) _hideLoginOverlay();
 
   // Render inicial con datos locales (sin esperar a la nube)

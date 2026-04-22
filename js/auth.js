@@ -1,25 +1,31 @@
 // ============================================================
-//  auth.js — Google Identity Services (GSI) auth
+//  auth.js — Google Sign-In + session token semanal
 //
 //  Flujo:
-//    1. Usuario pulsa el botón "Sign in with Google" renderizado por GSI
-//    2. Google devuelve un id_token (JWT) firmado
-//    3. Lo guardamos en localStorage; cada llamada al GAS lo incluye
-//    4. El GAS verifica la firma con tokeninfo + comprueba allowlist
+//    1. Usuario pulsa "Sign in with Google"
+//    2. GSI devuelve un id_token (JWT de Google, ~1h)
+//    3. Lo intercambiamos con el GAS por un session_token propio (7d)
+//       · GAS valida el id_token + allowlist y firma un JWT con HMAC
+//    4. El session_token se guarda en localStorage; se envía en cada
+//       request al GAS. El id_token se descarta tras el intercambio.
+//    5. Al caducar el session_token, el usuario vuelve a iniciar sesión.
 //
-//  No hay allowlist en el frontend: si el token es válido pero el email
-//  no está autorizado, el GAS devolverá 'unauthorized' y cerramos sesión.
+//  Revocación: GAS verifica la allowlist también al validar el session_token,
+//  no solo en el login. Retirar un hash expulsa al usuario al instante.
 // ============================================================
 import { setAuthed, setCurrentUser } from './state.js';
-import { GOOGLE_CLIENT_ID } from './config.js';
+import { GOOGLE_CLIENT_ID, PROXY_URL } from './config.js';
 
-const LS_TOKEN = 'g_id_token';
-const LS_EMAIL = 'g_email';
+const LS_SESSION = 'track_session';
+const LS_EMAIL   = 'g_email';
 
-let _idToken = null;
-let _email   = null;
+let _sessionToken = null;
+let _email = null;
 let _onLogin = null;
 let _onLogout = null;
+
+// Limpia claves de versiones anteriores del sistema de auth
+try { localStorage.removeItem('g_id_token'); } catch {}
 
 // ── Decodifica el payload de un JWT (sin verificar la firma — solo UI) ─────
 function _decodeJwt(token) {
@@ -33,58 +39,54 @@ function _decodeJwt(token) {
 
 function _isExpired(token) {
   const p = _decodeJwt(token);
-  if (!p || !p.exp) return true;
-  return (p.exp * 1000) <= Date.now();
+  return !p || !p.exp || (p.exp * 1000) <= Date.now();
 }
 
-// ── Accessor para cloud.js: devuelve el id_token actual o null ────────────
-export function getIdToken() {
-  if (!_idToken) return null;
-  if (_isExpired(_idToken)) {
+// ── Accessor para cloud.js: devuelve el session token actual o null ───────
+export function getSessionToken() {
+  if (!_sessionToken) return null;
+  if (_isExpired(_sessionToken)) {
     _clearSession();
+    if (_onLogout) _onLogout();
+    _initGsi();
     return null;
   }
-  return _idToken;
+  return _sessionToken;
 }
 
 function _clearSession() {
-  _idToken = null;
+  _sessionToken = null;
   _email = null;
-  localStorage.removeItem(LS_TOKEN);
+  localStorage.removeItem(LS_SESSION);
   localStorage.removeItem(LS_EMAIL);
   setAuthed(false);
   setCurrentUser(null);
 }
 
-// ── Inicializa GSI y conecta los callbacks del app ────────────────────────
-// onLogin(user, isNewLogin) cuando hay sesión activa
-// onLogout() cuando no la hay
+// ── Inicializa auth: restaura sesión local o prepara el botón de login ────
 export function initAuth(onLogin, onLogout) {
   _onLogin = onLogin;
   _onLogout = onLogout;
 
-  // Intenta restaurar sesión del almacenamiento local
-  const stored = localStorage.getItem(LS_TOKEN);
+  const stored = localStorage.getItem(LS_SESSION);
   const storedEmail = localStorage.getItem(LS_EMAIL);
   if (stored && storedEmail && !_isExpired(stored)) {
-    _idToken = stored;
+    _sessionToken = stored;
     _email = storedEmail;
     const user = { id: storedEmail, email: storedEmail };
     setCurrentUser(user);
     setAuthed(true);
     onLogin(user, false);
-    // Inicializamos GSI igualmente (para auto-refresh cuando el token caduque)
     _initGsi();
     return;
   }
 
-  // Sin sesión válida → limpia y muestra login
   _clearSession();
   onLogout();
   _initGsi();
 }
 
-// ── Espera hasta que window.google.accounts.id esté disponible ────────────
+// ── Espera a que window.google.accounts.id esté disponible ────────────────
 function _whenGsiReady(cb, attempts = 50) {
   if (window.google && window.google.accounts && window.google.accounts.id) return cb();
   if (attempts <= 0) { console.warn('[auth] GSI no cargó'); return; }
@@ -113,15 +115,45 @@ function _initGsi() {
   });
 }
 
-function _handleCredentialResponse(resp) {
-  const token = resp && resp.credential;
-  if (!token) return;
-  const payload = _decodeJwt(token);
+// ── Callback de GSI: intercambia id_token por session_token ───────────────
+async function _handleCredentialResponse(resp) {
+  const idToken = resp && resp.credential;
+  if (!idToken) return;
+  const payload = _decodeJwt(idToken);
   if (!payload || !payload.email) return;
 
-  _idToken = token;
+  const errEl = document.getElementById('loginErr');
+  if (errEl) errEl.textContent = '';
+
+  let sessionToken = null;
+  try {
+    const r = await fetch(PROXY_URL, {
+      method: 'POST', redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'login', id_token: idToken }),
+    });
+    const text = await r.text();
+    let j = null;
+    try { j = JSON.parse(text); } catch {}
+    if (!j) { const m = text.match(/\{[^]*\}/); if (m) { try { j = JSON.parse(m[0]); } catch {} } }
+    if (j && j.session_token) {
+      sessionToken = j.session_token;
+    } else {
+      const msg = (j && j.error) === 'unauthorized'
+        ? 'Email no autorizado'
+        : 'Error: ' + ((j && j.error) || 'respuesta inesperada');
+      if (errEl) errEl.textContent = msg;
+      return;
+    }
+  } catch (e) {
+    if (errEl) errEl.textContent = 'No se pudo contactar con el servidor';
+    console.warn('[auth] login exchange failed:', e && e.message);
+    return;
+  }
+
+  _sessionToken = sessionToken;
   _email = payload.email;
-  localStorage.setItem(LS_TOKEN, token);
+  localStorage.setItem(LS_SESSION, sessionToken);
   localStorage.setItem(LS_EMAIL, _email);
 
   const user = { id: _email, email: _email };
@@ -130,14 +162,14 @@ function _handleCredentialResponse(resp) {
   if (_onLogin) _onLogin(user, true);
 }
 
-// ── Llamar cuando una respuesta del GAS indica 'unauthorized' ──────────────
+// ── Llamar cuando el GAS responde 'unauthorized' mid-sesión ───────────────
 export function onUnauthorizedFromServer() {
   _clearSession();
   if (_onLogout) _onLogout();
   _initGsi();
 }
 
-// ── Cerrar sesión: revoca en GSI y limpia almacenamiento ──────────────────
+// ── Cerrar sesión manual ──────────────────────────────────────────────────
 export async function signOut() {
   try {
     if (window.google && google.accounts && google.accounts.id) {

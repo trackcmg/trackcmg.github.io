@@ -9,19 +9,19 @@
 import { PROXY_URL } from './config.js';
 import { toast } from './utils.js';
 import { loadDataFromObj, buildDataObj, saveLocal, updateSyncStatus } from './storage.js';
-import { getIdToken, onUnauthorizedFromServer } from './auth.js';
+import { getSessionToken, onUnauthorizedFromServer } from './auth.js';
 export { updateSyncStatus };
 
 export let _cloudReady = false;
 
 async function _loadFromGAS() {
   if (!PROXY_URL) { console.warn('[GAS] PROXY_URL no configurada.'); updateSyncStatus('local'); return false; }
-  const token = getIdToken();
+  const token = getSessionToken();
   if (!token) { updateSyncStatus('local'); return false; }
   try {
     const ctrl = new AbortController();
     setTimeout(() => ctrl.abort(), 20000);
-    const url = PROXY_URL + '?action=getData&id_token=' + encodeURIComponent(token) + '&t=' + Date.now();
+    const url = PROXY_URL + '?action=getData&session_token=' + encodeURIComponent(token) + '&t=' + Date.now();
     const res = await fetch(url, { signal: ctrl.signal });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const text = await res.text();
@@ -49,10 +49,10 @@ async function _loadFromGAS() {
 
 async function _saveToGAS() {
   if (!PROXY_URL) { updateSyncStatus('local'); return false; }
-  const token = getIdToken();
+  const token = getSessionToken();
   if (!token) { updateSyncStatus('local'); return false; }
   try {
-    const payload = JSON.stringify({ id_token: token, data: JSON.stringify(buildDataObj()) });
+    const payload = JSON.stringify({ session_token: token, data: JSON.stringify(buildDataObj()) });
     const res = await fetch(PROXY_URL, {
       method: 'POST', redirect: 'follow',
       headers: { 'Content-Type': 'text/plain' }, body: payload
