@@ -245,7 +245,7 @@ function rHero() {
   const inv = D.totalInvested, tRoi = t - inv, tPct = (tRoi / inv) * 100, tPos = tRoi >= 0;
   document.getElementById('hRoi').innerHTML = `
     <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text-dim);margin-bottom:6px">Invested: ${F(inv)} &euro;</div>
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;margin-bottom:14px;color:var(--${tPos ? 'green' : 'red'})">All-Time ROI: ${tPos ? '+' : ''}${F(tPct)}% | ${tPos ? '+' : ''}${F(tRoi)} &euro;</div>`;
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;margin-bottom:14px;color:var(--${tPos ? 'green' : 'red'})">ROI: ${tPos ? '+' : ''}${F(tPct)}% | ${tPos ? '+' : ''}${F(tRoi)} &euro;</div>`;
   document.getElementById('hSub').innerHTML = Object.entries(bc).map(([c, v]) => `<span>${c}: ${F(v)} &euro;</span>`).join('');
 }
 
