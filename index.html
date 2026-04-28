@@ -26,7 +26,7 @@
 <div class="bg-mesh"></div><div class="scanline"></div>
 <div class="wrap">
 <header>
-<div class="brand"><img src="icons/logo-ui.webp" class="logo-small" alt="Track CMG logo" width="32" height="32"><div><h1>Track CMG</h1><small>by CMG</small></div></div>
+<div class="brand"><img src="icons/logo-ui.webp" class="logo-small" alt="Track CMG logo" width="36" height="36"><div><h1>Track CMG</h1><small>Private Portfolio</small></div></div>
 <div class="hdr-r"><div class="live-dot" id="dot"></div><span class="ts" id="ts">Loading...</span>
 <span class="sync-status" id="syncStatus" style="color:var(--text-muted)">Local</span>
 <button class="btn" id="btnTheme" title="Toggle theme" aria-label="Toggle light/dark theme">&#x263D;</button>
@@ -145,18 +145,19 @@
      El botón se renderiza en #gsiButton vía Google Identity Services
      (auth.js). Oculto por app.js cuando hay sesión activa.
      ═══════════════════════════════════════════════════════════════ -->
-<div id="loginOv" style="position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:rgba(4,4,12,.97);backdrop-filter:blur(8px)">
-  <div style="background:#07071a;border:1px solid #1a1a4a;border-radius:12px;padding:44px 40px;max-width:400px;width:90%;text-align:center;box-shadow:0 0 60px rgba(85,51,255,.25);min-height:480px">
-    <img src="icons/logo-ui.webp" alt="Track CMG" width="76" height="76" style="width:76px;border-radius:18px;margin-bottom:22px;box-shadow:0 0 28px rgba(85,51,255,.45)">
-    <div style="color:#5533ff;font-size:10px;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px;font-family:'IBM Plex Mono',monospace">Institutional Access Portal</div>
-    <h2 style="color:#e0e0ff;margin:0 0 4px;font-size:22px;font-family:'Sora',sans-serif;font-weight:700">Track CMG</h2>
-    <p style="color:#7777aa;font-size:12px;margin:0 0 30px;font-family:'IBM Plex Mono',monospace">Authorized Personnel Only</p>
+<div id="loginOv" style="position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(8,8,24,.92),rgba(2,2,10,.99));backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%)">
+  <div style="position:relative;background:linear-gradient(180deg,rgba(34,223,138,.04) 0%,transparent 60%),#0d0d1a;border:1px solid #2d2d55;border-radius:20px;padding:48px 40px 36px;max-width:420px;width:90%;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.04),0 0 80px rgba(34,223,138,.12);min-height:480px;overflow:hidden">
+    <div style="position:absolute;left:0;right:0;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(34,223,138,.6),transparent)"></div>
+    <img src="icons/logo-ui.webp" alt="Track CMG" width="76" height="76" style="width:76px;border-radius:20px;margin-bottom:24px;box-shadow:0 0 0 1px rgba(255,255,255,.08),0 0 32px rgba(34,223,138,.4)">
+    <div style="color:#22df8a;font-size:10px;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;font-family:'IBM Plex Mono',monospace;font-weight:600">Institutional Access Portal</div>
+    <h2 style="margin:0 0 6px;font-size:24px;font-family:'Sora',sans-serif;font-weight:800;letter-spacing:-.6px;background:linear-gradient(180deg,#fff 0%,#22df8a 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">Track CMG</h2>
+    <p style="color:#7070a0;font-size:11px;margin:0 0 32px;font-family:'IBM Plex Mono',monospace;letter-spacing:.5px">Authorized Personnel Only</p>
 
     <div id="gsiButton" style="display:flex;justify-content:center;margin:30px 0 10px"></div>
     <div id="loginErr" style="color:#ff4466;font-size:11px;margin-top:10px;min-height:16px;font-family:'IBM Plex Mono',monospace"></div>
 
-    <div style="margin-top:28px;padding-top:16px;border-top:1px solid #111130;color:#5a5a7a;font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:1px">
-      ACCESS RESTRICTED · NO PUBLIC REGISTRATION
+    <div style="margin-top:30px;padding-top:18px;border-top:1px solid #1a1a35;color:#5a5a7a;font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:1.4px;font-weight:600">
+      ACCESS RESTRICTED &middot; NO PUBLIC REGISTRATION
     </div>
   </div>
 </div>
