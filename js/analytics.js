@@ -3,7 +3,7 @@
 //  benchmark SPY, heatmap de dividendos.
 // ============================================================
 import { D } from './state.js';
-import { F, ttOpts, legOpts } from './utils.js';
+import { F, ttOpts, legOpts, gradFill, centerTextPlugin, crosshairPlugin } from './utils.js';
 import { fxR, valEur, fetchStock } from './portfolio.js';
 import { PROXY_URL } from './config.js';
 
@@ -89,17 +89,29 @@ function _renderSectorChart() {
   if (CH.sector) CH.sector.destroy();
   CH.sector = new Chart(canvas.getContext('2d'), {
     type: 'doughnut',
-    data: { labels, datasets: [{ data, backgroundColor: colors, borderColor: 'var(--bg-card)', borderWidth: 3 }] },
+    data: {
+      labels,
+      datasets: [{
+        data, backgroundColor: colors,
+        borderColor: '#0d0d1a',
+        borderWidth: 4, hoverBorderWidth: 4, hoverOffset: 10,
+        spacing: 2, borderRadius: 6
+      }]
+    },
     options: {
-      responsive: true, maintainAspectRatio: false, cutout: '60%',
+      responsive: true, maintainAspectRatio: false,
+      cutout: '72%',
+      animation: { animateRotate: true, animateScale: true, duration: 800, easing: 'easeOutQuart' },
       plugins: {
         legend: { position: 'bottom', labels: legOpts },
         tooltip: {
           ...ttOpts,
           callbacks: { label: c => ` ${c.label}: ${F(c.parsed)} € (${total > 0 ? F(c.parsed / total * 100, 1) : 0}%)` }
-        }
+        },
+        centerText: { label: 'Sectors', value: labels.length.toString(), sub: F(total, 0) + ' €' }
       }
-    }
+    },
+    plugins: [centerTextPlugin]
   });
 }
 
@@ -117,21 +129,44 @@ function _renderCurrencyChart() {
   const colors = labels.map(l => bgColors[l] || '#667788');
 
   if (CH.currency) CH.currency.destroy();
+  // Gradiente vertical por barra
+  const vGrad = (color) => (c) => {
+    const a = c.chart && c.chart.chartArea;
+    if (!a) return color + 'bb';
+    const g = c.chart.ctx.createLinearGradient(0, a.top, 0, a.bottom);
+    g.addColorStop(0, color + 'ee');
+    g.addColorStop(1, color + '44');
+    return g;
+  };
   CH.currency = new Chart(canvas.getContext('2d'), {
     type: 'bar',
     data: {
       labels,
       datasets: [{
-        data, backgroundColor: colors.map(c => c + 'bb'),
-        borderColor: colors, borderWidth: 1.5, borderRadius: 6, borderSkipped: false
+        data,
+        backgroundColor: colors.map(c => vGrad(c)),
+        borderWidth: 0,
+        borderRadius: 8,
+        borderSkipped: false,
+        barPercentage: 0.6,
+        categoryPercentage: 0.85,
+        hoverBackgroundColor: colors
       }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      animation: { duration: 700, easing: 'easeOutQuart' },
       plugins: { legend: { display: false }, tooltip: { ...ttOpts, callbacks: { label: c => ` ${F(c.parsed.y)} €` } } },
       scales: {
-        x: { grid: { display: false }, ticks: { color: '#e2e2f0', font: { family: 'IBM Plex Mono', size: 12, weight: '600' } } },
-        y: { grid: { color: 'rgba(26,26,53,.5)' }, ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 10 }, callback: v => F(v, 0) + ' €' } }
+        x: {
+          grid: { display: false }, border: { display: false },
+          ticks: { color: '#e2e2f0', font: { family: 'IBM Plex Mono', size: 12, weight: '600' }, padding: 6 }
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,.04)', drawTicks: false },
+          border: { display: false },
+          ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 10 }, callback: v => F(v, 0) + ' €', padding: 10 }
+        }
       }
     }
   });
@@ -316,9 +351,11 @@ function _drawBenchmark() {
       label: 'S&P 500 (SPY)',
       data: spyData,
       borderColor: '#5588ff',
-      backgroundColor: 'rgba(85,136,255,.07)',
-      fill: true, tension: .3, pointRadius: 0, borderWidth: 2,
-      borderDash: [6, 3], spanGaps: true
+      backgroundColor: gradFill('#5588ff', '28', '00'),
+      fill: true, tension: .4, pointRadius: 0, pointHoverRadius: 5,
+      pointBackgroundColor: '#5588ff', pointBorderColor: '#0d0d1a', pointHoverBorderWidth: 3,
+      borderWidth: 2,
+      borderDash: [6, 4], spanGaps: true
     });
   }
   if (portBase0 != null) {
@@ -326,9 +363,11 @@ function _drawBenchmark() {
       label: 'My Portfolio',
       data: portData,
       borderColor: '#22df8a',
-      backgroundColor: 'rgba(34,223,138,.08)',
-      fill: true, tension: .3, pointRadius: 3, pointBackgroundColor: '#22df8a',
-      pointBorderColor: '#0d0d1a', pointBorderWidth: 2, borderWidth: 2, spanGaps: true
+      backgroundColor: gradFill('#22df8a', '50', '00'),
+      fill: true, tension: .4,
+      pointRadius: 0, pointHoverRadius: 6,
+      pointBackgroundColor: '#22df8a', pointBorderColor: '#0d0d1a', pointHoverBorderWidth: 3,
+      borderWidth: 2.5, spanGaps: true
     });
   }
 
@@ -345,14 +384,24 @@ function _drawBenchmark() {
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
+      animation: { duration: 800, easing: 'easeOutQuart' },
       plugins: {
         legend: { labels: legOpts },
         tooltip: { ...ttOpts, callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y != null ? (c.parsed.y >= 0 ? '+' : '') + F(c.parsed.y, 2) + '%' : 'N/A'}` } }
       },
       scales: {
-        x: { grid: { color: 'rgba(26,26,53,.3)' }, ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 10 }, maxTicksLimit: 14 } },
-        y: { grid: { color: 'rgba(26,26,53,.3)' }, ticks: { color: '#e2e2f0', font: { family: 'IBM Plex Mono', size: 10 }, callback: v => (v >= 0 ? '+' : '') + F(v, 1) + '%' } }
+        x: {
+          grid: { display: false },
+          border: { color: 'rgba(255,255,255,.06)' },
+          ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 10 }, maxTicksLimit: 14, padding: 8 }
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,.04)', drawTicks: false },
+          border: { display: false },
+          ticks: { color: '#a0a0b8', font: { family: 'IBM Plex Mono', size: 10 }, callback: v => (v >= 0 ? '+' : '') + F(v, 1) + '%', padding: 10 }
+        }
       }
-    }
+    },
+    plugins: [crosshairPlugin]
   });
 }

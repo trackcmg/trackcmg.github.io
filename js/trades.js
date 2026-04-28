@@ -3,7 +3,7 @@
 // ============================================================
 import { D } from './state.js';
 import { _authed } from './state.js';
-import { F, ttOpts, legOpts } from './utils.js';
+import { F, ttOpts, legOpts, gradFill } from './utils.js';
 
 // Tipos de cambio estáticos para el cálculo de rentabilidad histórica
 const TRADE_FX = { EUR: 1, USD: 0.8696, CAD: 0.6369, GBP: 1.1574 };
@@ -86,18 +86,45 @@ export function renderTrades() {
   const ctx1 = document.getElementById('cTrades').getContext('2d');
   const d1 = D.closedTrades.map(t => ({ tk: t.ticker, val: calcTrade(t).net, color: t.color })).sort((a, b) => b.val - a.val);
   if (CH.trades) CH.trades.destroy();
+  // Gradiente vertical reusable
+  const vGrad = (color, top = 'ee', bot = '44') => (c) => {
+    const a = c.chart && c.chart.chartArea;
+    if (!a) return color + top;
+    const g = c.chart.ctx.createLinearGradient(0, a.top, 0, a.bottom);
+    g.addColorStop(0, color + top);
+    g.addColorStop(1, color + bot);
+    return g;
+  };
+
   if (d1.length) CH.trades = new Chart(ctx1, {
     type: 'bar',
     data: {
       labels: d1.map(d => d.tk),
-      datasets: [{ data: d1.map(d => d.val), backgroundColor: d1.map(d => d.val >= 0 ? d.color + 'aa' : 'rgba(255,68,102,.5)'), borderColor: d1.map(d => d.val >= 0 ? d.color : 'var(--red)'), borderWidth: 1.5, borderRadius: 6, borderSkipped: false }]
+      datasets: [{
+        data: d1.map(d => d.val),
+        backgroundColor: d1.map(d => d.val >= 0 ? vGrad(d.color) : vGrad('#ff4466')),
+        borderWidth: 0,
+        borderRadius: 8,
+        borderSkipped: false,
+        barPercentage: 0.78,
+        categoryPercentage: 0.85,
+        hoverBackgroundColor: d1.map(d => d.val >= 0 ? d.color : '#ff4466')
+      }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      animation: { duration: 700, easing: 'easeOutQuart' },
       plugins: { legend: { display: false }, tooltip: { ...ttOpts, callbacks: { label: c => ` Net: ${F(c.parsed.y)} \u20ac` } } },
       scales: {
-        x: { grid: { display: false }, ticks: { color: '#e2e2f0', font: { family: 'IBM Plex Mono', size: 11, weight: '600' } } },
-        y: { grid: { color: 'rgba(26,26,53,.6)' }, ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 10 }, callback: v => F(v, 0) + ' \u20ac' } }
+        x: {
+          grid: { display: false }, border: { display: false },
+          ticks: { color: '#e2e2f0', font: { family: 'IBM Plex Mono', size: 11, weight: '600' }, padding: 6 }
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,.04)', drawTicks: false },
+          border: { display: false },
+          ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 10 }, callback: v => F(v, 0) + ' \u20ac', padding: 10 }
+        }
       }
     }
   });
@@ -111,16 +138,34 @@ export function renderTrades() {
     data: {
       labels: d2.map(t => t.tk),
       datasets: [
-        { label: 'Invested', data: d2.map(t => t.inv), backgroundColor: 'rgba(112,112,160,.4)', borderColor: '#7070a0', borderWidth: 1, borderRadius: 6, borderSkipped: false },
-        { label: 'Returned', data: d2.map(t => t.ret), backgroundColor: 'rgba(34,223,138,.4)', borderColor: 'var(--green)', borderWidth: 1, borderRadius: 6, borderSkipped: false }
+        {
+          label: 'Invested', data: d2.map(t => t.inv),
+          backgroundColor: vGrad('#7070a0', 'cc', '33'),
+          borderWidth: 0, borderRadius: 8, borderSkipped: false,
+          hoverBackgroundColor: '#7070a0'
+        },
+        {
+          label: 'Returned', data: d2.map(t => t.ret),
+          backgroundColor: vGrad('#22df8a', 'ee', '33'),
+          borderWidth: 0, borderRadius: 8, borderSkipped: false,
+          hoverBackgroundColor: '#22df8a'
+        }
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      animation: { duration: 700, easing: 'easeOutQuart' },
       plugins: { legend: { labels: legOpts }, tooltip: { ...ttOpts, callbacks: { label: c => ` ${c.dataset.label}: ${F(c.parsed.y)} \u20ac` } } },
       scales: {
-        x: { grid: { display: false }, ticks: { color: '#e2e2f0', font: { family: 'IBM Plex Mono', size: 11, weight: '600' } } },
-        y: { grid: { color: 'rgba(26,26,53,.6)' }, ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 10 }, callback: v => F(v, 0) + ' \u20ac' } }
+        x: {
+          grid: { display: false }, border: { display: false },
+          ticks: { color: '#e2e2f0', font: { family: 'IBM Plex Mono', size: 11, weight: '600' }, padding: 6 }
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,.04)', drawTicks: false },
+          border: { display: false },
+          ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 10 }, callback: v => F(v, 0) + ' \u20ac', padding: 10 }
+        }
       }
     }
   });

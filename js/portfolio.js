@@ -4,7 +4,7 @@
 import { PROXY_URL } from './config.js';
 import { D } from './state.js';
 import { _authed } from './state.js';
-import { F, ttOpts, legOpts } from './utils.js';
+import { F, ttOpts, legOpts, gradFill, centerTextPlugin, crosshairPlugin } from './utils.js';
 import { saveAndSync } from './cloud.js';
 
 // ── Precio y FX en memoria (persisten en localStorage) ──────
@@ -338,14 +338,30 @@ function rDonut() {
   const dTotal = dItems.reduce((a, b) => a + b.val, 0);
   CH.d = new Chart(ctx, {
     type: 'doughnut',
-    data: { labels: dItems.map(i => i.tk), datasets: [{ data: dItems.map(i => i.val), backgroundColor: dItems.map(i => i.color), borderColor: '#0d0d1a', borderWidth: 3 }] },
+    data: {
+      labels: dItems.map(i => i.tk),
+      datasets: [{
+        data: dItems.map(i => i.val),
+        backgroundColor: dItems.map(i => i.color),
+        borderColor: '#0d0d1a',
+        borderWidth: 4,
+        hoverBorderWidth: 4,
+        hoverOffset: 10,
+        spacing: 2,
+        borderRadius: 6
+      }]
+    },
     options: {
-      responsive: true, maintainAspectRatio: false, cutout: '62%',
+      responsive: true, maintainAspectRatio: false,
+      cutout: '72%',
+      animation: { animateRotate: true, animateScale: true, duration: 800, easing: 'easeOutQuart' },
       plugins: {
         legend: { position: 'bottom', labels: legOpts },
-        tooltip: { ...ttOpts, callbacks: { label: c => { const pct = dTotal > 0 ? (c.parsed / dTotal * 100) : 0; return ` ${c.label}: ${F(c.parsed)} \u20ac (${F(pct, 1)}%)`; } } }
+        tooltip: { ...ttOpts, callbacks: { label: c => { const pct = dTotal > 0 ? (c.parsed / dTotal * 100) : 0; return ` ${c.label}: ${F(c.parsed)} \u20ac (${F(pct, 1)}%)`; } } },
+        centerText: { label: 'Total', value: F(dTotal, 0) + ' \u20ac' }
       }
-    }
+    },
+    plugins: [centerTextPlugin]
   });
 }
 
@@ -356,18 +372,45 @@ function rBar() {
     { tk: 'Cash', val: D.cash, color: '#667788' }
   ].sort((a, b) => b.val - a.val);
   if (CH.b) CH.b.destroy();
+  // Gradiente horizontal por barra (left strong \u2192 right faded)
+  const hGrad = (color) => (c) => {
+    const a = c.chart && c.chart.chartArea;
+    if (!a) return color + 'cc';
+    const g = c.chart.ctx.createLinearGradient(a.left, 0, a.right, 0);
+    g.addColorStop(0, color + 'ee');
+    g.addColorStop(1, color + '55');
+    return g;
+  };
   CH.b = new Chart(ctx, {
     type: 'bar',
     data: {
       labels: items.map(i => i.tk),
-      datasets: [{ data: items.map(i => i.val), backgroundColor: items.map(i => i.color + 'aa'), borderColor: items.map(i => i.color), borderWidth: 1.5, borderRadius: 6, borderSkipped: false }]
+      datasets: [{
+        data: items.map(i => i.val),
+        backgroundColor: items.map(i => hGrad(i.color)),
+        borderWidth: 0,
+        borderRadius: 8,
+        borderSkipped: false,
+        barPercentage: 0.78,
+        categoryPercentage: 0.85,
+        hoverBackgroundColor: items.map(i => i.color)
+      }]
     },
     options: {
       responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      animation: { duration: 700, easing: 'easeOutQuart' },
       plugins: { legend: { display: false }, tooltip: { ...ttOpts, callbacks: { label: c => ` ${F(c.parsed.x)} \u20ac` } } },
       scales: {
-        x: { grid: { color: 'rgba(26,26,53,.6)' }, ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 10 }, callback: v => F(v, 0) + ' \u20ac' } },
-        y: { grid: { display: false }, ticks: { color: '#e2e2f0', font: { family: 'IBM Plex Mono', size: 11, weight: '600' } } }
+        x: {
+          grid: { color: 'rgba(255,255,255,.04)', drawTicks: false },
+          border: { display: false },
+          ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 10 }, callback: v => F(v, 0) + ' \u20ac', padding: 8 }
+        },
+        y: {
+          grid: { display: false },
+          border: { display: false },
+          ticks: { color: '#e2e2f0', font: { family: 'IBM Plex Mono', size: 11, weight: '600' }, padding: 6 }
+        }
       }
     }
   });
@@ -404,13 +447,27 @@ function renderHistoryChart() {
     data: {
       labels,
       datasets: [
-        { label: 'Invested', data: invested, borderColor: '#22df8a', backgroundColor: 'rgba(34,223,138,.06)', fill: true, tension: .3, pointRadius: 4, pointBackgroundColor: '#22df8a', pointBorderColor: '#0d0d1a', pointBorderWidth: 2, borderWidth: 2, hidden: true },
-        { label: 'Portfolio Value', data: values, borderColor: '#5588ff', backgroundColor: 'rgba(85,136,255,.06)', fill: true, tension: .3, pointRadius: 4, pointBackgroundColor: '#5588ff', pointBorderColor: '#0d0d1a', pointBorderWidth: 2, borderWidth: 2 }
+        {
+          label: 'Invested', data: invested,
+          borderColor: '#22df8a', backgroundColor: gradFill('#22df8a', '38', '00'),
+          fill: true, tension: .4, borderWidth: 2.5,
+          pointRadius: 0, pointHoverRadius: 6,
+          pointBackgroundColor: '#22df8a', pointBorderColor: '#0d0d1a', pointHoverBorderWidth: 3,
+          hidden: true
+        },
+        {
+          label: 'Portfolio Value', data: values,
+          borderColor: '#5588ff', backgroundColor: gradFill('#5588ff', '50', '00'),
+          fill: true, tension: .4, borderWidth: 2.5,
+          pointRadius: 0, pointHoverRadius: 6,
+          pointBackgroundColor: '#5588ff', pointBorderColor: '#0d0d1a', pointHoverBorderWidth: 3
+        }
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
+      animation: { duration: 800, easing: 'easeOutQuart' },
       plugins: {
         legend: { labels: legOpts },
         tooltip: {
@@ -426,10 +483,20 @@ function renderHistoryChart() {
         }
       },
       scales: {
-        x: { grid: { color: 'rgba(26,26,53,.4)' }, ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 10 }, maxTicksLimit: 14 } },
-        y: { type: 'linear', grid: { color: 'rgba(26,26,53,.4)' }, ticks: { color: '#e2e2f0', font: { family: 'IBM Plex Mono', size: 10 }, callback: v => F(v, 0) + ' \u20ac' } }
+        x: {
+          grid: { display: false },
+          border: { color: 'rgba(255,255,255,.06)' },
+          ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 10 }, maxTicksLimit: 14, padding: 8 }
+        },
+        y: {
+          type: 'linear',
+          grid: { color: 'rgba(255,255,255,.04)', drawTicks: false },
+          border: { display: false },
+          ticks: { color: '#a0a0b8', font: { family: 'IBM Plex Mono', size: 10 }, callback: v => F(v, 0) + ' \u20ac', padding: 10 }
+        }
       }
-    }
+    },
+    plugins: [crosshairPlugin]
   });
 }
 
@@ -609,13 +676,19 @@ async function _fetchMiniChart(ticker, canvasId, defaultPos) {
     const col = isPos ? '#22df8a' : '#ff4466';
     new Chart(canvas.getContext('2d'), {
       type: 'line',
-      data: { labels, datasets: [{ data, borderColor: col, backgroundColor: col + '18', fill: true, tension: .3, pointRadius: 2, pointBackgroundColor: col, borderWidth: 2 }] },
+      data: { labels, datasets: [{
+        data, borderColor: col,
+        backgroundColor: gradFill(col, '38', '00'),
+        fill: true, tension: .4, borderWidth: 2,
+        pointRadius: 0, pointHoverRadius: 4,
+        pointBackgroundColor: col, pointBorderColor: '#0d0d1a', pointHoverBorderWidth: 2
+      }] },
       options: {
         responsive: true, maintainAspectRatio: false, animation: false,
         plugins: { legend: { display: false }, tooltip: { ...ttOpts, callbacks: { label: c => ` ${F(c.parsed.y)}` } } },
         scales: {
-          x: { grid: { display: false }, ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 9 }, maxTicksLimit: 6, maxRotation: 0 } },
-          y: { border: { dash: [2, 2] }, grid: { color: 'rgba(26,26,53,.4)' }, ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 9 }, maxTicksLimit: 4, callback: v => F(v) } }
+          x: { grid: { display: false }, border: { display: false }, ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 9 }, maxTicksLimit: 6, maxRotation: 0 } },
+          y: { grid: { color: 'rgba(255,255,255,.03)', drawTicks: false }, border: { display: false }, ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 9 }, maxTicksLimit: 4, callback: v => F(v), padding: 6 } }
         }
       }
     });
