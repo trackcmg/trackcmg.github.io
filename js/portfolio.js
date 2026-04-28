@@ -363,22 +363,13 @@ function rBar() {
     { tk: 'Cash', val: D.cash, color: '#667788' }
   ].sort((a, b) => b.val - a.val);
   if (CH.b) CH.b.destroy();
-  // Gradiente horizontal por barra (left strong \u2192 right faded)
-  const hGrad = (color) => (c) => {
-    const a = c.chart && c.chart.chartArea;
-    if (!a) return color + 'cc';
-    const g = c.chart.ctx.createLinearGradient(a.left, 0, a.right, 0);
-    g.addColorStop(0, color + 'ee');
-    g.addColorStop(1, color + '55');
-    return g;
-  };
   CH.b = new Chart(ctx, {
     type: 'bar',
     data: {
       labels: items.map(i => i.tk),
       datasets: [{
         data: items.map(i => i.val),
-        backgroundColor: items.map(i => hGrad(i.color)),
+        backgroundColor: items.map(i => i.color + 'cc'),
         borderWidth: 0,
         borderRadius: 8,
         borderSkipped: false,

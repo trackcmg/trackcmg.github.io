@@ -129,22 +129,13 @@ function _renderCurrencyChart() {
   const colors = labels.map(l => bgColors[l] || '#667788');
 
   if (CH.currency) CH.currency.destroy();
-  // Gradiente vertical por barra
-  const vGrad = (color) => (c) => {
-    const a = c.chart && c.chart.chartArea;
-    if (!a) return color + 'bb';
-    const g = c.chart.ctx.createLinearGradient(0, a.top, 0, a.bottom);
-    g.addColorStop(0, color + 'ee');
-    g.addColorStop(1, color + '44');
-    return g;
-  };
   CH.currency = new Chart(canvas.getContext('2d'), {
     type: 'bar',
     data: {
       labels,
       datasets: [{
         data,
-        backgroundColor: colors.map(c => vGrad(c)),
+        backgroundColor: colors.map(c => c + 'cc'),
         borderWidth: 0,
         borderRadius: 8,
         borderSkipped: false,

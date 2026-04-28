@@ -86,23 +86,13 @@ export function renderTrades() {
   const ctx1 = document.getElementById('cTrades').getContext('2d');
   const d1 = D.closedTrades.map(t => ({ tk: t.ticker, val: calcTrade(t).net, color: t.color })).sort((a, b) => b.val - a.val);
   if (CH.trades) CH.trades.destroy();
-  // Gradiente vertical reusable
-  const vGrad = (color, top = 'ee', bot = '44') => (c) => {
-    const a = c.chart && c.chart.chartArea;
-    if (!a) return color + top;
-    const g = c.chart.ctx.createLinearGradient(0, a.top, 0, a.bottom);
-    g.addColorStop(0, color + top);
-    g.addColorStop(1, color + bot);
-    return g;
-  };
-
   if (d1.length) CH.trades = new Chart(ctx1, {
     type: 'bar',
     data: {
       labels: d1.map(d => d.tk),
       datasets: [{
         data: d1.map(d => d.val),
-        backgroundColor: d1.map(d => d.val >= 0 ? vGrad(d.color) : vGrad('#ff4466')),
+        backgroundColor: d1.map(d => (d.val >= 0 ? d.color : '#ff4466') + 'cc'),
         borderWidth: 0,
         borderRadius: 8,
         borderSkipped: false,
@@ -140,13 +130,13 @@ export function renderTrades() {
       datasets: [
         {
           label: 'Invested', data: d2.map(t => t.inv),
-          backgroundColor: vGrad('#7070a0', 'cc', '33'),
+          backgroundColor: '#7070a0bb',
           borderWidth: 0, borderRadius: 8, borderSkipped: false,
           hoverBackgroundColor: '#7070a0'
         },
         {
           label: 'Returned', data: d2.map(t => t.ret),
-          backgroundColor: vGrad('#22df8a', 'ee', '33'),
+          backgroundColor: '#22df8acc',
           borderWidth: 0, borderRadius: 8, borderSkipped: false,
           hoverBackgroundColor: '#22df8a'
         }
