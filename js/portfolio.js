@@ -210,7 +210,7 @@ export async function refreshPortfolio() {
 }
 
 // ── Render completo del portfolio ───────────────────────────
-export function renderPortfolio() { rFx(); rHero(); rStocks(); rDonut(); rBar(); }
+export function renderPortfolio() { rHero(); rStocks(); rDonut(); rBar(); }
 
 // ── Skeleton loaders (mientras la API responde) ──────────────
 function rSkeletons() {
@@ -230,23 +230,14 @@ function rSkeletons() {
     </div>`).join('');
 }
 
-function rFx() {
-  const skel = '<span class="fx-skeleton skeleton"></span>';
-  document.getElementById('fxU').innerHTML = FX.USD ? F(FX.USD, 4) : skel;
-  document.getElementById('fxC').innerHTML = FX.CAD ? F(FX.CAD, 4) : skel;
-  document.getElementById('fxG').innerHTML = FX.GBP ? F(FX.GBP, 4) : skel;
-}
-
 function rHero() {
   let t = D.cash;
-  const bc = { EUR: D.cash };
-  D.holdings.forEach(h => { const v = valEur(h); t += v; bc[h.currency] = (bc[h.currency] || 0) + v; });
+  D.holdings.forEach(h => { t += valEur(h); });
   document.getElementById('hVal').innerHTML = `${F(t)} &euro;`;
   const inv = D.totalInvested, tRoi = t - inv, tPct = (tRoi / inv) * 100, tPos = tRoi >= 0;
   document.getElementById('hRoi').innerHTML = `
     <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text-dim);margin-bottom:6px">Invested: ${F(inv)} &euro;</div>
     <div style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;margin-bottom:14px;color:var(--${tPos ? 'green' : 'red'})">ROI: ${tPos ? '+' : ''}${F(tPct)}% | ${tPos ? '+' : ''}${F(tRoi)} &euro;</div>`;
-  document.getElementById('hSub').innerHTML = Object.entries(bc).map(([c, v]) => `<span>${c}: ${F(v)} &euro;</span>`).join('');
 }
 
 function rStocks() {

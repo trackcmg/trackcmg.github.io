@@ -220,30 +220,6 @@ header{
 .btn-amber:hover{background:rgba(255,170,34,.16)}
 .btn:disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
 
-/* ── FX strip ──────────────────────────────────────── */
-.fx-strip{
-  display:flex;gap:0;flex-wrap:wrap;
-  margin-bottom:24px;
-  background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,0));
-  border:1px solid var(--border);
-  border-radius:14px;
-  font-family:var(--ff-mono);font-size:12px;
-  overflow:hidden;
-}
-.fx-p{
-  display:flex;flex-direction:column;gap:4px;
-  padding:13px 18px;
-  flex:1;min-width:130px;
-  border-right:1px solid var(--border);
-  position:relative;
-}
-.fx-p:last-child{border-right:none}
-.fx-p .l{
-  color:var(--text-muted);font-size:9px;
-  text-transform:uppercase;letter-spacing:1.5px;font-weight:600;
-}
-.fx-p .v{color:var(--text);font-weight:600;font-size:14px;letter-spacing:-.2px}
-
 /* ── Hero ─────────────────────────────────────────── */
 .hero{
   position:relative;text-align:center;
@@ -718,7 +694,6 @@ tr:hover td{background:rgba(255,255,255,.025)}
   padding-top:14px;border-top:1px solid var(--border);
 }
 .stock-skeleton .sk-block{height:32px;border-radius:4px}
-.fx-skeleton{height:14px;width:60px;border-radius:4px;display:inline-block}
 
 /* ── Edit mode visuals ──────────────────────────── */
 .form-err{color:var(--red);font-size:12px;margin-bottom:10px;font-family:var(--ff-mono);display:none}
@@ -836,9 +811,6 @@ input[type=color]{
   .sg,.cg{grid-template-columns:1fr}
   .hero-val{font-size:38px;letter-spacing:-1.5px}
   .hero{padding:36px 18px 28px}
-  .fx-strip{flex-direction:column}
-  .fx-p{border-right:none;border-bottom:1px solid var(--border)}
-  .fx-p:last-child{border-bottom:none}
   .tab-btn{padding:9px 14px;font-size:12px}
   .media-grid{grid-template-columns:1fr}
   .sum-grid{grid-template-columns:1fr 1fr}
@@ -928,7 +900,6 @@ html.theme-light .ts,
 html.theme-light .sync-status,
 html.theme-light .filter-bar,
 html.theme-light .gym-form,
-html.theme-light .fx-strip,
 html.theme-light .bench-grp{background:rgba(255,255,255,.6)}
 html.theme-light .modal{background:#fff}
 html.theme-light .tbl-foot td{background:rgba(15,158,94,.06)}

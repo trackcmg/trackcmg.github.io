@@ -3,7 +3,7 @@
 // ============================================================
 import { D } from './state.js';
 import { _authed } from './state.js';
-import { F, ttOpts, legOpts } from './utils.js';
+import { F, ttOpts, legOpts, gradFill, crosshairPlugin } from './utils.js';
 import { saveAndSync } from './cloud.js';
 import { toast } from './utils.js';
 
@@ -39,20 +39,51 @@ export function renderGym() {
     data: {
       labels,
       datasets: [
-        { label: 'Weight (kg)', data: D.gym.map(g => g.weight), borderColor: '#5588ff', backgroundColor: 'rgba(85,136,255,.1)', fill: true, tension: .3, pointRadius: 5, pointBackgroundColor: '#5588ff', pointBorderColor: '#0d0d1a', pointBorderWidth: 2, yAxisID: 'y' },
-        { label: 'Body Fat (%)', data: D.gym.map(g => g.bf), borderColor: '#ffaa22', backgroundColor: 'rgba(255,170,34,.1)', fill: true, tension: .3, pointRadius: 5, pointBackgroundColor: '#ffaa22', pointBorderColor: '#0d0d1a', pointBorderWidth: 2, yAxisID: 'y1' }
+        {
+          label: 'Weight (kg)', data: D.gym.map(g => g.weight),
+          borderColor: '#5588ff', backgroundColor: gradFill('#5588ff', '38', '00'),
+          fill: true, tension: .4, borderWidth: 2.5,
+          pointRadius: 0, pointHoverRadius: 6,
+          pointBackgroundColor: '#5588ff', pointBorderColor: '#0d0d1a', pointHoverBorderWidth: 3,
+          yAxisID: 'y'
+        },
+        {
+          label: 'Body Fat (%)', data: D.gym.map(g => g.bf),
+          borderColor: '#ffaa22', backgroundColor: gradFill('#ffaa22', '30', '00'),
+          fill: true, tension: .4, borderWidth: 2.5,
+          pointRadius: 0, pointHoverRadius: 6,
+          pointBackgroundColor: '#ffaa22', pointBorderColor: '#0d0d1a', pointHoverBorderWidth: 3,
+          yAxisID: 'y1'
+        }
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
+      animation: { duration: 800, easing: 'easeOutQuart' },
       plugins: { legend: { labels: legOpts }, tooltip: { ...ttOpts } },
       scales: {
-        x: { grid: { color: 'rgba(26,26,53,.4)' }, ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 10 } } },
-        y: { type: 'linear', position: 'left', title: { display: true, text: 'Weight (kg)', color: '#5588ff', font: { family: 'Sora', size: 11 } }, grid: { color: 'rgba(26,26,53,.4)' }, ticks: { color: '#5588ff', font: { family: 'IBM Plex Mono', size: 10 } } },
-        y1: { type: 'linear', position: 'right', title: { display: true, text: 'Body Fat (%)', color: '#ffaa22', font: { family: 'Sora', size: 11 } }, grid: { drawOnChartArea: false }, ticks: { color: '#ffaa22', font: { family: 'IBM Plex Mono', size: 10 }, callback: v => v + '%' } }
+        x: {
+          grid: { display: false }, border: { color: 'rgba(255,255,255,.06)' },
+          ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 10 }, padding: 8 }
+        },
+        y: {
+          type: 'linear', position: 'left',
+          title: { display: true, text: 'Weight (kg)', color: '#5588ff', font: { family: 'Sora', size: 11, weight: '600' } },
+          grid: { color: 'rgba(255,255,255,.04)', drawTicks: false },
+          border: { display: false },
+          ticks: { color: '#5588ff', font: { family: 'IBM Plex Mono', size: 10 }, padding: 8 }
+        },
+        y1: {
+          type: 'linear', position: 'right',
+          title: { display: true, text: 'Body Fat (%)', color: '#ffaa22', font: { family: 'Sora', size: 11, weight: '600' } },
+          grid: { drawOnChartArea: false },
+          border: { display: false },
+          ticks: { color: '#ffaa22', font: { family: 'IBM Plex Mono', size: 10 }, callback: v => v + '%', padding: 8 }
+        }
       }
-    }
+    },
+    plugins: [crosshairPlugin]
   });
 
   const tbl = document.getElementById('gymTable');

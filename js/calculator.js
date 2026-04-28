@@ -1,7 +1,7 @@
 // ============================================================
 //  calculator.js — Calculadora de interés compuesto
 // ============================================================
-import { F, ttOpts, legOpts } from './utils.js';
+import { F, ttOpts, legOpts, gradFill, crosshairPlugin } from './utils.js';
 import { D } from './state.js';
 import { valEur } from './portfolio.js';
 
@@ -87,30 +87,44 @@ function runCalc() {
         {
           label: 'Portfolio Value',
           data: values,
-          borderColor: '#22df8a', backgroundColor: 'rgba(34,223,138,.06)',
-          fill: true, tension: .3, pointRadius: 4, pointBackgroundColor: '#22df8a',
-          pointBorderColor: '#0d0d1a', pointBorderWidth: 2, borderWidth: 2
+          borderColor: '#22df8a',
+          backgroundColor: gradFill('#22df8a', '50', '00'),
+          fill: true, tension: .4, borderWidth: 2.5,
+          pointRadius: 0, pointHoverRadius: 6,
+          pointBackgroundColor: '#22df8a', pointBorderColor: '#0d0d1a', pointHoverBorderWidth: 3
         },
         {
           label: 'Capital Invested',
           data: invested,
-          borderColor: '#5588ff', backgroundColor: 'rgba(85,136,255,.04)',
-          fill: true, tension: 0, pointRadius: 3, pointBackgroundColor: '#5588ff',
-          pointBorderColor: '#0d0d1a', pointBorderWidth: 2, borderWidth: 1.5
+          borderColor: '#5588ff',
+          backgroundColor: gradFill('#5588ff', '20', '00'),
+          fill: true, tension: 0, borderWidth: 2,
+          pointRadius: 0, pointHoverRadius: 5,
+          pointBackgroundColor: '#5588ff', pointBorderColor: '#0d0d1a', pointHoverBorderWidth: 3,
+          borderDash: [6, 4]
         }
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
+      animation: { duration: 800, easing: 'easeOutQuart' },
       plugins: {
         legend: { labels: legOpts },
         tooltip: { ...ttOpts, callbacks: { label: c => ` ${c.dataset.label}: ${F(c.parsed.y)} €` } }
       },
       scales: {
-        x: { grid: { color: 'rgba(26,26,53,.3)' }, ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 10 } } },
-        y: { grid: { color: 'rgba(26,26,53,.3)' }, ticks: { color: '#e2e2f0', font: { family: 'IBM Plex Mono', size: 10 }, callback: v => F(v, 0) + ' €' } }
+        x: {
+          grid: { display: false }, border: { color: 'rgba(255,255,255,.06)' },
+          ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 10 }, padding: 8 }
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,.04)', drawTicks: false },
+          border: { display: false },
+          ticks: { color: '#a0a0b8', font: { family: 'IBM Plex Mono', size: 10 }, callback: v => F(v, 0) + ' €', padding: 10 }
+        }
       }
-    }
+    },
+    plugins: [crosshairPlugin]
   });
 }
