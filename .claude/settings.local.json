@@ -4,7 +4,11 @@
       "Bash(node -e ':*)",
       "Bash(node -e \"new \\(require\\('module'\\)\\)\\(\\)._compile\\(require\\('fs'\\).readFileSync\\('js/analytics.js','utf8'\\).replace\\(/import .*/g,''\\).replace\\(/export /g,''\\), 'analytics.js'\\); console.log\\('OK'\\)\")",
       "Bash(node -e \"new \\(require\\('module'\\)\\)\\(\\)._compile\\(require\\('fs'\\).readFileSync\\('js/app.js','utf8'\\).replace\\(/import .*/g,''\\).replace\\(/export /g,''\\), 'app.js'\\); console.log\\('OK'\\)\")",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git commit *)"
     ]
   }
 }
