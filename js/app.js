@@ -84,14 +84,28 @@ function _applyEditMode(on) {
 let _rfInterval = null;
 
 // ── Post-auth: render + fetch + intervalo ────────────────────
+// CRÍTICO: el orden importa. fetchDataFromCloud() DEBE completarse
+// antes de arrancar refreshPortfolio() para evitar la race condition
+// donde la lógica de snapshot diario sobreescribe cloud con un D
+// FALLBACK (vacío) tras un cold-start con localStorage limpio.
+// Render inicial se mantiene inmediato (con datos locales si los hay)
+// para que el usuario vea UI sin esperar.
 async function _postAuthInit() {
-  renderAll();
+  renderAll();        // 1. Render inmediato con localStorage (o vacío)
   renderCalculator();
+  // 2. Cloud fetch SIN concurrencia con refreshPortfolio (timeout 8s)
+  let ok = false;
+  try {
+    ok = await Promise.race([
+      fetchDataFromCloud(),
+      new Promise(r => setTimeout(() => r(false), 8000))
+    ]);
+  } catch (_) { ok = false; }
+  if (ok) renderAll();
+  else updateSyncStatus('local');
+  // 3. AHORA sí, ya con D estable, arrancamos prices + intervalo
   refreshPortfolio();
   if (!_rfInterval) _rfInterval = setInterval(refreshPortfolio, 60000);
-  const ok = await fetchDataFromCloud();
-  if (ok) renderAll();
-  if (!ok) updateSyncStatus('local');
 }
 
 // ── Handlers de Google Sign-In ────────────────────────────────

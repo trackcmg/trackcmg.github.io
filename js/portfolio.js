@@ -175,8 +175,14 @@ export async function refreshPortfolio() {
 
   renderPortfolio();
 
+  // GUARD: no generar snapshot si D está vacío (cold-start con
+  // localStorage limpio). Sin este guard, refreshPortfolio puede
+  // llamar saveAndSync() con D=FALLBACK y nukear el cloud antes
+  // de que fetchDataFromCloud traiga los datos buenos.
+  const _hasRealData = D.holdings.length > 0 || (D.cash || 0) > 0 || (D.totalInvested || 0) > 0 || (D.closedTrades || []).length > 0;
+
   // Snapshot diario (solo días laborables, zona Europe/Amsterdam)
-  if (allOk && fxOk) {
+  if (allOk && fxOk && _hasRealData) {
     const euNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Amsterdam' }));
     const dow = euNow.getDay();
     if (dow !== 0 && dow !== 6) {

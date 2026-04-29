@@ -2,7 +2,7 @@
 //  storage.js — Operaciones con localStorage y datos D
 // ============================================================
 import { FALLBACK } from './config.js';
-import { D } from './state.js';
+import { D, isFallbackState } from './state.js';
 
 // Convierte el campo dividends de array legacy a número
 export function _migrateDivs(arr) {
@@ -84,6 +84,20 @@ export function loadData() {
 
 // Guarda el estado actual en localStorage
 export function saveLocal() {
+  // GUARD: si D está vacío (FALLBACK) y ya hay un snapshot bueno en
+  // localStorage, NO sobreescribir. Protege contra cold-start después
+  // de borrar caché donde D se inicializa a FALLBACK antes de que el
+  // cloud responda — sin este guard, ese FALLBACK se persistiría y
+  // se perdería el último estado conocido.
+  if (isFallbackState()) {
+    try {
+      const existing = localStorage.getItem('db_data');
+      if (existing && existing !== '{}') {
+        console.warn('[storage] saveLocal abortado: D vacío y db_data ya tiene contenido. Se preserva localStorage.');
+        return;
+      }
+    } catch (_) { /* lectura puede fallar en modo privado */ }
+  }
   try {
     localStorage.setItem('db_data', JSON.stringify(buildDataObj()));
   } catch (e) {
