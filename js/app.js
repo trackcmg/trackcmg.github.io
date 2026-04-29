@@ -125,7 +125,13 @@ function _handleLogout() {
 }
 
 // ── Sistema de pestañas ──────────────────────────────────────
+// Las pestañas inactivas tienen display:none al cargar → cualquier
+// canvas Chart.js dentro mide 0×0 y se "fija" en esas dimensiones.
+// Re-renderizamos cuando el usuario entra por primera vez para que
+// Chart.js mida con el canvas ya visible.
 let _benchmarkLoaded = false;
+const _tabsRenderedAfterVisible = new Set(['portfolio']); // portfolio es activo desde el inicio
+
 document.getElementById('tabBar').addEventListener('click', e => {
   if (!e.target.matches('.tab-btn')) return;
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -135,6 +141,20 @@ document.getElementById('tabBar').addEventListener('click', e => {
   _activeTab = tab;
   document.getElementById('tab-' + tab).classList.add('active');
   _syncTradeBtn();
+
+  // Re-render lazy: en el primer click sobre una pestaña, el canvas
+  // ya tiene dimensiones reales y Chart.js puede dibujar correctamente.
+  // Esperamos un microtick para asegurar que el navegador aplicó el
+  // display:block antes de medir el canvas.
+  if (!_tabsRenderedAfterVisible.has(tab)) {
+    _tabsRenderedAfterVisible.add(tab);
+    requestAnimationFrame(() => {
+      if (tab === 'analytics') renderAnalytics();
+      else if (tab === 'trades') renderTrades();
+      else if (tab === 'gym') renderGym();
+    });
+  }
+
   // Carga el benchmark SPY al entrar por primera vez en Analytics (evita fetch innecesario)
   if (tab === 'analytics' && !_benchmarkLoaded) {
     _benchmarkLoaded = true;
