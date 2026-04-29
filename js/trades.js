@@ -40,7 +40,6 @@ export function renderTrades() {
 
   document.getElementById('tradesSummary').innerHTML = `
     <div class="sum-card"><div class="sum-lbl">Capital deployed</div><div class="sum-val">${F(tI)} \u20ac</div></div>
-    <div class="sum-card"><div class="sum-lbl">Gross P&L</div><div class="sum-val ${tG >= 0 ? 'up' : 'dn'}">${tG >= 0 ? '+' : ''}${F(tG)} \u20ac</div></div>
     <div class="sum-card"><div class="sum-lbl">Dividends (net)</div><div class="sum-val up">${tDN > 0 ? '+' + F(tDN) : '\u2014'}</div></div>
     <div class="sum-card"><div class="sum-lbl">Net result</div><div class="sum-val ${nP ? 'up' : 'dn'}">${nP ? '+' : ''}${F(tNet)} \u20ac</div></div>
     <div class="sum-card"><div class="sum-lbl">Return %</div><div class="sum-val ${nP ? 'up' : 'dn'}">${tI > 0 ? (nP ? '+' : '') + F((tNet / tI) * 100) + '%' : '\u2014'}</div></div>`;
@@ -188,7 +187,6 @@ export function toggleTradeDetail(rowEl, tradeIdx) {
       ${t.buyDate ? card('Buy Date', t.buyDate) : ''}
       ${t.sellDate ? card('Sell Date', t.sellDate) : ''}
       ${card('Invested', F(c.inv) + '\u00a0\u20ac')}
-      ${card('Gross P&L', (c.grossPL >= 0 ? '+' : '') + F(c.grossPL) + '\u00a0\u20ac', c.grossPL >= 0 ? 'up' : 'dn')}
       ${c.divN > 0 ? card('Dividends', '+' + F(c.divN) + '\u00a0\u20ac', 'up') : ''}
       ${card('Net P&L', (pos ? '+' : '') + F(c.net) + '\u00a0\u20ac', pos ? 'up' : 'dn')}
       ${card('Return %', (pos ? '+' : '') + F(c.pct) + '%', pos ? 'up' : 'dn')}
