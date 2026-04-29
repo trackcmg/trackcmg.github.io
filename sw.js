@@ -14,7 +14,7 @@
 //
 // ============================================================
 
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 
 // Nombres de cada caché por tipo
 const CACHE_STATIC = 'dash-static-' + CACHE_VERSION;
@@ -37,6 +37,8 @@ const PRECACHE_URLS = [
   '/js/media.js',
   '/js/modals.js',
   '/js/auth.js',
+  '/js/analytics.js',
+  '/js/calculator.js',
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
