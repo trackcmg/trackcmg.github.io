@@ -240,11 +240,6 @@ header{
   height:1px;
   background:linear-gradient(90deg,transparent 0,rgba(34,223,138,.6) 50%,transparent 100%);
 }
-.hero::after{
-  content:'';position:absolute;pointer-events:none;
-  inset:auto 0 -50% 0;height:160px;
-  background:radial-gradient(ellipse at center top,rgba(85,136,255,.12),transparent 70%);
-}
 .hero-lbl{
   font-size:11px;color:var(--text-muted);
   text-transform:uppercase;letter-spacing:3px;
