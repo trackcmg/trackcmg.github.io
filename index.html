@@ -37,13 +37,13 @@
 <main role="main">
 <div class="tab-bar" id="tabBar">
 <button class="tab-btn active" data-tab="portfolio">Portfolio</button>
+<button class="tab-btn" data-tab="watchlist">Watchlist</button>
 <button class="tab-btn" data-tab="trades">Closed Trades</button>
 <button class="tab-btn" data-tab="analytics">Analytics</button>
 <button class="tab-btn" data-tab="gym">Gym</button>
 <button class="tab-btn" data-tab="books">Books</button>
 <button class="tab-btn" data-tab="movies">Movies</button>
 <button class="tab-btn" data-tab="series">Series</button>
-<button class="tab-btn" data-tab="watchlist">Watchlist</button>
 </div>
 
 <div class="tab-content active" id="tab-portfolio">
@@ -100,7 +100,7 @@
 </div>
 
 <div class="tab-content" id="tab-watchlist">
-<div class="card" style="margin-bottom:20px">
+<div class="card add-section" style="margin-bottom:20px">
   <h2>Add to Watchlist</h2>
   <form id="wlForm" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-top:12px">
     <div class="fg" style="min-width:100px;flex:1"><label>Ticker</label><input id="wlTicker" type="text" placeholder="AAPL" style="text-transform:uppercase" required></div>
