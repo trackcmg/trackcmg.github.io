@@ -70,8 +70,11 @@ export function renderWatchlist() {
     const hit     = hasPrice && price <= item.targetPrice;
     const distPct = hasPrice ? ((price - item.targetPrice) / item.targetPrice * 100) : null;
 
+    const inEditMode = document.body.classList.contains('edit-mode');
+    const tickerColor = !hasPrice ? 'var(--text-muted)' : (hit ? 'var(--green)' : 'var(--red)');
+
     return `<tr style="${hit ? 'background:rgba(34,223,138,.07);' : ''}cursor:default">
-      <td style="font-family:'IBM Plex Mono',monospace;font-weight:600;${hit ? 'color:var(--green)' : ''}">
+      <td style="font-family:'IBM Plex Mono',monospace;font-weight:600;color:${tickerColor}">
         ${item.ticker}
         ${hit ? '<span style="font-size:9px;background:rgba(34,223,138,.2);color:var(--green);border-radius:4px;padding:1px 5px;margin-left:6px;letter-spacing:.5px">TARGET</span>' : ''}
       </td>
@@ -88,12 +91,12 @@ export function renderWatchlist() {
         ${distPct != null ? (distPct >= 0 ? '+' : '') + distPct.toFixed(2) + '%' : '—'}
       </td>
       <td style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:${dailyPos === null ? 'var(--text-muted)' : (dailyPos ? 'var(--green)' : 'var(--red)')}">
-        ${pct != null ? (dailyPos ? '+' : '') + pct.toFixed(2) + '% hoy' : '—'}
+        ${pct != null ? (dailyPos ? '+' : '') + pct.toFixed(2) + '%' : '—'}
       </td>
       <td>
-        <button class="btn btn-sm wl-del-btn" data-wl-idx="${i}"
+        ${inEditMode ? `<button class="btn btn-sm wl-del-btn" data-wl-idx="${i}"
           style="padding:2px 8px;font-size:11px;color:var(--red);border-color:rgba(255,68,102,.3)"
-          title="Remove">✕</button>
+          title="Remove">✕</button>` : ''}
       </td>
     </tr>`;
   }).join('');
