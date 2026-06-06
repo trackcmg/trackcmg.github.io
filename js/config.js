@@ -26,5 +26,6 @@ export const FALLBACK = {
   gym: [],
   books: [],
   movies: [],
-  series: []
+  series: [],
+  watchlist: []
 };

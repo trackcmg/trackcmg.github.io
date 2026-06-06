@@ -12,6 +12,7 @@ import { initAuth, signOut } from './auth.js';
 import { toast } from './utils.js';
 import { renderAnalytics, renderBenchmark } from './analytics.js';
 import { renderCalculator, syncCalculatorCapital } from './calculator.js';
+import { initWatchlist, renderWatchlist, refreshWatchlist } from './watchlist.js';
 
 // ── Render completo de todas las secciones ───────────────────
 // Cada módulo se programa como una tarea independiente (setTimeout 0)
@@ -25,6 +26,7 @@ function renderAll() {
   setTimeout(() => renderSeries(), 0);
   setTimeout(() => renderHistory(), 0);
   setTimeout(() => renderAnalytics(), 0);
+  setTimeout(() => renderWatchlist(), 0);
 }
 
 // ── Ejecuta una acción que requiere auth ─────────────────────
@@ -152,7 +154,10 @@ document.getElementById('tabBar').addEventListener('click', e => {
       if (tab === 'analytics') renderAnalytics();
       else if (tab === 'trades') renderTrades();
       else if (tab === 'gym') renderGym();
+      else if (tab === 'watchlist') refreshWatchlist();
     });
+  } else if (tab === 'watchlist') {
+    refreshWatchlist();
   }
 
   // Carga el benchmark SPY al entrar por primera vez en Analytics (evita fetch innecesario)
@@ -253,6 +258,7 @@ document.addEventListener('click', function (e) {  // En modo lectura no se proc
 // ── Inicialización ───────────────────────────────────────────
 async function init() {
   loadData();
+  initWatchlist();
   document.getElementById('gymDate').value = new Date().toISOString().slice(0, 10);
 
   // Icono del botón de tema al estado actual

@@ -50,10 +50,11 @@ export function loadDataFromObj(obj, merge) {
   D.closedTrades  = _migrateDivs(obj.closedTrades || FALLBACK.closedTrades);
   if (merge) D.history = _mergeHistory(D.history, obj.history || []);
   else        D.history = obj.history || FALLBACK.history || [];
-  D.gym    = obj.gym    || FALLBACK.gym;
-  D.books  = obj.books  || FALLBACK.books;
-  D.movies = obj.movies || FALLBACK.movies;
-  D.series = obj.series || FALLBACK.series;
+  D.gym       = obj.gym       || FALLBACK.gym;
+  D.books     = obj.books     || FALLBACK.books;
+  D.movies    = obj.movies    || FALLBACK.movies;
+  D.series    = obj.series    || FALLBACK.series;
+  D.watchlist = obj.watchlist || FALLBACK.watchlist;
 }
 
 // Serializa D a un objeto plano para guardar/enviar
@@ -67,7 +68,8 @@ export function buildDataObj() {
     gym:          D.gym,
     books:        D.books,
     movies:       D.movies,
-    series:       D.series
+    series:       D.series,
+    watchlist:    D.watchlist
   };
 }
 
