@@ -708,6 +708,9 @@ tr:hover td{background:rgba(255,255,255,.025)}
 body.edit-mode .add-section,body.edit-mode #add-holding-container{display:block !important;animation:fadeIn .3s}
 body.edit-mode #portfolioEditWrap.add-section{display:flex !important;justify-content:flex-end;gap:8px;margin-bottom:16px}
 body.edit-mode .gym-form.add-section{display:flex !important}
+.wl-del-btn{display:none !important}
+body.edit-mode .wl-del-btn{display:inline-flex !important}
+body.edit-mode #wlTable tr[data-wl-idx]{cursor:pointer}
 
 /* ── Color picker ──────────────────────────────── */
 .cp-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px}
