@@ -64,8 +64,6 @@ export function renderWatchlist() {
   }
   if (empty) empty.style.display = 'none';
 
-  const inEditMode = document.body.classList.contains('edit-mode');
-
   tbody.innerHTML = items.map((item, i) => {
     const pd       = _prices[item.ticker];
     const hasPrice = pd && isFinite(pd.price);
@@ -75,7 +73,7 @@ export function renderWatchlist() {
     const color    = _distColor(distPct, hasPrice);
     const displayName = item.name || item.ticker;
 
-    return `<tr data-wl-idx="${i}" style="${hit ? 'background:rgba(34,223,138,.07);' : ''}${inEditMode ? 'cursor:pointer' : 'cursor:default'}">
+    return `<tr data-wl-idx="${i}" style="${hit ? 'background:rgba(34,223,138,.07);' : ''}">
       <td style="font-family:'IBM Plex Mono',monospace;font-weight:600;color:${color}">
         ${displayName}
         ${hit ? '<span style="font-size:9px;background:rgba(34,223,138,.2);color:var(--green);border-radius:4px;padding:1px 5px;margin-left:6px;letter-spacing:.5px">TARGET</span>' : ''}
@@ -92,9 +90,9 @@ export function renderWatchlist() {
         <span style="font-size:10px;color:var(--text-muted)">${item.currency}</span>
       </td>
       <td>
-        ${inEditMode ? `<button class="btn btn-sm wl-del-btn" data-wl-idx="${i}"
+        <button class="btn btn-sm wl-del-btn" data-wl-idx="${i}"
           style="padding:2px 8px;font-size:11px;color:var(--red);border-color:rgba(255,68,102,.3)"
-          title="Remove">✕</button>` : ''}
+          title="Remove">&#x2715;</button>
       </td>
     </tr>`;
   }).join('');

@@ -78,7 +78,7 @@ function _applyEditMode(on) {
   if (adminBtn) adminBtn.innerHTML = on ? '&#x270F;&#xFE0E; Editing' : '&#x270F; Edit';
   // Al desactivar el modo edición se hace un renderAll para limpiar cualquier
   // elemento de UI de edición que quedara visible (tarjetas, atributos, etc.)
-  if (on) { renderPortfolio(); renderWatchlist(); }
+  if (on) renderPortfolio();
   else renderAll();
 }
 
