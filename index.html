@@ -16,13 +16,23 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-<meta name="description" content="Track CMG - Private Investment Portfolio and Asset Management Dashboard.">
+<meta name="description" content="Track CMG — Private investment portfolio &amp; life dashboard. Live prices, closed trades, S&amp;P 500 benchmark, gym log, books, movies and series. Serverless, local-first, yours.">
+<meta name="color-scheme" content="dark light">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Track CMG — Private Portfolio">
+<meta property="og:description" content="Private investment portfolio &amp; life dashboard. Live prices, benchmarks, gym log and media tracking — serverless and local-first.">
+<meta property="og:image" content="icons/icon-512.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Track CMG — Private Portfolio">
+<meta name="twitter:description" content="Private investment portfolio &amp; life dashboard. Serverless, local-first, yours.">
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Sora:wght@300;400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Sora:wght@300;400;500;600;700;800&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Sora:wght@300;400;500;600;700;800&display=swap"></noscript>
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+<a class="skip-link" href="#tabBar">Skip to content</a>
+<noscript><div style="padding:20px;text-align:center;font-family:monospace;color:#ff4466">Track CMG requires JavaScript to render your portfolio.</div></noscript>
 <div class="bg-mesh"></div><div class="scanline"></div>
 <div class="wrap">
 <header>
@@ -30,12 +40,13 @@
 <div class="hdr-r"><div class="live-dot" id="dot"></div><span class="ts" id="ts">Loading...</span>
 <span class="sync-status" id="syncStatus" style="color:var(--text-muted)">Local</span>
 <button class="btn" id="btnTheme" title="Toggle theme" aria-label="Toggle light/dark theme">&#x263D;</button>
-<button class="btn" id="btnRefresh">&#x21bb;</button>
+<button class="btn" id="btnRefresh" title="Refresh prices" aria-label="Refresh prices">&#x21bb;</button>
+<button class="btn" id="btnExport" style="display:none" title="Download JSON backup" aria-label="Download JSON backup">&#x2913;</button>
 <button class="btn" id="btnAdmin" style="display:none" title="Toggle edit mode" aria-label="Toggle edit mode">&#x270F; Edit</button>
 <button class="btn" id="btnLogout" style="display:none" title="Log Out">Log Out</button></div>
 </header>
 <main role="main">
-<div class="tab-bar" id="tabBar">
+<div class="tab-bar" id="tabBar" aria-label="Dashboard sections">
 <button class="tab-btn active" data-tab="portfolio">Portfolio</button>
 <button class="tab-btn" data-tab="watchlist">Watchlist</button>
 <button class="tab-btn" data-tab="trades">Closed Trades</button>
@@ -66,6 +77,7 @@
 </div>
 
 <div class="tab-content" id="tab-gym">
+<div class="sum-grid" id="gymSummary"></div>
 <div class="gym-form add-section" id="gymForm"><div class="fg"><label>Date</label><input type="date" id="gymDate"></div><div class="fg"><label>Weight (kg)</label><input type="number" id="gymWeight" step="0.1" placeholder="78.5"></div><div class="fg"><label>Body Fat (%)</label><input type="number" id="gymBf" step="0.1" placeholder="15.0"></div><button class="btn btn-g" id="btnGymAdd" style="height:38px;align-self:flex-end">Add</button></div>
 <div class="card" style="margin-bottom:20px"><h2>Weight &amp; Body Fat Progress</h2><div class="ch ch-l"><canvas id="cGym"></canvas></div></div>
 <div class="tbl-wrap" id="gymTable"></div>
@@ -77,6 +89,7 @@
 <select id="booksSort"><option value="default">Original order</option><option value="rating-desc">My rating (high)</option><option value="gr-desc">Goodreads (high)</option><option value="pages-desc">Pages (most)</option><option value="pages-asc">Pages (fewest)</option><option value="title">Title A-Z</option></select>
 <select id="booksFilter"><option value="all">All</option><option value="rated">Rated</option><option value="unrated">Not rated</option></select>
 <button class="btn btn-sm btn-g add-section" id="btnAddBook">+ Add</button></div>
+<div class="card taste-card" id="booksInsights" style="display:none"></div>
 <div class="media-grid" id="booksGrid"></div>
 </div>
 
@@ -86,6 +99,7 @@
 <select id="moviesSort"><option value="default">Original order</option><option value="fa-desc">Filmaffinity (high)</option><option value="my-desc">My rating (high)</option><option value="year-desc">Year (newest)</option><option value="year-asc">Year (oldest)</option><option value="dur-desc">Duration (longest)</option><option value="dur-asc">Duration (shortest)</option><option value="title">Title A-Z</option></select>
 <select id="moviesFilter"><option value="all">All</option><option value="rated">Rated</option><option value="unrated">Not rated</option></select>
 <button class="btn btn-sm btn-g add-section" id="btnAddMovie">+ Add</button></div>
+<div class="card taste-card" id="moviesInsights" style="display:none"></div>
 <div class="media-grid" id="moviesGrid"></div>
 </div>
 
@@ -95,6 +109,7 @@
 <select id="seriesSort"><option value="default">Original order</option><option value="rating-desc">My rating (high)</option><option value="imdb-desc">IMDB (high)</option><option value="title">Title A-Z</option></select>
 <select id="seriesFilter"><option value="all">All</option><option value="finished">Finished</option><option value="watching">Want to finish</option><option value="dropped">Dropped</option><option value="notstarted">Not started</option></select>
 <button class="btn btn-sm btn-g add-section" id="btnAddSeries">+ Add</button></div>
+<div class="card taste-card" id="seriesInsights" style="display:none"></div>
 <div class="media-grid" id="seriesGrid"></div>
 
 </div>
@@ -119,7 +134,7 @@
 </div>
 <div class="card">
   <h2>Stocks on Watch</h2>
-  <p id="wlEmpty" style="color:var(--text-muted);text-align:center;padding:30px;display:none">No stocks yet. Add one above.</p>
+  <p id="wlEmpty" class="empty-state" style="display:none">Your watchlist is empty. Add a ticker and a target price above — it will light up green when the market comes to you.</p>
   <div class="tbl-wrap">
     <table id="wlTable">
       <thead><tr>
@@ -156,6 +171,18 @@
     </div>
     <div class="ch ch-l"><canvas id="cBenchmark"></canvas></div>
   </div>
+</div>
+<div class="card" style="margin-bottom:16px">
+  <h2>Risk &amp; Performance</h2>
+  <div class="sum-grid" id="riskGrid" style="margin-bottom:0"></div>
+</div>
+<div class="cg">
+  <div class="card"><h2>Monthly Returns Heatmap</h2><div id="heatmapWrap" class="heatmap-wrap"></div></div>
+  <div class="card"><h2>Drawdown from Peak</h2><div class="ch ch-s"><canvas id="cDrawdown"></canvas></div></div>
+</div>
+<div class="card" style="margin-bottom:16px">
+  <h2>Road to &euro;1M</h2>
+  <div id="milestones"></div>
 </div>
 <div class="card" style="margin-bottom:24px">
   <h2>Compound Interest Calculator</h2>
@@ -196,7 +223,6 @@
       ACCESS RESTRICTED &middot; NO PUBLIC REGISTRATION
     </div>
   </div>
-</div>
 </div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
