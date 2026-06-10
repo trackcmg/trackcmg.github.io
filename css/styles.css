@@ -901,3 +901,204 @@ html.theme-light .gym-form,
 html.theme-light .bench-grp{background:rgba(255,255,255,.6)}
 html.theme-light .modal{background:#fff}
 html.theme-light .tbl-foot td{background:rgba(15,158,94,.06)}
+
+/* ============================================================
+   v2.1 polish pack — additive enhancements only.
+   No existing token or selector behaviour is changed.
+   ============================================================ */
+
+/* ── Typography & global niceties ───────────────────── */
+html{scroll-behavior:smooth}
+body{accent-color:var(--green)}
+::selection{background:rgba(34,223,138,.28);color:#fff}
+html.theme-light ::selection{background:rgba(15,158,94,.22);color:#18183a}
+/* Tabular figures: numbers align in tables, hero and stat cards */
+.hero-val,.sum-val,.s-pr,.s-chg,td,.mv,.calc-result,.m-card-rating{
+  font-variant-numeric:tabular-nums;
+}
+
+/* ── Skip link (a11y) ───────────────────────────────── */
+.skip-link{
+  position:fixed;top:-60px;left:16px;z-index:9999;
+  padding:10px 16px;border-radius:10px;
+  background:var(--green);color:#02060a;
+  font-family:var(--ff-sans);font-size:13px;font-weight:700;
+  text-decoration:none;transition:top .2s ease;
+}
+.skip-link:focus-visible{top:16px}
+
+/* ── Keyboard focus rings ───────────────────────────── */
+.btn:focus-visible,.tab-btn:focus-visible,.bench-btn:focus-visible,
+input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:2px solid var(--green);outline-offset:2px;
+}
+
+/* ── Sticky glass header ────────────────────────────── */
+header{position:sticky;top:10px;z-index:60}
+
+/* ── Hero: slow drifting glow orb ───────────────────── */
+.hero::after{
+  content:'';position:absolute;width:340px;height:340px;
+  left:50%;top:-180px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(34,223,138,.14),transparent 65%);
+  animation:heroDrift 14s ease-in-out infinite alternate;
+}
+@keyframes heroDrift{
+  from{transform:translateX(-90%) }
+  to{transform:translateX(-10%)}
+}
+
+/* ── Micro-interactions ─────────────────────────────── */
+.btn:active{transform:translateY(0) scale(.97)}
+.tab-btn:active{transform:scale(.97)}
+.card{transition:border-color .2s,transform .2s,box-shadow .2s}
+.card:hover{transform:translateY(-1px);box-shadow:0 10px 30px rgba(0,0,0,.3)}
+html.theme-light .card:hover{box-shadow:0 10px 30px rgba(24,24,58,.08)}
+
+/* Table rows: accent edge on hover */
+tbody tr{border-left:2px solid transparent}
+tbody tr:hover{border-left-color:rgba(34,223,138,.45)}
+
+/* Toast: slide in from the right */
+@keyframes toastIn{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+.toast{animation:toastIn .28s cubic-bezier(.4,0,.2,1)}
+
+/* ── Empty states ───────────────────────────────────── */
+.empty-state{
+  color:var(--text-muted);text-align:center;
+  padding:36px 20px;font-size:13px;line-height:1.7;
+  font-family:var(--ff-mono);
+}
+
+/* Fix: brand title was white-gradient (invisible) on light header */
+html.theme-light .brand h1{
+  background:linear-gradient(180deg,#18183a 0%,#4a4a7a 110%);
+  -webkit-background-clip:text;background-clip:text;
+}
+
+/* ── Sum card sub-line (used by insights tiles) ─────── */
+.sum-sub{
+  font-family:var(--ff-mono);font-size:9px;color:var(--text-muted);
+  margin-top:5px;letter-spacing:.6px;text-transform:uppercase;
+}
+
+/* ── Monthly returns heatmap ────────────────────────── */
+.heatmap-wrap{display:flex;flex-direction:column;gap:4px;padding:6px 0}
+.hm-row{display:grid;grid-template-columns:44px repeat(12,1fr);gap:4px;align-items:stretch}
+.hm-head .hm-c{
+  font-family:var(--ff-mono);font-size:9px;color:var(--text-muted);
+  text-align:center;font-weight:700;letter-spacing:.5px;padding:2px 0;
+}
+.hm-y{
+  font-family:var(--ff-mono);font-size:11px;font-weight:700;
+  color:var(--text-dim);display:flex;align-items:center;
+}
+.hm-c{min-height:34px;border-radius:6px}
+.hm-cell{
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--ff-mono);font-size:9px;font-weight:700;
+  color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.45);
+  cursor:default;transition:transform .12s;
+}
+.hm-cell:hover{transform:scale(1.12)}
+.hm-empty{background:rgba(255,255,255,.025);border:1px dashed var(--border)}
+html.theme-light .hm-cell{color:#18183a;text-shadow:none}
+html.theme-light .hm-empty{background:rgba(0,0,0,.03)}
+@media(max-width:760px){
+  .hm-row{grid-template-columns:36px repeat(12,1fr);gap:2px}
+  .hm-c{min-height:26px}
+  .hm-cell{font-size:7px}
+}
+
+/* ── Road to €1M ────────────────────────────────────── */
+.ms-head{
+  display:flex;justify-content:space-between;align-items:baseline;
+  flex-wrap:wrap;gap:8px;margin-bottom:10px;
+}
+.ms-now{font-family:var(--ff-mono);font-size:22px;font-weight:700;letter-spacing:-.5px;color:var(--green)}
+.ms-target{font-family:var(--ff-mono);font-size:12px;color:var(--text-muted)}
+.ms-pct{font-family:var(--ff-mono);font-size:14px;font-weight:700;color:var(--text-dim)}
+.ms-track{
+  height:10px;border-radius:6px;overflow:hidden;
+  background:rgba(255,255,255,.05);
+  border:1px solid var(--border);
+  margin-bottom:18px;
+}
+html.theme-light .ms-track{background:rgba(0,0,0,.05)}
+.ms-fill{
+  height:100%;border-radius:6px;min-width:6px;
+  background:linear-gradient(90deg,#1bc97a,var(--green),var(--cyan));
+  box-shadow:0 0 14px rgba(34,223,138,.5);
+  transition:width .8s cubic-bezier(.4,0,.2,1);
+}
+.ms-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));
+  gap:8px;margin-bottom:12px;
+}
+.ms-item{
+  text-align:center;padding:10px 6px;border-radius:10px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.02);
+}
+.ms-item.ms-done{
+  border-color:rgba(34,223,138,.35);
+  background:rgba(34,223,138,.07);
+}
+.ms-amt{font-family:var(--ff-mono);font-size:14px;font-weight:700;letter-spacing:-.3px}
+.ms-done .ms-amt{color:var(--green)}
+.ms-eta{font-family:var(--ff-mono);font-size:9px;color:var(--text-muted);margin-top:4px;letter-spacing:.5px;text-transform:uppercase}
+.ms-done .ms-eta{color:var(--green)}
+.ms-note{font-family:var(--ff-mono);font-size:10px;color:var(--text-muted);line-height:1.6;margin-top:8px}
+
+/* ── Taste profile (media tabs) ─────────────────────── */
+.tp-wrap{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:22px;align-items:start;
+}
+.tp-sub{
+  font-size:10px;color:var(--text-muted);font-weight:700;
+  text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px;
+}
+.tp-bars{display:flex;align-items:flex-end;gap:4px;height:110px}
+.tp-bar-col{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:flex-end;height:100%;min-width:0;
+}
+.tp-bar{
+  width:100%;border-radius:4px 4px 2px 2px;min-height:2px;
+  opacity:.85;transition:opacity .15s;
+}
+.tp-bar-col:hover .tp-bar{opacity:1}
+.tp-bar-val{font-family:var(--ff-mono);font-size:9px;color:var(--text-dim);margin-bottom:3px;min-height:12px}
+.tp-bar-lbl{font-family:var(--ff-mono);font-size:9px;color:var(--text-muted);margin-top:5px;min-height:12px}
+.tp-top{display:flex;flex-direction:column}
+.tp-top-row{
+  display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+  padding:7px 0;border-bottom:1px dashed rgba(255,255,255,.07);
+  font-size:12px;
+}
+html.theme-light .tp-top-row{border-bottom-color:rgba(0,0,0,.08)}
+.tp-top-row:last-child{border-bottom:none}
+.tp-top-name{font-weight:600;letter-spacing:-.1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tp-top-meta{font-family:var(--ff-mono);font-size:11px;color:var(--text-muted);white-space:nowrap}
+.tp-top-meta b{color:var(--amber)}
+
+/* ── Reduced motion: respect the user ───────────────── */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+  }
+  html{scroll-behavior:auto}
+}
+
+/* ── Print: clean report mode ───────────────────────── */
+@media print{
+  .bg-mesh,.scanline,.tab-bar,.hdr-r,.filter-bar,.add-section,
+  .skip-link,#loginOv{display:none !important}
+  body::before{display:none}
+  html,body{background:#fff;color:#000}
+  .card,.stock,.sum-card,.tbl-wrap{border-color:#ccc;box-shadow:none;background:#fff}
+  header{position:static;background:#fff;box-shadow:none}
+}
