@@ -6,6 +6,7 @@ import { D } from './state.js';
 import { F, ttOpts, legOpts, gradFill, centerTextPlugin, crosshairPlugin } from './utils.js';
 import { fxR, valEur, fetchStock } from './portfolio.js';
 import { PROXY_URL } from './config.js';
+import { renderInsights } from './insights.js';
 
 // Caché de charts para destruir antes de re-render
 const CH = {};
@@ -25,6 +26,7 @@ export function renderAnalytics() {
   _renderSummaryCards();
   _renderSectorChart();
   _renderCurrencyChart();
+  renderInsights();
 }
 
 // ── Tarjetas de resumen ──────────────────────────────────────

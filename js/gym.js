@@ -6,6 +6,7 @@ import { _authed } from './state.js';
 import { F, ttOpts, legOpts, gradFill, crosshairPlugin } from './utils.js';
 import { saveAndSync } from './cloud.js';
 import { toast } from './utils.js';
+import { renderGymInsights } from './insights.js';
 
 let CH = {};
 
@@ -27,6 +28,7 @@ export function addGymEntry() {
 }
 
 export function renderGym() {
+  renderGymInsights();
   const ctx = document.getElementById('cGym').getContext('2d');
   const labels = D.gym.map(g => {
     const d = new Date(g.date);

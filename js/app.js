@@ -44,6 +44,8 @@ function _applyAuthUI(_user) {
   if (lb) lb.style.display = '';
   const adminBtn = document.getElementById('btnAdmin');
   if (adminBtn) adminBtn.style.display = '';
+  const exportBtn = document.getElementById('btnExport');
+  if (exportBtn) exportBtn.style.display = '';
 }
 
 // ── Login overlay helpers ─────────────────────────────────
@@ -123,6 +125,8 @@ function _handleLogout() {
   if (lb) lb.style.display = 'none';
   const adminBtn = document.getElementById('btnAdmin');
   if (adminBtn) adminBtn.style.display = 'none';
+  const exportBtn = document.getElementById('btnExport');
+  if (exportBtn) exportBtn.style.display = 'none';
   _showLoginOverlay();
 }
 

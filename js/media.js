@@ -4,6 +4,7 @@
 import { D } from './state.js';
 import { _authed } from './state.js';
 import { F, ratingColor } from './utils.js';
+import { renderMediaInsights } from './insights.js';
 
 export function _parseDurMin(s) {
   if (!s) return 0;
@@ -17,6 +18,7 @@ export function _parseDurMin(s) {
 
 // ── Books ────────────────────────────────────────────────────
 export function renderBooks() {
+  renderMediaInsights('books');
   const q = (document.getElementById('booksSearch').value || '').toLowerCase();
   const sort = document.getElementById('booksSort').value;
   const filter = document.getElementById('booksFilter').value;
@@ -61,6 +63,7 @@ export function renderBooks() {
 
 // ── Movies ───────────────────────────────────────────────────
 export function renderMovies() {
+  renderMediaInsights('movies');
   const q = (document.getElementById('moviesSearch').value || '').toLowerCase();
   const sort = document.getElementById('moviesSort').value;
   const filt = document.getElementById('moviesFilter').value;
@@ -111,6 +114,7 @@ export function renderMovies() {
 
 // ── Series ───────────────────────────────────────────────────
 export function renderSeries() {
+  renderMediaInsights('series');
   const q = (document.getElementById('seriesSearch').value || '').toLowerCase();
   const sort = document.getElementById('seriesSort').value;
   const filter = document.getElementById('seriesFilter').value;
