@@ -5,6 +5,52 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.1.0] — 2026-06-10 — Insights Pack (nuevas secciones + UI/UX)
+
+### Added
+- **`js/insights.js`** — nuevo módulo de métricas derivadas (solo lectura sobre `D`):
+  - **Risk & Performance** (Analytics): CAGR anualizado, max drawdown,
+    volatilidad anualizada, mejor/peor mes, win rate y profit factor de
+    trades cerrados. Se rellenan progresivamente según crece el historial.
+  - **Monthly Returns Heatmap** (Analytics): grid año × mes con intensidad
+    verde/roja, en CSS puro (sin canvas — inmune al bug de canvas oculto).
+    Misma convención de retorno que la tabla "Monthly Returns".
+  - **Drawdown from Peak** (Analytics): underwater chart del índice compuesto
+    de retornos mensuales; mensaje en canvas si aún no hay 2 meses de datos.
+  - **Road to €1M** (Analytics): barra de progreso al siguiente hito
+    (125k → 1M) con ETA por hito al ritmo actual de crecimiento del valor.
+    Fallback al último snapshot del historial si los precios no han cargado.
+  - **Gym stat cards**: peso actual, Δ 30 días, Δ total, % grasa, Δ grasa
+    y masa magra estimada.
+  - **Taste Profile** (Books/Movies/Series): histograma CSS de notas,
+    top autores/directores/plataformas con media, décadas favoritas y
+    sesgo vs Goodreads.
+  - **Backup**: botón `⤓` en el header (visible con sesión) que descarga
+    todos los datos como JSON (`trackcmg-backup-YYYY-MM-DD.json`).
+- **Social/SEO meta**: Open Graph + Twitter Card, `color-scheme`, descripción más rica.
+- **A11y**: skip link, `:focus-visible` en botones/tabs/inputs, `aria-label`
+  en Refresh y tab bar, `prefers-reduced-motion`, fallback `<noscript>`.
+- **Estilos de impresión**: modo informe limpio.
+- `manifest.json`: campo `categories`.
+- `tabular-nums` en todos los elementos numéricos.
+
+### Changed
+- **Header sticky** con glassmorphism (`position:sticky; top:10px`).
+- **Hero glow**: orbe radial con deriva lenta.
+- Micro-interacciones: `:active` press en botones, lift en `.card`,
+  borde de acento en filas de tabla al hover, toast con slide-in.
+- Empty state del watchlist con copy más útil (clase `.empty-state`).
+- README: badges, tagline y sección "Why it exists".
+- `sw.js`: `CACHE_VERSION` v8 → v10; precache de `insights.js` y
+  `watchlist.js` (este último faltaba en la lista).
+
+### Fixed
+- `</div>` huérfano tras el login overlay en `index.html`.
+- Título "Track CMG" del header ilegible en tema claro (gradiente blanco
+  sobre fondo claro).
+
+---
+
 ## [2.0.0] — 2026-04-XX — Fase 7.3 + Lighthouse Sprint
 
 ### Added

@@ -1,10 +1,25 @@
 # Track CMG — Personal Financial Dashboard
 
+![Vanilla JS](https://img.shields.io/badge/Vanilla_JS-ES6_Modules-f7df1e?logo=javascript&logoColor=black)
+![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL_%2B_RLS-3fcf8e?logo=supabase&logoColor=white)
+![PWA](https://img.shields.io/badge/PWA-installable-5a0fc8)
+![Lighthouse](https://img.shields.io/badge/Lighthouse-100%2F100-22df8a)
+![No build step](https://img.shields.io/badge/build-none-success)
+
+> One private dashboard for everything you compound: money, muscle and media.
+
 A fully serverless personal dashboard for tracking investment portfolios, closed
 trades, dividends, gym workouts, and media (books, movies, series). Built with **Vanilla JS ES6 Modules**, **Supabase** (PostgreSQL + RLS), and **Google Apps Script**
 as a CORS proxy for real-time Yahoo Finance stock prices.
 
 Deployed as a static site on **GitHub Pages**. No build step. No npm. No framework.
+
+## Why it exists
+
+Portfolio trackers want your broker credentials. Habit apps want a subscription.
+Track CMG wants neither: a single static page you own end-to-end, where live
+quotes, realized P&L, an S&P 500 benchmark, your gym progress and the books you
+read this year all live behind one Google sign-in — and keep working offline.
 
 ---
 
@@ -14,10 +29,11 @@ Deployed as a static site on **GitHub Pages**. No build step. No npm. No framewo
 |----------|---------|
 | **Portfolio** | Holdings tracker with live prices (Yahoo Finance via GAS proxy), FX conversion, sector breakdown, dividend yield |
 | **Closed Trades** | Realized P&L, average cost, dividend income per position |
-| **Analytics** | Portfolio vs S&P 500 (SPY) benchmark, sector doughnut, currency exposure bar chart, dividend heatmap |
+| **Analytics** | Portfolio vs S&P 500 (SPY) benchmark, sector doughnut, currency exposure, risk metrics (CAGR, volatility, max drawdown, win rate, profit factor), monthly returns heatmap, underwater drawdown chart, milestone projections (Road to €1M) |
+| **Backup** | One-click JSON export of all data from the header |
 | **Compound Calculator** | Capital + monthly contributions + annual rate → projected value chart |
-| **Gym Log** | Monthly workout calendar with set/rep tracking |
-| **Media** | Read books, watched movies, viewed series — all in one place |
+| **Gym Log** | Weight & body-fat tracking with progress stats (30-day delta, lean mass) |
+| **Media** | Books, movies and series with a Taste Profile: rating histograms, top authors/directors/platforms, favourite decades |
 | **Dark Theme** | Cyberpunk palette; respects `prefers-color-scheme`; manual toggle |
 | **PWA** | Installable; Service Worker with cache-first (assets) + network-first (API) |
 | **Auth** | Supabase Auth (email + password) — full data gate, no render before login |

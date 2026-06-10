@@ -8,6 +8,7 @@
   "theme_color": "#060611",
   "orientation": "portrait",
   "lang": "es",
+  "categories": ["finance", "productivity", "lifestyle"],
   "icons": [
     {
       "src": "icons/icon-192.png",
