@@ -4,7 +4,7 @@
 import { PROXY_URL } from './config.js';
 import { D } from './state.js';
 import { _authed } from './state.js';
-import { F, ttOpts, legOpts, gradFill, centerTextPlugin, crosshairPlugin } from './utils.js';
+import { F, ttOpts, legOpts, gradFill, centerTextPlugin, crosshairPlugin, monthlyTWR } from './utils.js';
 import { saveAndSync } from './cloud.js';
 
 // ── Precio y FX en memoria (persisten en localStorage) ──────
@@ -241,9 +241,27 @@ function rHero() {
   D.holdings.forEach(h => { t += valEur(h); });
   document.getElementById('hVal').innerHTML = `${F(t)} &euro;`;
   const inv = D.totalInvested, tRoi = t - inv, tPct = (tRoi / inv) * 100, tPos = tRoi >= 0;
+
+  // P&L de mercado del último mes: Δvalor − Δaportado sobre el histórico
+  let m1 = null;
+  if (D.history && D.history.length >= 2) {
+    const sorted = [...D.history].sort((a, b) => a.date.localeCompare(b.date));
+    const last = sorted[sorted.length - 1];
+    const cutoff = new Date(last.date + 'T00:00:00Z');
+    cutoff.setUTCDate(cutoff.getUTCDate() - 30);
+    const cutStr = cutoff.toISOString().slice(0, 10);
+    const prev = [...sorted].reverse().find(h => h.date <= cutStr);
+    if (prev && prev.totalValue > 0) {
+      const abs = (last.totalValue - prev.totalValue) - (last.totalInvested - prev.totalInvested);
+      m1 = { abs, pct: abs / prev.totalValue * 100 };
+    }
+  }
+  const m1Html = m1 != null
+    ? `<span style="color:var(--text-muted)"> &middot; </span><span style="color:var(--${m1.abs >= 0 ? 'green' : 'red'})">1M: ${m1.abs >= 0 ? '+' : ''}${F(m1.abs, 0)} &euro; (${m1.abs >= 0 ? '+' : ''}${F(m1.pct, 1)}%)</span>`
+    : '';
   document.getElementById('hRoi').innerHTML = `
     <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text-dim);margin-bottom:6px">Invested: ${F(inv)} &euro;</div>
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;margin-bottom:14px;color:var(--${tPos ? 'green' : 'red'})">ROI: ${tPos ? '+' : ''}${F(tPct)}% | ${tPos ? '+' : ''}${F(tRoi)} &euro;</div>`;
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;margin-bottom:14px"><span style="color:var(--${tPos ? 'green' : 'red'})">ROI: ${tPos ? '+' : ''}${F(tPct)}% | ${tPos ? '+' : ''}${F(tRoi)} &euro;</span>${m1Html}</div>`;
 }
 
 function rStocks() {
@@ -414,7 +432,9 @@ function renderHistoryChart() {
   if (sorted.length <= 90) {
     sampled = sorted;
   } else {
-    const bucket = sorted.length <= 365 ? 7 : 30;
+    // Semanal hasta ~4 años de datos; quincenal a partir de ahí.
+    // El último punto real siempre entra (es el valor de "hoy").
+    const bucket = sorted.length <= 1000 ? 7 : 14;
     sampled = [];
     let i = 0;
     while (i < sorted.length) {
@@ -437,11 +457,10 @@ function renderHistoryChart() {
       datasets: [
         {
           label: 'Invested', data: invested,
-          borderColor: '#22df8a', backgroundColor: gradFill('#22df8a', '38', '00'),
-          fill: true, tension: .4, borderWidth: 2.5,
+          borderColor: '#22df8a', backgroundColor: gradFill('#22df8a', '20', '00'),
+          fill: true, tension: .1, borderWidth: 2, borderDash: [6, 4],
           pointRadius: 0, pointHoverRadius: 6,
-          pointBackgroundColor: '#22df8a', pointBorderColor: '#0d0d1a', pointHoverBorderWidth: 3,
-          hidden: true
+          pointBackgroundColor: '#22df8a', pointBorderColor: '#0d0d1a', pointHoverBorderWidth: 3
         },
         {
           label: 'Portfolio Value', data: values,
@@ -501,6 +520,9 @@ function renderMonthlyTable() {
     if (!months[mk]) months[mk] = { key: mk, entries: [] };
     months[mk].entries.push(h);
   });
+  // Retorno y P&L de mercado (TWR, aportaciones neutralizadas)
+  const twr = {};
+  monthlyTWR(D.history).forEach(m => { twr[m.key] = m; });
   const mList = Object.values(months).sort((a, b) => b.key.localeCompare(a.key));
   _monthlyTotalPages = Math.max(1, Math.ceil(mList.length / _monthlyPerPage));
   if (_monthlyPage > _monthlyTotalPages) _monthlyPage = _monthlyTotalPages;
@@ -513,20 +535,20 @@ function renderMonthlyTable() {
     const prevMonth = fullIdx < mList.length - 1 ? mList[fullIdx + 1] : null;
     const startVal = prevMonth ? prevMonth.entries[prevMonth.entries.length - 1].totalValue : m.entries[0].totalValue;
     const endVal = last.totalValue;
-    const absRet = endVal - startVal, pctRet = startVal > 0 ? (absRet / startVal) * 100 : 0;
+    const t = twr[m.key] || { ret: 0, pnl: 0 };
     const totalRet = last.totalInvested > 0 ? ((endVal - last.totalInvested) / last.totalInvested) * 100 : 0;
-    const pos = absRet >= 0, tPos = totalRet >= 0;
+    const pos = t.pnl >= 0, tPos = totalRet >= 0;
     const [y, mo] = m.key.split('-');
     const mName = new Date(parseInt(y), parseInt(mo) - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
     rows += `<tr>
       <td style="font-weight:600">${mName}</td>
       <td>${F(startVal)} \u20ac</td><td>${F(endVal)} \u20ac</td>
-      <td class="${pos ? 'up' : 'dn'}" style="font-weight:600">${pos ? '+' : ''}${F(absRet)} \u20ac</td>
-      <td class="${pos ? 'up' : 'dn'}" style="font-weight:600">${pos ? '+' : ''}${F(pctRet)}%</td>
+      <td class="${pos ? 'up' : 'dn'}" style="font-weight:600">${pos ? '+' : ''}${F(t.pnl)} \u20ac</td>
+      <td class="${pos ? 'up' : 'dn'}" style="font-weight:600">${pos ? '+' : ''}${F(t.ret)}%</td>
       <td class="${tPos ? 'up' : 'dn'}">${tPos ? '+' : ''}${F(totalRet)}%</td>
     </tr>`;
   });
-  document.getElementById('monthlyTable').innerHTML = `<table><thead><tr><th>Month</th><th>Start Value</th><th>End Value</th><th>Monthly P&L</th><th>Monthly %</th><th>All-Time %</th></tr></thead><tbody>${rows}</tbody></table>`;
+  document.getElementById('monthlyTable').innerHTML = `<table><thead><tr><th>Month</th><th>Start Value</th><th>End Value</th><th title="P&L de mercado del mes, aportaciones excluidas">Market P&L</th><th title="Retorno time-weighted del mes (las aportaciones no cuentan como ganancia)">Monthly %</th><th>All-Time %</th></tr></thead><tbody>${rows}</tbody></table>`;
 
   if (_monthlyTotalPages <= 1) { document.getElementById('monthlyPag').innerHTML = ''; return; }
   let pg = '';

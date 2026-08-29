@@ -42,6 +42,7 @@
 <button class="btn" id="btnTheme" title="Toggle theme" aria-label="Toggle light/dark theme">&#x263D;</button>
 <button class="btn" id="btnRefresh" title="Refresh prices" aria-label="Refresh prices">&#x21bb;</button>
 <button class="btn" id="btnExport" style="display:none" title="Download JSON backup" aria-label="Download JSON backup">&#x2913;</button>
+<button class="btn" id="btnImport" style="display:none" title="Import JSON backup" aria-label="Import JSON backup">&#x2912;</button>
 <button class="btn" id="btnAdmin" style="display:none" title="Toggle edit mode" aria-label="Toggle edit mode">&#x270F; Edit</button></div>
 </header>
 <main role="main">
@@ -158,7 +159,7 @@
 <div class="cg">
   <div class="card" style="grid-column:1/-1">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
-      <h2 style="margin:0">Cumulative Return vs S&amp;P 500 (SPY)</h2>
+      <h2 style="margin:0">Portfolio vs S&amp;P 500 &mdash; money-weighted <span style="font-weight:400;color:var(--text-muted);font-size:11px">(SPY comprado con tus mismas aportaciones)</span></h2>
       <select id="benchmarkPeriod" class="input" style="display:none"><!-- replaced by #benchmarkBtns --></select>
       <div id="benchmarkBtns" class="bench-grp">
         <button class="bench-btn active" data-period="all">ALL</button>

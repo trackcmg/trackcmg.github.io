@@ -13,6 +13,7 @@ import { toast } from './utils.js';
 import { renderAnalytics, renderBenchmark } from './analytics.js';
 import { renderCalculator, syncCalculatorCapital } from './calculator.js';
 import { initWatchlist, renderWatchlist, refreshWatchlist } from './watchlist.js';
+import { openImportModal } from './importer.js';
 
 // ── Render completo de todas las secciones ───────────────────
 // Cada módulo se programa como una tarea independiente (setTimeout 0)
@@ -46,6 +47,8 @@ function _applyAuthUI(_user) {
   if (adminBtn) adminBtn.style.display = '';
   const exportBtn = document.getElementById('btnExport');
   if (exportBtn) exportBtn.style.display = '';
+  const importBtn = document.getElementById('btnImport');
+  if (importBtn) importBtn.style.display = '';
 }
 
 // ── Login overlay helpers ─────────────────────────────────
@@ -127,6 +130,8 @@ function _handleLogout() {
   if (adminBtn) adminBtn.style.display = 'none';
   const exportBtn = document.getElementById('btnExport');
   if (exportBtn) exportBtn.style.display = 'none';
+  const importBtn = document.getElementById('btnImport');
+  if (importBtn) importBtn.style.display = 'none';
   _showLoginOverlay();
 }
 
@@ -205,6 +210,7 @@ document.getElementById('btnTheme')?.addEventListener('click', () => {
 // btnLogout — Sign out
 document.getElementById('btnLogout')?.addEventListener('click', () => signOut());
 document.getElementById('btnRefresh')?.addEventListener('click', () => refreshPortfolio());
+document.getElementById('btnImport')?.addEventListener('click', () => openImportModal());
 document.getElementById('btnAdmin')?.addEventListener('click', () => _applyEditMode(!_editMode));
 document.getElementById('btnAddHolding')?.addEventListener('click', () => doAction('addHolding'));
 document.getElementById('btnAddTrade')?.addEventListener('click', () => doAction('addTrade'));

@@ -14,7 +14,7 @@
 //
 // ============================================================
 
-const CACHE_VERSION = 'v10';
+const CACHE_VERSION = 'v11';
 
 // Nombres de cada caché por tipo
 const CACHE_STATIC = 'dash-static-' + CACHE_VERSION;
@@ -41,6 +41,7 @@ const PRECACHE_URLS = [
   '/js/calculator.js',
   '/js/insights.js',
   '/js/watchlist.js',
+  '/js/importer.js',
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',

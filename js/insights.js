@@ -4,33 +4,17 @@
 //  Solo lectura sobre D — no escribe ni sincroniza nada.
 // ============================================================
 import { D } from './state.js';
-import { F, ttOpts, gradFill, toast } from './utils.js';
+import { F, ttOpts, gradFill, toast, monthlyTWR } from './utils.js';
 import { valEur } from './portfolio.js';
 import { buildDataObj } from './storage.js';
 
 const CH = {};
 
 // ── Serie mensual desde D.history ─────────────────────────────
-// Misma convención que la tabla "Monthly Returns" de portfolio.js:
-// retorno del mes = (último valor del mes − último valor del mes
-// anterior) / último valor del mes anterior.
+// TWR: retornos reales de mercado, con aportaciones neutralizadas
+// (misma convención que la tabla "Monthly Returns" de portfolio.js).
 function _monthlySeries() {
-  if (!D.history || !D.history.length) return [];
-  const sorted = [...D.history].sort((a, b) => a.date.localeCompare(b.date));
-  const months = {};
-  sorted.forEach(h => {
-    const mk = h.date.substring(0, 7);
-    months[mk] = h; // se queda el último del mes (ya ordenado)
-  });
-  const keys = Object.keys(months).sort();
-  const out = [];
-  for (let i = 1; i < keys.length; i++) {
-    const prev = months[keys[i - 1]], cur = months[keys[i]];
-    if (prev.totalValue > 0) {
-      out.push({ key: keys[i], ret: (cur.totalValue - prev.totalValue) / prev.totalValue * 100 });
-    }
-  }
-  return out;
+  return monthlyTWR(D.history);
 }
 
 function _monthName(key) {

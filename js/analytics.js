@@ -165,68 +165,130 @@ function _renderCurrencyChart() {
   });
 }
 
-// ── Benchmark: Portfolio vs SPY ────────────────────────────────
-// null = no intentado / pendiente de retry; {} vacío = fallo estructural ya registrado
-let _spyMap = null;
+// ── Benchmark: Portfolio vs SPY (money-weighted) ───────────────
+// Simula comprar SPY con LAS MISMAS aportaciones en LAS MISMAS
+// fechas que registra D.history, convirtiendo EUR→USD al tipo del
+// día de cada aportación y valorando de vuelta en EUR. Un benchmark
+// que "compra todo el día 1" mentiría: el dinero no estaba.
+// null = no intentado / pendiente de retry; {} vacío = fallo ya registrado
+let _spyMap = null;      // fecha → cierre SPY (USD)
+let _usdMap = null;      // fecha → EURUSD=X (USD por 1 EUR)
 
-// Busca el precio SPY más cercano (±7 días hábiles) a una fecha ISO
-function _nearestSpy(dateStr) {
-  if (!_spyMap || !Object.keys(_spyMap).length) return null;
-  if (_spyMap[dateStr] > 0) return _spyMap[dateStr];
+async function _fetchDailyMap(symbol) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5y&interval=1d`;
+  const res = await fetch(`${PROXY_URL}?url=${encodeURIComponent(url)}`);
+  const raw = await res.text();
+  let json;
+  try { json = JSON.parse(raw); } catch { json = null; }
+  const r0 = json?.chart?.result?.[0];
+  if (!r0) {
+    console.warn(`[bench] chart.result vacío para ${symbol}:`, raw.slice(0, 200));
+    return {};
+  }
+  const ts = r0.timestamp || [];
+  const cls = r0.indicators?.quote?.[0]?.close || [];
+  const map = {};
+  ts.forEach((t, i) => {
+    const p = cls[i];
+    if (p != null && isFinite(p) && p > 0) {
+      const d = new Date(t * 1000);
+      const key = d.getUTCFullYear() + '-'
+        + String(d.getUTCMonth() + 1).padStart(2, '0') + '-'
+        + String(d.getUTCDate()).padStart(2, '0');
+      map[key] = p;
+    }
+  });
+  return map;
+}
+
+// Valor más cercano (±7 días) a una fecha ISO en un mapa fecha→valor
+function _nearestIn(map, dateStr) {
+  if (!map || !Object.keys(map).length) return null;
+  if (map[dateStr] > 0) return map[dateStr];
   const base = new Date(dateStr + 'T00:00:00Z');
   for (let offset = 1; offset <= 7; offset++) {
     for (const sign of [1, -1]) {
       const d = new Date(base);
       d.setUTCDate(base.getUTCDate() + sign * offset);
       const k = d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
-      if (_spyMap[k] > 0) return _spyMap[k];
+      if (map[k] > 0) return map[k];
     }
   }
   return null;
+}
+const _nearestSpy = d => _nearestIn(_spyMap, d);
+// EURUSD: si el fetch falla se usa 1 (benchmark en % USD; mejor eso que nada)
+const _nearestUsd = d => _nearestIn(_usdMap, d) || 1;
+
+// Caché localStorage (20h): sobrevive a los 429 esporádicos de Yahoo/proxy
+function _cacheGet(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const { ts, map } = JSON.parse(raw);
+    return { fresh: Date.now() - ts < 20 * 3600 * 1000, map };
+  } catch (_) { return null; }
+}
+function _cacheSet(key, map) {
+  try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), map })); } catch (_) { /* quota */ }
+}
+
+async function _loadDailyMapCached(symbol, key) {
+  const cached = _cacheGet(key);
+  if (cached && cached.fresh && Object.keys(cached.map).length) return cached.map;
+  const map = await _fetchDailyMap(symbol);
+  if (Object.keys(map).length) { _cacheSet(key, map); return map; }
+  // fetch vacío (429, etc.) → mejor caché rancia que nada
+  return cached && Object.keys(cached.map).length ? cached.map : {};
 }
 
 export async function renderBenchmark() {
   // _spyMap === null → aún no hemos intentado cargarlo (o falló HTTP → reintentar)
   if (_spyMap === null) {
     try {
-      // range=5y es el formato más fiable del endpoint v8 del proxy
-      const url = `https://query1.finance.yahoo.com/v8/finance/chart/SPY?range=5y&interval=1d`;
-      const proxyUrl = `${PROXY_URL}?url=${encodeURIComponent(url)}`;
-      const res = await fetch(proxyUrl);
-      const raw = await res.text();
-      console.log('[SPY] respuesta cruda (300 chars):', raw.slice(0, 300));
-
-      let json;
-      try { json = JSON.parse(raw); } catch { json = null; }
-
-      const r0 = json?.chart?.result?.[0];
-      if (r0) {
-        const timestamps = r0.timestamp || [];
-        const closes = r0.indicators?.quote?.[0]?.close || [];
-        _spyMap = {};
-        timestamps.forEach((ts, i) => {
-          const price = closes[i];
-          if (price != null && isFinite(price) && price > 0) {
-            const d = new Date(ts * 1000);
-            const key = d.getUTCFullYear() + '-'
-              + String(d.getUTCMonth() + 1).padStart(2, '0') + '-'
-              + String(d.getUTCDate()).padStart(2, '0');
-            _spyMap[key] = price;
-          }
-        });
-        const entries = Object.entries(_spyMap);
-        console.log('[SPY] cargado:', entries.length, 'días | primer día:', entries[0]);
-      } else {
-        // Respuesta válida pero sin datos de bolsa — no reintentar
-        console.warn('[SPY] estructura inesperada. chart.result vacío. JSON completo:', JSON.stringify(json));
-        _spyMap = {};   // vacío → no SPY line, no retry
-      }
+      // secuencial, no en paralelo: el proxy GAS + Yahoo devuelven 429 con ráfagas
+      _spyMap = await _loadDailyMapCached('SPY', 'bench_spy_v1');
+      _usdMap = await _loadDailyMapCached('EURUSD=X', 'bench_usd_v1');
+      console.log('[bench] SPY:', Object.keys(_spyMap).length, 'días | EURUSD:', Object.keys(_usdMap).length, 'días');
+      if (!Object.keys(_spyMap).length) _spyMap = null;  // reintento en próxima llamada
     } catch (err) {
-      console.warn('[SPY] fetch falló (proxy/red):', err.message);
+      console.warn('[bench] fetch falló (proxy/red):', err.message);
       _spyMap = null;   // null → reintentará en la próxima llamada
     }
   }
   _drawBenchmark();
+}
+
+// ── Aportaciones desde D.history ──────────────────────────────
+// [{date, amt}] = aportación inicial + cada cambio de totalInvested
+// (positivo = dinero nuevo, negativo = retirada)
+function _contributions(allPortfolio) {
+  const out = [];
+  let prev = null;
+  for (const h of allPortfolio) {
+    if (prev === null) {
+      if (h.totalInvested > 0) out.push({ date: h.date, amt: h.totalInvested });
+    } else if (h.totalInvested !== prev) {
+      out.push({ date: h.date, amt: h.totalInvested - prev });
+    }
+    prev = h.totalInvested;
+  }
+  return out;
+}
+
+// Prefijos de la simulación: tras cada aportación, unidades SPY e invertido acumulados.
+// Compra (o vende, si amt<0) al precio SPY y al EURUSD del día de la aportación.
+function _simPrefixes(contribs) {
+  const pref = [];
+  let units = 0, invested = 0;
+  for (const c of contribs) {
+    const spy = _nearestSpy(c.date);
+    if (!spy) continue;
+    units += (c.amt * _nearestUsd(c.date)) / spy;
+    invested += c.amt;
+    pref.push({ date: c.date, units, invested });
+  }
+  return pref;
 }
 
 function _drawBenchmark() {
@@ -236,15 +298,6 @@ function _drawBenchmark() {
   const period = document.querySelector('#benchmarkBtns .active')?.dataset.period || 'all';
   const now = new Date();
   const todayStr = now.toISOString().slice(0, 10);
-  const MIN_DATE = '2025-01-01';
-
-  // ── viewStart según período (mínimo enero 2025) ──────────────
-  let viewStart = MIN_DATE;
-  if (period === '1y')  { const d = new Date(now); d.setFullYear(d.getFullYear() - 1); viewStart = d.toISOString().slice(0, 10); }
-  else if (period === '6m') { const d = new Date(now); d.setMonth(d.getMonth() - 6); viewStart = d.toISOString().slice(0, 10); }
-  else if (period === '3m') { const d = new Date(now); d.setMonth(d.getMonth() - 3); viewStart = d.toISOString().slice(0, 10); }
-  else if (period === '1m') { const d = new Date(now); d.setMonth(d.getMonth() - 1); viewStart = d.toISOString().slice(0, 10); }
-  if (viewStart < MIN_DATE) viewStart = MIN_DATE;
 
   // ── Datos reales del portfolio ────────────────────────────────
   const allPortfolio = [...(D.history || [])].sort((a, b) => a.date.localeCompare(b.date));
@@ -252,31 +305,34 @@ function _drawBenchmark() {
   const portMap = {};
   for (const h of allPortfolio) portMap[h.date] = h;
 
-  // ── Tasa mensual compuesta (constante) desde ene-2025 al primer dato real ──
-  // Return en primer dato = (valor - invertido) / invertido
-  // (1 + monthlyRate)^meses = 1 + totalReturn  →  monthlyRate = (1+R)^(1/m) - 1
-  let monthlyRate = 0;
-  if (firstEntry && firstEntry.totalInvested > 0) {
-    const totalRet = (firstEntry.totalValue - firstEntry.totalInvested) / firstEntry.totalInvested;
-    const startMs = new Date(MIN_DATE + 'T00:00:00Z').getTime();
-    const firstMs = new Date(firstEntry.date + 'T00:00:00Z').getTime();
-    const months = (firstMs - startMs) / (30.4375 * 24 * 3600 * 1000);
-    if (months > 0) monthlyRate = Math.pow(1 + totalRet, 1 / months) - 1;
+  // ── viewStart según período (nunca antes del primer dato real) ──
+  const MIN_DATE = firstEntry ? firstEntry.date : '2025-01-01';
+  let viewStart = MIN_DATE;
+  if (period === '1y')  { const d = new Date(now); d.setFullYear(d.getFullYear() - 1); viewStart = d.toISOString().slice(0, 10); }
+  else if (period === '6m') { const d = new Date(now); d.setMonth(d.getMonth() - 6); viewStart = d.toISOString().slice(0, 10); }
+  else if (period === '3m') { const d = new Date(now); d.setMonth(d.getMonth() - 3); viewStart = d.toISOString().slice(0, 10); }
+  else if (period === '1m') { const d = new Date(now); d.setMonth(d.getMonth() - 1); viewStart = d.toISOString().slice(0, 10); }
+  if (viewStart < MIN_DATE) viewStart = MIN_DATE;
+
+  // ── Simulación SPY money-weighted ────────────────────────────
+  const contribs = _contributions(allPortfolio);
+  const prefixes = _simPrefixes(contribs);
+
+  // Retorno absoluto del benchmark en una fecha: (valor EUR − invertido) / invertido
+  function _benchAbs(dateStr) {
+    if (!prefixes.length || dateStr < prefixes[0].date) return null;
+    let p = null;
+    for (const x of prefixes) { if (x.date <= dateStr) p = x; else break; }
+    if (!p || p.invested <= 0) return null;
+    const spy = _nearestSpy(dateStr);
+    if (!spy) return null;
+    const valueEur = (p.units * spy) / _nearestUsd(dateStr);
+    return ((valueEur - p.invested) / p.invested) * 100;
   }
 
-  // Retorno acumulado absoluto del portfolio en cualquier fecha (desde ene-2025)
-  // Zona interpolada: rentabilidad compuesta constante desde MIN_DATE
-  // Zona real: (totalValue - totalInvested) / totalInvested  (= ALL-TIME%)
+  // Retorno absoluto real del portfolio: (totalValue − totalInvested) / totalInvested
   function _absReturn(dateStr) {
-    if (!firstEntry) return null;
-    const startMs = new Date(MIN_DATE + 'T00:00:00Z').getTime();
-    const curMs   = new Date(dateStr + 'T00:00:00Z').getTime();
-    const months  = (curMs - startMs) / (30.4375 * 24 * 3600 * 1000);
-
-    if (dateStr < firstEntry.date) {
-      return (Math.pow(1 + monthlyRate, months) - 1) * 100;
-    }
-    // Zona con datos reales: forward-fill, return = (value - invested) / invested
+    if (!firstEntry || dateStr < firstEntry.date) return null;
     let entry = portMap[dateStr];
     if (!entry) {
       const prev = allPortfolio.filter(h => h.date <= dateStr);
@@ -312,36 +368,26 @@ function _drawBenchmark() {
     : { month: 'short', year: '2-digit' };
   const labels = axisDates.map(d => new Date(d + 'T00:00:00Z').toLocaleDateString('es-ES', labelOpts));
 
-  // ── SPY: rebased a 0% en viewStart ───────────────────────────
-  const spyBase0 = _nearestSpy(axisDates[0]);
-  const spyData = spyBase0
-    ? (() => {
-        let lastPct = 0;
-        return axisDates.map((d, i) => {
-          if (i === 0) return 0;
-          const p = _nearestSpy(d);
-          if (p != null && isFinite(p)) lastPct = parseFloat(((p / spyBase0 - 1) * 100).toFixed(2));
-          return lastPct;
-        });
-      })()
-    : axisDates.map(() => null);
-
-  // Portfolio: rebased a 0% en primer punto del eje
+  // ── Ambas series: retorno absoluto rebasado a 0% en el primer punto del eje ──
+  // (misma métrica, mismas aportaciones → comparación honesta)
+  const _rebase = absFn => {
+    const base = absFn(axisDates[0]);
+    if (base == null) return axisDates.map(() => null);
+    return axisDates.map((d, i) => {
+      if (i === 0) return 0;
+      const abs = absFn(d);
+      if (abs == null) return null;
+      return parseFloat((((1 + abs / 100) / (1 + base / 100) - 1) * 100).toFixed(2));
+    });
+  };
+  const spyData = _rebase(_benchAbs);
+  const portData = _rebase(_absReturn);
   const portBase0 = _absReturn(axisDates[0]);
-  const portData = portBase0 != null
-    ? axisDates.map((d, i) => {
-        if (i === 0) return 0;
-        const abs = _absReturn(d);
-        if (abs == null) return null;
-        const rebased = ((1 + abs / 100) / (1 + portBase0 / 100) - 1) * 100;
-        return parseFloat(rebased.toFixed(2));
-      })
-    : axisDates.map(() => null);
 
   const datasets = [];
-  if (spyBase0 && spyData.some(v => v !== null)) {
+  if (spyData.some(v => v !== null)) {
     datasets.push({
-      label: 'S&P 500 (SPY)',
+      label: 'S&P 500 (same contributions)',
       data: spyData,
       borderColor: '#5588ff',
       backgroundColor: gradFill('#5588ff', '28', '00'),

@@ -5,6 +5,42 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.2.0] — 2026-08-29 — Import + histórico real desde 2025 + benchmark honesto
+
+### Added
+- **`js/importer.js`** — import de backups JSON (botón `⤒` junto al export):
+  validación de esquema con errores legibles, resumen de diferencias
+  actual → importado, checkbox de confirmación, **backup automático** del
+  estado previo (descarga + copia en `localStorage['db_data_preimport_backup']`),
+  opción de fusionar histórico, y bloqueo de imports vacíos sobre datos buenos.
+- **Histórico reconstruido desde 2025-01-02** a partir de los informes reales
+  de IBKR, Trading212, Degiro y XTB (aportaciones reales por fecha, precios
+  diarios sin ajustar y FX BCE). Se importa vía el nuevo botón; los puntos
+  desde 2026-03-26 siguen siendo los snapshots en vivo de la app.
+- `buyDate`/`sellDate` reales en todas las posiciones y trades cerrados,
+  trade de Inmocemento (IMC) que faltaba, y dividendos TOT/MPE corregidos
+  con los statements.
+- Hero: chip de P&L de mercado del último mes (Δvalor − Δaportado).
+
+### Changed
+- **Benchmark S&P 500 money-weighted**: la línea SPY ahora simula comprar SPY
+  con las mismas aportaciones en las mismas fechas (EUR→USD al tipo del día),
+  en vez de comprar todo el día 1. Misma métrica en ambas líneas:
+  `(valor − invertido) / invertido`, rebasada por período. Se eliminó la zona
+  interpolada sintética previa al primer dato (ya hay datos reales).
+- Gráfica "Invested vs Portfolio Value": la línea Invested ya no está oculta
+  por defecto (ahora discontinua), y el muestreo pasa a semanal para series
+  largas (antes buckets de 30 días).
+- `sw.js` → `CACHE_VERSION v11` (+ `importer.js` en precache).
+
+### Fixed / Removed
+- **README y docs honestos**: descripciones de un backend Supabase/PostgreSQL
+  que nunca existió, sustituidas por la arquitectura real (Google Sign-In +
+  Apps Script + JSON en Drive). `STORAGE_UPGRADE.md` (propuesta nunca
+  ejecutada) y `data.json` (volcado viejo que ningún código leía) eliminados.
+
+---
+
 ## [2.1.0] — 2026-06-10 — Insights Pack (nuevas secciones + UI/UX)
 
 ### Added

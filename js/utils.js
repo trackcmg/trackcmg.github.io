@@ -16,6 +16,34 @@ export function ratingColor(r, max = 10) {
        : 'var(--red)';
 }
 
+// ── Serie mensual TWR desde history ─────────────────────────
+// Retorno mensual REAL (time-weighted): compone los retornos entre
+// snapshots consecutivos, neutralizando las aportaciones/retiradas
+// (ΔtotalInvested se asume al inicio del tramo). Sin este ajuste,
+// un mes con un depósito gordo parece un "+130%" que nunca existió.
+// Devuelve [{key:'YYYY-MM', ret:%, pnl:€}] (pnl = P&L de mercado del mes).
+export function monthlyTWR(history) {
+  if (!history || history.length < 2) return [];
+  const s = [...history].sort((a, b) => a.date.localeCompare(b.date));
+  const months = {};
+  for (let i = 1; i < s.length; i++) {
+    const prev = s[i - 1], cur = s[i];
+    const flow = (cur.totalInvested || 0) - (prev.totalInvested || 0);
+    const base = (prev.totalValue || 0) + flow;
+    if (base <= 0) continue;
+    const r = (cur.totalValue - prev.totalValue - flow) / base;
+    const mk = cur.date.substring(0, 7);
+    if (!months[mk]) months[mk] = { growth: 1, pnl: 0 };
+    months[mk].growth *= (1 + r);
+    months[mk].pnl += cur.totalValue - prev.totalValue - flow;
+  }
+  return Object.keys(months).sort().map(k => ({
+    key: k,
+    ret: (months[k].growth - 1) * 100,
+    pnl: months[k].pnl
+  }));
+}
+
 // Toast de notificación (auto-elimina a los 3s)
 export function toast(msg, type) {
   const t = document.createElement('div');
