@@ -5,6 +5,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.2.1] — 2026-08-30 — Multi-benchmark + móvil
+
+### Added
+- Benchmark multi-índice: Nasdaq 100 (QQQ), IBEX 35, MSCI EM (EEM), Gold (GLD)
+  y Bitcoin (BTC-USD), todos money-weighted con las mismas aportaciones.
+  Aparecen desactivados (tachados) en la leyenda y se activan al tocarlos;
+  los toggles sobreviven al cambio de período. Se cargan en segundo plano
+  tras SPY, con la misma caché de 20h.
+
+### Changed
+- Móvil (≤640px): la tabla de trades cerrados muestra solo
+  Ticker/Shares/Net/Return — el resto vive en el acordeón de cada fila.
+- Hero: eliminado el chip de P&L del último mes.
+- `sw.js` → `CACHE_VERSION v12`.
+
+---
+
 ## [2.2.0] — 2026-08-29 — Import + histórico real desde 2025 + benchmark honesto
 
 ### Added

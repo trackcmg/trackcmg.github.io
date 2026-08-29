@@ -165,14 +165,25 @@ function _renderCurrencyChart() {
   });
 }
 
-// ── Benchmark: Portfolio vs SPY (money-weighted) ───────────────
-// Simula comprar SPY con LAS MISMAS aportaciones en LAS MISMAS
-// fechas que registra D.history, convirtiendo EUR→USD al tipo del
-// día de cada aportación y valorando de vuelta en EUR. Un benchmark
-// que "compra todo el día 1" mentiría: el dinero no estaba.
+// ── Benchmark: Portfolio vs índices (money-weighted) ───────────
+// Simula comprar cada índice con LAS MISMAS aportaciones en LAS
+// MISMAS fechas que registra D.history, convirtiendo EUR→USD al
+// tipo del día para los denominados en USD. Un benchmark que
+// "compra todo el día 1" mentiría: el dinero no estaba.
+// Solo SPY visible por defecto; el resto sale tachado en la leyenda
+// (hidden) y se activa con un toque.
+const BENCHMARKS = [
+  { sym: 'SPY',     label: 'S&P 500',    color: '#5588ff', usd: true,  hidden: false },
+  { sym: 'QQQ',     label: 'Nasdaq 100', color: '#aa66ff', usd: true,  hidden: true },
+  { sym: '^IBEX',   label: 'IBEX 35',    color: '#ffaa22', usd: false, hidden: true },
+  { sym: 'EEM',     label: 'MSCI EM',    color: '#22dddd', usd: true,  hidden: true },
+  { sym: 'GLD',     label: 'Gold',       color: '#ffdd44', usd: true,  hidden: true },
+  { sym: 'BTC-USD', label: 'Bitcoin',    color: '#ff8844', usd: true,  hidden: true }
+];
 // null = no intentado / pendiente de retry; {} vacío = fallo ya registrado
-let _spyMap = null;      // fecha → cierre SPY (USD)
-let _usdMap = null;      // fecha → EURUSD=X (USD por 1 EUR)
+let _benchMaps = null;         // sym → (fecha → cierre en divisa nativa)
+let _usdMap = null;            // fecha → EURUSD=X (USD por 1 EUR)
+let _benchExtrasLoaded = false;
 
 async function _fetchDailyMap(symbol) {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5y&interval=1d`;
@@ -216,7 +227,6 @@ function _nearestIn(map, dateStr) {
   }
   return null;
 }
-const _nearestSpy = d => _nearestIn(_spyMap, d);
 // EURUSD: si el fetch falla se usa 1 (benchmark en % USD; mejor eso que nada)
 const _nearestUsd = d => _nearestIn(_usdMap, d) || 1;
 
@@ -242,21 +252,35 @@ async function _loadDailyMapCached(symbol, key) {
   return cached && Object.keys(cached.map).length ? cached.map : {};
 }
 
+const _cacheKey = sym => 'bench_' + sym.replace(/[^A-Za-z0-9]/g, '').toLowerCase() + '_v1';
+
 export async function renderBenchmark() {
-  // _spyMap === null → aún no hemos intentado cargarlo (o falló HTTP → reintentar)
-  if (_spyMap === null) {
+  // _benchMaps === null → aún no hemos intentado cargar (o falló HTTP → reintentar)
+  if (_benchMaps === null) {
     try {
       // secuencial, no en paralelo: el proxy GAS + Yahoo devuelven 429 con ráfagas
-      _spyMap = await _loadDailyMapCached('SPY', 'bench_spy_v1');
+      const spy = await _loadDailyMapCached('SPY', _cacheKey('SPY'));
       _usdMap = await _loadDailyMapCached('EURUSD=X', 'bench_usd_v1');
-      console.log('[bench] SPY:', Object.keys(_spyMap).length, 'días | EURUSD:', Object.keys(_usdMap).length, 'días');
-      if (!Object.keys(_spyMap).length) _spyMap = null;  // reintento en próxima llamada
+      console.log('[bench] SPY:', Object.keys(spy).length, 'días | EURUSD:', Object.keys(_usdMap).length, 'días');
+      if (Object.keys(spy).length) _benchMaps = { SPY: spy };
     } catch (err) {
       console.warn('[bench] fetch falló (proxy/red):', err.message);
-      _spyMap = null;   // null → reintentará en la próxima llamada
+      _benchMaps = null;   // null → reintentará en la próxima llamada
     }
   }
   _drawBenchmark();
+  // El resto de índices se carga en segundo plano la primera vez y se re-pinta
+  if (_benchMaps && !_benchExtrasLoaded) {
+    _benchExtrasLoaded = true;
+    (async () => {
+      for (const b of BENCHMARKS) {
+        if (_benchMaps[b.sym]) continue;
+        try { _benchMaps[b.sym] = await _loadDailyMapCached(b.sym, _cacheKey(b.sym)); }
+        catch (_) { _benchMaps[b.sym] = {}; }
+      }
+      _drawBenchmark();
+    })();
+  }
 }
 
 // ── Aportaciones desde D.history ──────────────────────────────
@@ -276,15 +300,15 @@ function _contributions(allPortfolio) {
   return out;
 }
 
-// Prefijos de la simulación: tras cada aportación, unidades SPY e invertido acumulados.
-// Compra (o vende, si amt<0) al precio SPY y al EURUSD del día de la aportación.
-function _simPrefixes(contribs) {
+// Prefijos de la simulación: tras cada aportación, unidades e invertido acumulados.
+// Compra (o vende, si amt<0) al precio del índice y al EURUSD del día si cotiza en USD.
+function _simPrefixesFor(map, usd, contribs) {
   const pref = [];
   let units = 0, invested = 0;
   for (const c of contribs) {
-    const spy = _nearestSpy(c.date);
-    if (!spy) continue;
-    units += (c.amt * _nearestUsd(c.date)) / spy;
+    const px = _nearestIn(map, c.date);
+    if (!px) continue;
+    units += (c.amt * (usd ? _nearestUsd(c.date) : 1)) / px;
     invested += c.amt;
     pref.push({ date: c.date, units, invested });
   }
@@ -314,21 +338,20 @@ function _drawBenchmark() {
   else if (period === '1m') { const d = new Date(now); d.setMonth(d.getMonth() - 1); viewStart = d.toISOString().slice(0, 10); }
   if (viewStart < MIN_DATE) viewStart = MIN_DATE;
 
-  // ── Simulación SPY money-weighted ────────────────────────────
+  // ── Simulación money-weighted por índice ─────────────────────
   const contribs = _contributions(allPortfolio);
-  const prefixes = _simPrefixes(contribs);
 
-  // Retorno absoluto del benchmark en una fecha: (valor EUR − invertido) / invertido
-  function _benchAbs(dateStr) {
+  // Retorno absoluto de un índice simulado: (valor EUR − invertido) / invertido
+  const _benchAbsFor = (map, usd, prefixes) => dateStr => {
     if (!prefixes.length || dateStr < prefixes[0].date) return null;
     let p = null;
     for (const x of prefixes) { if (x.date <= dateStr) p = x; else break; }
     if (!p || p.invested <= 0) return null;
-    const spy = _nearestSpy(dateStr);
-    if (!spy) return null;
-    const valueEur = (p.units * spy) / _nearestUsd(dateStr);
+    const px = _nearestIn(map, dateStr);
+    if (!px) return null;
+    const valueEur = (p.units * px) / (usd ? _nearestUsd(dateStr) : 1);
     return ((valueEur - p.invested) / p.invested) * 100;
-  }
+  };
 
   // Retorno absoluto real del portfolio: (totalValue − totalInvested) / totalInvested
   function _absReturn(dateStr) {
@@ -388,20 +411,30 @@ function _drawBenchmark() {
       return parseFloat((((1 + abs / 100) / (1 + base / 100) - 1) * 100).toFixed(2));
     });
   };
-  const spyData = _series(_benchAbs);
   const portData = _series(_absReturn);
 
+  // Conservar los toggles del usuario en la leyenda entre re-renders
+  const prevHidden = {};
+  if (CH.benchmark) {
+    CH.benchmark.data.datasets.forEach((ds, i) => { prevHidden[ds.label] = !CH.benchmark.isDatasetVisible(i); });
+  }
+
   const datasets = [];
-  if (spyData.some(v => v !== null)) {
+  for (const b of BENCHMARKS) {
+    const map = _benchMaps && _benchMaps[b.sym];
+    if (!map || !Object.keys(map).length) continue;
+    const data = _series(_benchAbsFor(map, b.usd, _simPrefixesFor(map, b.usd, contribs)));
+    if (!data.some(v => v !== null)) continue;
     datasets.push({
-      label: 'S&P 500 (SPY)',
-      data: spyData,
-      borderColor: '#5588ff',
-      backgroundColor: gradFill('#5588ff', '28', '00'),
-      fill: true, tension: .4, pointRadius: 0, pointHoverRadius: 5,
-      pointBackgroundColor: '#5588ff', pointBorderColor: '#0d0d1a', pointHoverBorderWidth: 3,
-      borderWidth: 2,
-      borderDash: [6, 4], spanGaps: true
+      label: b.label,
+      data,
+      borderColor: b.color,
+      backgroundColor: 'transparent',
+      fill: false, tension: .4, pointRadius: 0, pointHoverRadius: 5,
+      pointBackgroundColor: b.color, pointBorderColor: '#0d0d1a', pointHoverBorderWidth: 3,
+      borderWidth: 1.8,
+      borderDash: [6, 4], spanGaps: true,
+      hidden: prevHidden[b.label] != null ? prevHidden[b.label] : b.hidden
     });
   }
   if (portData.some(v => v !== null)) {
@@ -413,7 +446,8 @@ function _drawBenchmark() {
       fill: true, tension: .4,
       pointRadius: 0, pointHoverRadius: 6,
       pointBackgroundColor: '#22df8a', pointBorderColor: '#0d0d1a', pointHoverBorderWidth: 3,
-      borderWidth: 2.5, spanGaps: true
+      borderWidth: 2.5, spanGaps: true,
+      hidden: prevHidden['My Portfolio'] === true
     });
   }
 

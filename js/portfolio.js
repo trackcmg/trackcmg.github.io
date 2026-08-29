@@ -241,27 +241,9 @@ function rHero() {
   D.holdings.forEach(h => { t += valEur(h); });
   document.getElementById('hVal').innerHTML = `${F(t)} &euro;`;
   const inv = D.totalInvested, tRoi = t - inv, tPct = (tRoi / inv) * 100, tPos = tRoi >= 0;
-
-  // P&L de mercado del último mes: Δvalor − Δaportado sobre el histórico
-  let m1 = null;
-  if (D.history && D.history.length >= 2) {
-    const sorted = [...D.history].sort((a, b) => a.date.localeCompare(b.date));
-    const last = sorted[sorted.length - 1];
-    const cutoff = new Date(last.date + 'T00:00:00Z');
-    cutoff.setUTCDate(cutoff.getUTCDate() - 30);
-    const cutStr = cutoff.toISOString().slice(0, 10);
-    const prev = [...sorted].reverse().find(h => h.date <= cutStr);
-    if (prev && prev.totalValue > 0) {
-      const abs = (last.totalValue - prev.totalValue) - (last.totalInvested - prev.totalInvested);
-      m1 = { abs, pct: abs / prev.totalValue * 100 };
-    }
-  }
-  const m1Html = m1 != null
-    ? `<span style="color:var(--text-muted)"> &middot; </span><span style="color:var(--${m1.abs >= 0 ? 'green' : 'red'})">1M: ${m1.abs >= 0 ? '+' : ''}${F(m1.abs, 0)} &euro; (${m1.abs >= 0 ? '+' : ''}${F(m1.pct, 1)}%)</span>`
-    : '';
   document.getElementById('hRoi').innerHTML = `
     <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text-dim);margin-bottom:6px">Invested: ${F(inv)} &euro;</div>
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;margin-bottom:14px"><span style="color:var(--${tPos ? 'green' : 'red'})">ROI: ${tPos ? '+' : ''}${F(tPct)}% | ${tPos ? '+' : ''}${F(tRoi)} &euro;</span>${m1Html}</div>`;
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;margin-bottom:14px;color:var(--${tPos ? 'green' : 'red'})">ROI: ${tPos ? '+' : ''}${F(tPct)}% | ${tPos ? '+' : ''}${F(tRoi)} &euro;</div>`;
 }
 
 function rStocks() {
