@@ -196,18 +196,39 @@ function _renderMilestones(monthly) {
     return;
   }
 
-  // Crecimiento mensual medio del VALOR total (incluye aportaciones):
-  // estimación de ritmo, no de rentabilidad pura.
-  let g = null;
+  // Ritmo honesto: TWR mensual medio de los últimos 12 meses (retorno de
+  // mercado, aportaciones neutralizadas) + aportación media mensual del último
+  // año. Extrapolar el crecimiento bruto del valor desde el día 1 contaba los
+  // depósitos como rentabilidad y daba ETAs de fantasía.
+  let rate = null, contrib = 0;
+  const m12 = monthly.slice(-12).filter(x => isFinite(x.ret));
+  if (m12.length >= 3) {
+    const growth = m12.reduce((a, x) => a * (1 + x.ret / 100), 1);
+    rate = Math.pow(growth, 1 / m12.length) - 1;
+  }
   if (D.history && D.history.length >= 2) {
     const sorted = [...D.history].sort((a, b) => a.date.localeCompare(b.date));
-    const first = sorted[0], last = sorted[sorted.length - 1];
-    const ms = new Date(last.date) - new Date(first.date);
-    const monthsSpan = ms / (30.4375 * 24 * 3600 * 1000);
-    if (monthsSpan > 0.5 && first.totalValue > 0 && last.totalValue > first.totalValue) {
-      g = Math.pow(last.totalValue / first.totalValue, 1 / monthsSpan) - 1;
-    }
+    const last = sorted[sorted.length - 1];
+    const cut = new Date(last.date + 'T00:00:00Z');
+    cut.setUTCFullYear(cut.getUTCFullYear() - 1);
+    const cutStr = cut.toISOString().slice(0, 10);
+    const prev = [...sorted].reverse().find(h => h.date <= cutStr) || sorted[0];
+    const ms = new Date(last.date) - new Date(prev.date);
+    const monthsSpan = Math.max(ms / (30.4375 * 24 * 3600 * 1000), 1);
+    contrib = Math.max(0, ((last.totalInvested || 0) - (prev.totalInvested || 0)) / monthsSpan);
   }
+
+  // ETA: iterar mes a mes V = V·(1+rate) + aportación
+  const etaFor = target => {
+    if (rate == null && !contrib) return '';
+    let v = current, months = 0;
+    const r = rate || 0;
+    while (v < target && months <= 120) { v = v * (1 + r) + contrib; months++; }
+    if (months > 120) return '10y+';
+    const d = new Date();
+    d.setMonth(d.getMonth() + months);
+    return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  };
 
   const next = MILESTONES.find(m => m > current);
   const prevM = [...MILESTONES].reverse().find(m => m <= current) || 0;
@@ -227,22 +248,14 @@ function _renderMilestones(monthly) {
   html += '<div class="ms-grid">';
   MILESTONES.forEach(m => {
     const done = current >= m;
-    let eta = '';
-    if (!done && g) {
-      const months = Math.log(m / current) / Math.log(1 + g);
-      if (months <= 120) {
-        const d = new Date();
-        d.setMonth(d.getMonth() + Math.round(months));
-        eta = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-      } else eta = '10y+';
-    }
+    const eta = done ? '' : etaFor(m);
     html += `<div class="ms-item ${done ? 'ms-done' : ''}">
       <div class="ms-amt">${m >= 1000000 ? '1M' : (m / 1000) + 'k'} €</div>
       <div class="ms-eta">${done ? '✓ reached' : (eta || '—')}</div>
     </div>`;
   });
   html += '</div>';
-  if (g) html += `<div class="ms-note">ETA at current pace (+${F(g * 100, 1)}%/month incl. contributions) — not investment advice, just math.</div>`;
+  if (rate != null) html += `<div class="ms-note">ETA at current pace: ${rate >= 0 ? '+' : ''}${F(rate * 100, 1)}%/mo (12m TWR) + ${F(contrib, 0)} €/mo contributed — not investment advice, just math.</div>`;
   el.innerHTML = html;
 }
 

@@ -370,7 +370,15 @@ function _drawBenchmark() {
 
   // ── Ambas series: retorno absoluto rebasado a 0% en el primer punto del eje ──
   // (misma métrica, mismas aportaciones → comparación honesta)
-  const _rebase = absFn => {
+  // ALL = retorno absoluto sobre lo aportado (cuadra con el ROI del hero y el
+  // All-Time% de la tabla mensual). Períodos cortos = rebase al inicio del eje.
+  const _series = absFn => {
+    if (period === 'all') {
+      return axisDates.map(d => {
+        const abs = absFn(d);
+        return abs == null ? null : parseFloat(abs.toFixed(2));
+      });
+    }
     const base = absFn(axisDates[0]);
     if (base == null) return axisDates.map(() => null);
     return axisDates.map((d, i) => {
@@ -380,14 +388,13 @@ function _drawBenchmark() {
       return parseFloat((((1 + abs / 100) / (1 + base / 100) - 1) * 100).toFixed(2));
     });
   };
-  const spyData = _rebase(_benchAbs);
-  const portData = _rebase(_absReturn);
-  const portBase0 = _absReturn(axisDates[0]);
+  const spyData = _series(_benchAbs);
+  const portData = _series(_absReturn);
 
   const datasets = [];
   if (spyData.some(v => v !== null)) {
     datasets.push({
-      label: 'S&P 500 (same contributions)',
+      label: 'S&P 500 (SPY)',
       data: spyData,
       borderColor: '#5588ff',
       backgroundColor: gradFill('#5588ff', '28', '00'),
@@ -397,7 +404,7 @@ function _drawBenchmark() {
       borderDash: [6, 4], spanGaps: true
     });
   }
-  if (portBase0 != null) {
+  if (portData.some(v => v !== null)) {
     datasets.push({
       label: 'My Portfolio',
       data: portData,

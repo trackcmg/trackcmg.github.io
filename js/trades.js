@@ -46,8 +46,9 @@ export function renderTrades() {
 
   let rows = '';
   // Detectar si algún trade tiene fechas o broker para mostrar columnas extra
-  const hasDate   = D.closedTrades.some(t => t.sellDate);
-  const hasBroker = D.closedTrades.some(t => t.broker);
+  const hasBuyDate = D.closedTrades.some(t => t.buyDate);
+  const hasDate    = D.closedTrades.some(t => t.sellDate);
+  const hasBroker  = D.closedTrades.some(t => t.broker);
   D.closedTrades.forEach((t, idx) => {
     const c = calcTrade(t);
     const pos = c.net >= 0;
@@ -59,6 +60,7 @@ export function renderTrades() {
       <td>${t.totalShares.toLocaleString('de-DE')}</td>
       <td>${F(c.rawBuy)}${curTag}</td>
       <td>${F(c.rawSell)}${curTag}</td>
+      ${hasBuyDate ? `<td style="font-size:11px;color:var(--text-dim)">${t.buyDate || '\u2014'}</td>` : ''}
       ${hasDate   ? `<td style="font-size:11px;color:var(--text-dim)">${t.sellDate || '\u2014'}</td>` : ''}
       ${hasBroker ? `<td style="font-size:11px;color:var(--text-dim)">${t.broker || '\u2014'}</td>` : ''}
       <td>${F(c.inv)} \u20ac</td>
@@ -70,10 +72,10 @@ export function renderTrades() {
   });
 
   document.getElementById('tradesTable').innerHTML = `
-    <table><thead><tr><th>Ticker</th><th>Name</th><th>Shares</th><th>Avg Buy</th><th>Sell</th>${hasDate ? '<th>Sell Date</th>' : ''}${hasBroker ? '<th>Broker</th>' : ''}<th>Invested</th><th>Gross P&L</th><th>Div</th><th>Net</th><th>Return</th></tr></thead>
+    <table><thead><tr><th>Ticker</th><th>Name</th><th>Shares</th><th>Avg Buy</th><th>Sell</th>${hasBuyDate ? '<th>Buy Date</th>' : ''}${hasDate ? '<th>Sell Date</th>' : ''}${hasBroker ? '<th>Broker</th>' : ''}<th>Invested</th><th>Gross P&L</th><th>Div</th><th>Net</th><th>Return</th></tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr class="tbl-foot">
-      <td colspan="${5 + (hasDate?1:0) + (hasBroker?1:0)}" style="font-weight:600">TOTAL</td>
+      <td colspan="${5 + (hasBuyDate?1:0) + (hasDate?1:0) + (hasBroker?1:0)}" style="font-weight:600">TOTAL</td>
       <td>${F(tI)}</td>
       <td class="${tG >= 0 ? 'up' : 'dn'}">${tG >= 0 ? '+' : ''}${F(tG)}</td>
       <td class="up">${tDN > 0 ? '+' + F(tDN) : '\u2014'}</td>
