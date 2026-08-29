@@ -12,13 +12,6 @@ let CH = {};
 
 export function tradeFx(c) { return TRADE_FX[c] || 1; }
 
-// Re-render al cruzar el breakpoint móvil (cambia el set de columnas)
-try {
-  window.matchMedia('(max-width: 640px)').addEventListener('change', () => {
-    try { renderTrades(); } catch (_) { /* D aún sin cargar */ }
-  });
-} catch (_) { /* Safari viejo sin addEventListener en MediaQueryList */ }
-
 export function calcTrade(t) {
   const fx = tradeFx(t.currency);
   const grossPL = t.totalShares * (t.sellPrice - t.avgBuy) * fx;
@@ -52,12 +45,10 @@ export function renderTrades() {
     <div class="sum-card"><div class="sum-lbl">Return %</div><div class="sum-val ${nP ? 'up' : 'dn'}">${tI > 0 ? (nP ? '+' : '') + F((tNet / tI) * 100) + '%' : '\u2014'}</div></div>`;
 
   let rows = '';
-  // En móvil la tabla se queda con lo esencial (Ticker, Shares, Net, Return);
-  // el resto de campos vive en el acordeón que abre cada fila al tocarla.
-  const full = !window.matchMedia('(max-width: 640px)').matches;
-  const hasBuyDate = full && D.closedTrades.some(t => t.buyDate);
-  const hasDate    = full && D.closedTrades.some(t => t.sellDate);
-  const hasBroker  = full && D.closedTrades.some(t => t.broker);
+  // Detectar si algún trade tiene fechas o broker para mostrar columnas extra
+  const hasBuyDate = D.closedTrades.some(t => t.buyDate);
+  const hasDate    = D.closedTrades.some(t => t.sellDate);
+  const hasBroker  = D.closedTrades.some(t => t.broker);
   D.closedTrades.forEach((t, idx) => {
     const c = calcTrade(t);
     const pos = c.net >= 0;
@@ -65,29 +56,29 @@ export function renderTrades() {
     const editAttrs = _authed ? `data-edit-type="trade" data-edit-idx="${idx}"` : '';
     rows += `<tr ${editAttrs} data-trade-idx="${idx}" style="cursor:pointer">
       <td><span style="color:${t.color};font-weight:600">${t.ticker}</span>${curTag}</td>
-      ${full ? `<td style="white-space:normal">${t.name}</td>` : ''}
+      <td style="white-space:normal">${t.name}</td>
       <td>${t.totalShares.toLocaleString('de-DE')}</td>
-      ${full ? `<td>${F(c.rawBuy)}${curTag}</td>
-      <td>${F(c.rawSell)}${curTag}</td>` : ''}
+      <td>${F(c.rawBuy)}${curTag}</td>
+      <td>${F(c.rawSell)}${curTag}</td>
       ${hasBuyDate ? `<td style="font-size:11px;color:var(--text-dim)">${t.buyDate || '\u2014'}</td>` : ''}
       ${hasDate   ? `<td style="font-size:11px;color:var(--text-dim)">${t.sellDate || '\u2014'}</td>` : ''}
       ${hasBroker ? `<td style="font-size:11px;color:var(--text-dim)">${t.broker || '\u2014'}</td>` : ''}
-      ${full ? `<td>${F(c.inv)} \u20ac</td>
+      <td>${F(c.inv)} \u20ac</td>
       <td class="${c.grossPL >= 0 ? 'up' : 'dn'}">${c.grossPL >= 0 ? '+' : ''}${F(c.grossPL)} \u20ac</td>
-      <td class="up">${c.divN > 0 ? '+' + F(c.divN) + ' \u20ac' : '\u2014'}</td>` : ''}
+      <td class="up">${c.divN > 0 ? '+' + F(c.divN) + ' \u20ac' : '\u2014'}</td>
       <td class="${pos ? 'up' : 'dn'}" style="font-weight:600">${pos ? '+' : ''}${F(c.net)} \u20ac</td>
       <td class="${pos ? 'up' : 'dn'}">${pos ? '+' : ''}${F(c.pct)}%</td>
     </tr>`;
   });
 
   document.getElementById('tradesTable').innerHTML = `
-    <table><thead><tr><th>Ticker</th>${full ? '<th>Name</th>' : ''}<th>Shares</th>${full ? '<th>Avg Buy</th><th>Sell</th>' : ''}${hasBuyDate ? '<th>Buy Date</th>' : ''}${hasDate ? '<th>Sell Date</th>' : ''}${hasBroker ? '<th>Broker</th>' : ''}${full ? '<th>Invested</th><th>Gross P&L</th><th>Div</th>' : ''}<th>Net</th><th>Return</th></tr></thead>
+    <table><thead><tr><th>Ticker</th><th>Name</th><th>Shares</th><th>Avg Buy</th><th>Sell</th>${hasBuyDate ? '<th>Buy Date</th>' : ''}${hasDate ? '<th>Sell Date</th>' : ''}${hasBroker ? '<th>Broker</th>' : ''}<th>Invested</th><th>Gross P&L</th><th>Div</th><th>Net</th><th>Return</th></tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr class="tbl-foot">
-      <td colspan="${full ? 5 + (hasBuyDate?1:0) + (hasDate?1:0) + (hasBroker?1:0) : 2}" style="font-weight:600">TOTAL</td>
-      ${full ? `<td>${F(tI)}</td>
+      <td colspan="${5 + (hasBuyDate?1:0) + (hasDate?1:0) + (hasBroker?1:0)}" style="font-weight:600">TOTAL</td>
+      <td>${F(tI)}</td>
       <td class="${tG >= 0 ? 'up' : 'dn'}">${tG >= 0 ? '+' : ''}${F(tG)}</td>
-      <td class="up">${tDN > 0 ? '+' + F(tDN) : '\u2014'}</td>` : ''}
+      <td class="up">${tDN > 0 ? '+' + F(tDN) : '\u2014'}</td>
       <td class="${nP ? 'up' : 'dn'}" style="font-weight:600">${nP ? '+' : ''}${F(tNet)}</td>
       <td class="${nP ? 'up' : 'dn'}">${tI > 0 ? (nP ? '+' : '') + F((tNet / tI) * 100) + '%' : '\u2014'}</td>
     </tr></tfoot></table>`;

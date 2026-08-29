@@ -15,10 +15,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   tras SPY, con la misma caché de 20h.
 
 ### Changed
-- Móvil (≤640px): la tabla de trades cerrados muestra solo
-  Ticker/Shares/Net/Return — el resto vive en el acordeón de cada fila.
+- Móvil (≤600px): los botones de export/import (⤓/⤒) se ocultan del header —
+  el botón Edit ya no se sale. La tabla de trades conserva TODAS las columnas
+  (scroll horizontal, como siempre).
 - Hero: eliminado el chip de P&L del último mes.
-- `sw.js` → `CACHE_VERSION v12`.
+- `sw.js` → `CACHE_VERSION v13`.
 
 ---
 

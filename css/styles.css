@@ -828,6 +828,9 @@ input[type=color]{
 @media(max-width:600px){
   header{gap:8px}
   .hdr-r{gap:6px}
+  /* En móvil sobran export/import (⤓/⤒): sin ellos el botón Edit cabe.
+     !important para ganar al display inline que gestiona app.js con la sesión. */
+  #btnExport,#btnImport{display:none !important}
   #btnAdmin,#btnLogout{padding:6px 10px;font-size:11px}
   .brand h1{font-size:16px}
   .brand small{display:none}
