@@ -407,14 +407,38 @@ function rBar() {
 // ── Historial y tabla mensual ────────────────────────────────
 export function renderHistory() { renderHistoryChart(); renderMonthlyTable(); }
 
+// Selector de período de la gráfica de histórico
+document.getElementById('historyBtns')?.addEventListener('click', e => {
+  const btn = e.target.closest('.bench-btn');
+  if (!btn) return;
+  document.querySelectorAll('#historyBtns .bench-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderHistoryChart();
+});
+
 function renderHistoryChart() {
   if (!D.history || !D.history.length) return;
-  const sorted = [...D.history].sort((a, b) => a.date.localeCompare(b.date));
+  let sorted = [...D.history].sort((a, b) => a.date.localeCompare(b.date));
+
+  // Período seleccionado (mismos botones que el benchmark)
+  const period = document.querySelector('#historyBtns .active')?.dataset.period || 'all';
+  if (period !== 'all') {
+    const d = new Date();
+    if (period === '1y') d.setFullYear(d.getFullYear() - 1);
+    else if (period === '6m') d.setMonth(d.getMonth() - 6);
+    else if (period === '3m') d.setMonth(d.getMonth() - 3);
+    else d.setMonth(d.getMonth() - 1);
+    const cut = d.toISOString().slice(0, 10);
+    const filtered = sorted.filter(h => h.date >= cut);
+    if (filtered.length >= 2) sorted = filtered;
+  }
+
   let sampled;
-  if (sorted.length <= 90) {
+  if (period !== 'all' || sorted.length <= 90) {
+    // Períodos acotados: todos los puntos diarios (máx ~260 en 1Y, Chart.js lo lleva bien)
     sampled = sorted;
   } else {
-    // Semanal hasta ~4 años de datos; quincenal a partir de ahí.
+    // ALL: semanal hasta ~4 años de datos; quincenal a partir de ahí.
     // El último punto real siempre entra (es el valor de "hoy").
     const bucket = sorted.length <= 1000 ? 7 : 14;
     sampled = [];

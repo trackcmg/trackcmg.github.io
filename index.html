@@ -63,7 +63,18 @@
 <div class="sg" id="sGrid"></div>
 <div class="cg"><div class="card"><h2>Allocation</h2><div class="ch ch-s"><canvas id="cD"></canvas></div></div><div class="card"><h2>Value Breakdown (EUR)</h2><div class="ch ch-s"><canvas id="cB"></canvas></div></div></div>
 <!-- NEW: Historical chart + Monthly returns -->
-<div class="cg"><div class="card" style="grid-column:1/-1"><h2>Invested vs Portfolio Value</h2><div class="ch ch-l"><canvas id="cHistory"></canvas></div></div></div>
+<div class="cg"><div class="card" style="grid-column:1/-1">
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+  <h2 style="margin:0">Invested vs Portfolio Value</h2>
+  <div id="historyBtns" class="bench-grp">
+    <button class="bench-btn active" data-period="all">ALL</button>
+    <button class="bench-btn" data-period="1y">1Y</button>
+    <button class="bench-btn" data-period="6m">6M</button>
+    <button class="bench-btn" data-period="3m">3M</button>
+    <button class="bench-btn" data-period="1m">1M</button>
+  </div>
+</div>
+<div class="ch ch-l"><canvas id="cHistory"></canvas></div></div></div>
 <div class="card" style="margin-bottom:24px"><h2>Monthly Returns</h2>
 <div class="tbl-wrap" id="monthlyTable"></div>
 <div id="monthlyPag" style="display:flex;justify-content:center;gap:8px;margin-top:12px"></div></div>
