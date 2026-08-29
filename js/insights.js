@@ -255,7 +255,7 @@ function _renderMilestones(monthly) {
     </div>`;
   });
   html += '</div>';
-  if (rate != null) html += `<div class="ms-note">ETA at current pace: ${rate >= 0 ? '+' : ''}${F(rate * 100, 1)}%/mo (12m TWR) + ${F(contrib, 0)} €/mo contributed — not investment advice, just math.</div>`;
+  if (rate != null) html += `<div class="ms-note">ETA at current pace: ${rate >= 0 ? '+' : ''}${F(rate * 100, 1)}%/mo (12m TWR) + ${F(contrib, 0)} €/mo contributed</div>`;
   el.innerHTML = html;
 }
 
