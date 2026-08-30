@@ -14,7 +14,7 @@
 //
 // ============================================================
 
-const CACHE_VERSION = 'v19';
+const CACHE_VERSION = 'v20';
 
 // Nombres de cada caché por tipo
 const CACHE_STATIC = 'dash-static-' + CACHE_VERSION;

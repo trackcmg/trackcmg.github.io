@@ -353,6 +353,9 @@ header{
   margin-bottom:16px;
   min-height:300px;
 }
+/* Filas sin canvas (heatmap): la altura la manda el contenido, así el bloque
+   crece solo al añadirse años y no deja hueco vacío con pocos. */
+.cg-auto{min-height:0}
 .card{
   position:relative;
   background:

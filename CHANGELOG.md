@@ -15,6 +15,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   heatmap de retornos mensuales pasa a ancho completo.
 
 ### Changed
+- El bloque del **heatmap** ajusta su alto al contenido (clase `.cg-auto`):
+  con dos años ocupaba 300px reservados para gráficos y sobraban ~130px.
+  Ahora crece ~30px por cada año nuevo, en escritorio y móvil.
 - **Monthly %** (tabla y heatmap) pasa a ser lo intuitivo: P&L de mercado del
   mes ÷ valor al empezarlo. Antes encadenaba los retornos intramensuales
   (time-weighted), que en meses con aportaciones grandes a mitad de mes daba
@@ -30,7 +33,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 - Título del benchmark: "Portfolio vs Benchmarks".
-- `sw.js` → `CACHE_VERSION v19`.
+- `sw.js` → `CACHE_VERSION v20`.
 
 ---
 
