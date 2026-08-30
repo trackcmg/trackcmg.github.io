@@ -16,13 +16,16 @@ export function ratingColor(r, max = 10) {
        : 'var(--red)';
 }
 
-// ── Serie mensual TWR desde history ─────────────────────────
-// Retorno mensual REAL (time-weighted): compone los retornos entre
-// snapshots consecutivos, neutralizando las aportaciones/retiradas
-// (ΔtotalInvested se asume al inicio del tramo). Sin este ajuste,
-// un mes con un depósito gordo parece un "+130%" que nunca existió.
-// Devuelve [{key:'YYYY-MM', ret:%, pnl:€}] (pnl = P&L de mercado del mes).
-export function monthlyTWR(history) {
+// ── Serie mensual desde history ─────────────────────────────
+// Para cada mes devuelve:
+//   pnl   — P&L de mercado del mes (Δvalor − aportaciones), en €
+//   start — valor de la cartera al empezar el mes
+//   ret   — pnl / start, en %  ← el retorno "de andar por casa": lo que gané
+//           este mes sobre lo que tenía al empezarlo. Es el que se enseña.
+//   twr   — retornos encadenados dentro del mes (time-weighted). Solo se usa
+//           para CAGR y volatilidad, donde componer bien sí importa.
+// En ambos casos las aportaciones se excluyen: ingresar dinero no es ganarlo.
+export function monthlyReturns(history) {
   if (!history || history.length < 2) return [];
   const s = [...history].sort((a, b) => a.date.localeCompare(b.date));
   const months = {};
@@ -33,15 +36,20 @@ export function monthlyTWR(history) {
     if (base <= 0) continue;
     const r = (cur.totalValue - prev.totalValue - flow) / base;
     const mk = cur.date.substring(0, 7);
-    if (!months[mk]) months[mk] = { growth: 1, pnl: 0 };
+    if (!months[mk]) months[mk] = { growth: 1, pnl: 0, start: prev.totalValue || 0 };
     months[mk].growth *= (1 + r);
     months[mk].pnl += cur.totalValue - prev.totalValue - flow;
   }
-  return Object.keys(months).sort().map(k => ({
-    key: k,
-    ret: (months[k].growth - 1) * 100,
-    pnl: months[k].pnl
-  }));
+  return Object.keys(months).sort().map(k => {
+    const m = months[k];
+    return {
+      key: k,
+      pnl: m.pnl,
+      start: m.start,
+      ret: m.start > 0 ? (m.pnl / m.start) * 100 : 0,
+      twr: (m.growth - 1) * 100
+    };
+  });
 }
 
 // Toast de notificación (auto-elimina a los 3s)

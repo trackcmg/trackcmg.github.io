@@ -14,6 +14,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   media fila. La métrica **Max Drawdown** sigue en Risk & Performance; el
   heatmap de retornos mensuales pasa a ancho completo.
 
+### Changed
+- **Monthly %** (tabla y heatmap) pasa a ser lo intuitivo: P&L de mercado del
+  mes ÷ valor al empezarlo. Antes encadenaba los retornos intramensuales
+  (time-weighted), que en meses con aportaciones grandes a mitad de mes daba
+  cifras contraintuitivas (abril 2025: +986 € y aun así −2,77%). CAGR y
+  volatilidad siguen usando la versión encadenada, que es la correcta para
+  componer. `utils.monthlyTWR` → `utils.monthlyReturns` (devuelve ambas).
+
 ### Fixed
 - Monthly Returns: el signo de la columna **Monthly %** lo marcaba el P&L en
   euros, no el propio porcentaje — con aportaciones grandes a mitad de mes
@@ -22,7 +30,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 - Título del benchmark: "Portfolio vs Benchmarks".
-- `sw.js` → `CACHE_VERSION v18`.
+- `sw.js` → `CACHE_VERSION v19`.
 
 ---
 

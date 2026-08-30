@@ -4,15 +4,15 @@
 //  Solo lectura sobre D — no escribe ni sincroniza nada.
 // ============================================================
 import { D } from './state.js';
-import { F, toast, monthlyTWR } from './utils.js';
+import { F, toast, monthlyReturns } from './utils.js';
 import { valEur } from './portfolio.js';
 import { buildDataObj } from './storage.js';
 
 // ── Serie mensual desde D.history ─────────────────────────────
-// TWR: retornos reales de mercado, con aportaciones neutralizadas
-// (misma convención que la tabla "Monthly Returns" de portfolio.js).
+// Misma convención que la tabla "Monthly Returns" de portfolio.js:
+// m.ret = P&L del mes / valor al empezarlo. m.twr queda para CAGR y volatilidad.
 function _monthlySeries() {
-  return monthlyTWR(D.history);
+  return monthlyReturns(D.history);
 }
 
 function _monthName(key) {
@@ -36,7 +36,7 @@ function _renderRiskGrid(monthly) {
 
   let cagr = null, vol = null, best = null, worst = null;
   if (monthly.length >= 2) {
-    const rets = monthly.map(m => m.ret / 100);
+    const rets = monthly.map(m => m.twr / 100);   // encadenado: es lo que toca componer
     const idx = rets.reduce((acc, r) => acc * (1 + r), 1);
     cagr = (Math.pow(idx, 12 / rets.length) - 1) * 100;
     const mean = rets.reduce((a, b) => a + b, 0) / rets.length;

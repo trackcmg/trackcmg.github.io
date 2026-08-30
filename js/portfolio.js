@@ -4,7 +4,7 @@
 import { PROXY_URL } from './config.js';
 import { D } from './state.js';
 import { _authed } from './state.js';
-import { F, ttOpts, legOpts, gradFill, centerTextPlugin, crosshairPlugin, monthlyTWR } from './utils.js';
+import { F, ttOpts, legOpts, gradFill, centerTextPlugin, crosshairPlugin, monthlyReturns } from './utils.js';
 import { saveAndSync } from './cloud.js';
 
 // ── Precio y FX en memoria (persisten en localStorage) ──────
@@ -526,9 +526,9 @@ function renderMonthlyTable() {
     if (!months[mk]) months[mk] = { key: mk, entries: [] };
     months[mk].entries.push(h);
   });
-  // Retorno y P&L de mercado (TWR, aportaciones neutralizadas)
+  // P&L de mercado del mes y retorno sobre el valor inicial
   const twr = {};
-  monthlyTWR(D.history).forEach(m => { twr[m.key] = m; });
+  monthlyReturns(D.history).forEach(m => { twr[m.key] = m; });
   const mList = Object.values(months).sort((a, b) => b.key.localeCompare(a.key));
   _monthlyTotalPages = Math.max(1, Math.ceil(mList.length / _monthlyPerPage));
   if (_monthlyPage > _monthlyTotalPages) _monthlyPage = _monthlyTotalPages;
@@ -554,7 +554,7 @@ function renderMonthlyTable() {
       <td class="${tPos ? 'up' : 'dn'}">${tPos ? '+' : ''}${F(totalRet)}%</td>
     </tr>`;
   });
-  document.getElementById('monthlyTable').innerHTML = `<table><thead><tr><th>Month</th><th>Start Value</th><th>End Value</th><th title="P&L de mercado del mes, aportaciones excluidas">Market P&L</th><th title="Retorno time-weighted del mes (las aportaciones no cuentan como ganancia)">Monthly %</th><th>All-Time %</th></tr></thead><tbody>${rows}</tbody></table>`;
+  document.getElementById('monthlyTable').innerHTML = `<table><thead><tr><th>Month</th><th>Start Value</th><th>End Value</th><th title="P&L de mercado del mes, aportaciones excluidas">Market P&L</th><th title="P&L de mercado del mes sobre el valor al empezarlo (las aportaciones no cuentan como ganancia)">Monthly %</th><th>All-Time %</th></tr></thead><tbody>${rows}</tbody></table>`;
 
   if (_monthlyTotalPages <= 1) { document.getElementById('monthlyPag').innerHTML = ''; return; }
   let pg = '';
