@@ -543,14 +543,14 @@ function renderMonthlyTable() {
     const endVal = last.totalValue;
     const t = twr[m.key] || { ret: 0, pnl: 0 };
     const totalRet = last.totalInvested > 0 ? ((endVal - last.totalInvested) / last.totalInvested) * 100 : 0;
-    const pos = t.pnl >= 0, tPos = totalRet >= 0;
+    const pos = t.pnl >= 0, rPos = t.ret >= 0, tPos = totalRet >= 0;
     const [y, mo] = m.key.split('-');
     const mName = new Date(parseInt(y), parseInt(mo) - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
     rows += `<tr>
       <td style="font-weight:600">${mName}</td>
       <td>${F(startVal)} \u20ac</td><td>${F(endVal)} \u20ac</td>
       <td class="${pos ? 'up' : 'dn'}" style="font-weight:600">${pos ? '+' : ''}${F(t.pnl)} \u20ac</td>
-      <td class="${pos ? 'up' : 'dn'}" style="font-weight:600">${pos ? '+' : ''}${F(t.ret)}%</td>
+      <td class="${rPos ? 'up' : 'dn'}" style="font-weight:600">${rPos ? '+' : ''}${F(t.ret)}%</td>
       <td class="${tPos ? 'up' : 'dn'}">${tPos ? '+' : ''}${F(totalRet)}%</td>
     </tr>`;
   });

@@ -49,8 +49,8 @@ function _renderRiskGrid(monthly) {
   const tiles = [
     { lbl: 'CAGR (annualized)', val: cagr != null ? (cagr >= 0 ? '+' : '') + F(cagr, 1) + '%' : '—', cls: cagr >= 0 ? 'up' : 'dn' },
     { lbl: 'Volatility (ann.)', val: vol != null ? F(vol, 1) + '%' : '—', cls: '' },
-    { lbl: 'Best Month', val: best ? '+' + F(best.ret, 1) + '%' : '—', sub: best ? _monthName(best.key) : '', cls: 'up' },
-    { lbl: 'Worst Month', val: worst ? F(worst.ret, 1) + '%' : '—', sub: worst ? _monthName(worst.key) : '', cls: worst && worst.ret < 0 ? 'dn' : 'up' }
+    { lbl: 'Best Month', val: best ? (best.ret >= 0 ? '+' : '') + F(best.ret, 1) + '%' : '—', sub: best ? _monthName(best.key) : '', cls: 'up' },
+    { lbl: 'Worst Month', val: worst ? (worst.ret >= 0 ? '+' : '') + F(worst.ret, 1) + '%' : '—', sub: worst ? _monthName(worst.key) : '', cls: worst && worst.ret < 0 ? 'dn' : 'up' }
   ];
   el.innerHTML = tiles.map(t => `<div class="sum-card">
     <div class="sum-lbl">${t.lbl}</div>

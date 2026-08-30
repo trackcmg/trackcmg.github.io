@@ -14,9 +14,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   media fila. La métrica **Max Drawdown** sigue en Risk & Performance; el
   heatmap de retornos mensuales pasa a ancho completo.
 
+### Fixed
+- Monthly Returns: el signo de la columna **Monthly %** lo marcaba el P&L en
+  euros, no el propio porcentaje — con aportaciones grandes a mitad de mes
+  ambos pueden discrepar y salía `+-2,77%`. Cada columna usa ya su valor.
+  Mismo patrón latente corregido en las tarjetas Best/Worst Month.
+
 ### Changed
 - Título del benchmark: "Portfolio vs Benchmarks".
-- `sw.js` → `CACHE_VERSION v17`.
+- `sw.js` → `CACHE_VERSION v18`.
 
 ---
 
