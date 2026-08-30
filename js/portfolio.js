@@ -450,7 +450,11 @@ function renderHistoryChart() {
       i += bucket;
     }
   }
-  const fmt = sampled.length <= 90 ? { day: 'numeric', month: 'short' } : { month: 'short', year: '2-digit' };
+  // Eje X: en vistas largas manda mes+año ("ene 25") — con solo día+mes no se
+  // sabía de qué año era cada punto. En 3M/1M el día sí aporta.
+  const fmt = (period === '3m' || period === '1m')
+    ? { day: 'numeric', month: 'short' }
+    : { month: 'short', year: '2-digit' };
   const labels = sampled.map(h => new Date(h.date).toLocaleDateString('es-ES', fmt));
   const invested = sampled.map(h => h.totalInvested);
   const values = sampled.map(h => h.totalValue);

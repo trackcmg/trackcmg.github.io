@@ -15,6 +15,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   heatmap de retornos mensuales pasa a ancho completo.
 
 ### Changed
+- Eje X de *Invested vs Portfolio Value*: mes+año ("ene 25") en ALL/1Y/6M —
+  antes ponía día+mes y no se distinguía 2025 de 2026. En 3M/1M sigue el día.
 - El bloque del **heatmap** ajusta su alto al contenido (clase `.cg-auto`):
   con dos años ocupaba 300px reservados para gráficos y sobraban ~130px.
   Ahora crece ~30px por cada año nuevo, en escritorio y móvil.
@@ -33,7 +35,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 - Título del benchmark: "Portfolio vs Benchmarks".
-- `sw.js` → `CACHE_VERSION v20`.
+- `sw.js` → `CACHE_VERSION v21`.
 
 ---
 
