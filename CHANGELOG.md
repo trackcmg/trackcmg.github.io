@@ -8,12 +8,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [2.2.2] — 2026-08-30 — Limpieza de Analytics
 
 ### Removed
+- Tarjetas **Max Drawdown**, **Trade Win Rate** y **Profit Factor** de Risk &
+  Performance (quedan CAGR, volatilidad y mejor/peor mes).
 - Gráfico **Drawdown from Peak**: aportaba poco con datos mensuales y ocupaba
   media fila. La métrica **Max Drawdown** sigue en Risk & Performance; el
   heatmap de retornos mensuales pasa a ancho completo.
 
 ### Changed
-- `sw.js` → `CACHE_VERSION v16`.
+- Título del benchmark: "Portfolio vs Benchmarks".
+- `sw.js` → `CACHE_VERSION v17`.
 
 ---
 

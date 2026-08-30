@@ -34,7 +34,7 @@ function _renderRiskGrid(monthly) {
   const el = document.getElementById('riskGrid');
   if (!el) return;
 
-  let cagr = null, vol = null, maxDD = null, best = null, worst = null;
+  let cagr = null, vol = null, best = null, worst = null;
   if (monthly.length >= 2) {
     const rets = monthly.map(m => m.ret / 100);
     const idx = rets.reduce((acc, r) => acc * (1 + r), 1);
@@ -42,32 +42,15 @@ function _renderRiskGrid(monthly) {
     const mean = rets.reduce((a, b) => a + b, 0) / rets.length;
     const variance = rets.reduce((a, r) => a + (r - mean) ** 2, 0) / (rets.length - 1);
     vol = Math.sqrt(variance) * Math.sqrt(12) * 100;
-    // Max drawdown sobre el índice compuesto
-    let level = 1, peak = 1, dd = 0;
-    rets.forEach(r => { level *= (1 + r); peak = Math.max(peak, level); dd = Math.min(dd, level / peak - 1); });
-    maxDD = dd * 100;
     best = monthly.reduce((a, b) => (b.ret > a.ret ? b : a));
     worst = monthly.reduce((a, b) => (b.ret < a.ret ? b : a));
   }
 
-  // Win rate y profit factor de trades cerrados (en divisa original;
-  // el signo no depende del FX)
-  const pnls = (D.closedTrades || []).map(t =>
-    t.realizedPnl != null ? t.realizedPnl : (t.sellPrice - t.avgBuy) * t.totalShares);
-  const wins = pnls.filter(p => p > 0), losses = pnls.filter(p => p < 0);
-  const winRate = pnls.length ? wins.length / pnls.length * 100 : null;
-  const grossW = wins.reduce((a, b) => a + b, 0);
-  const grossL = Math.abs(losses.reduce((a, b) => a + b, 0));
-  const pf = pnls.length ? (grossL > 0 ? grossW / grossL : Infinity) : null;
-
   const tiles = [
     { lbl: 'CAGR (annualized)', val: cagr != null ? (cagr >= 0 ? '+' : '') + F(cagr, 1) + '%' : '—', cls: cagr >= 0 ? 'up' : 'dn' },
-    { lbl: 'Max Drawdown', val: maxDD != null ? F(maxDD, 1) + '%' : '—', cls: 'dn' },
     { lbl: 'Volatility (ann.)', val: vol != null ? F(vol, 1) + '%' : '—', cls: '' },
     { lbl: 'Best Month', val: best ? '+' + F(best.ret, 1) + '%' : '—', sub: best ? _monthName(best.key) : '', cls: 'up' },
-    { lbl: 'Worst Month', val: worst ? F(worst.ret, 1) + '%' : '—', sub: worst ? _monthName(worst.key) : '', cls: worst && worst.ret < 0 ? 'dn' : 'up' },
-    { lbl: 'Trade Win Rate', val: winRate != null ? F(winRate, 0) + '%' : '—', sub: pnls.length ? wins.length + 'W / ' + losses.length + 'L' : '', cls: winRate >= 50 ? 'up' : 'dn' },
-    { lbl: 'Profit Factor', val: pf != null ? (pf === Infinity ? '∞' : F(pf, 2)) : '—', cls: pf >= 1 ? 'up' : 'dn' }
+    { lbl: 'Worst Month', val: worst ? F(worst.ret, 1) + '%' : '—', sub: worst ? _monthName(worst.key) : '', cls: worst && worst.ret < 0 ? 'dn' : 'up' }
   ];
   el.innerHTML = tiles.map(t => `<div class="sum-card">
     <div class="sum-lbl">${t.lbl}</div>
