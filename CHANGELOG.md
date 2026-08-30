@@ -5,6 +5,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.2.2] — 2026-08-30 — Limpieza de Analytics
+
+### Removed
+- Gráfico **Drawdown from Peak**: aportaba poco con datos mensuales y ocupaba
+  media fila. La métrica **Max Drawdown** sigue en Risk & Performance; el
+  heatmap de retornos mensuales pasa a ancho completo.
+
+### Changed
+- `sw.js` → `CACHE_VERSION v16`.
+
+---
+
 ## [2.2.1] — 2026-08-30 — Multi-benchmark + móvil
 
 ### Added

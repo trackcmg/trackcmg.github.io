@@ -1,14 +1,12 @@
 // ============================================================
-//  insights.js — Métricas derivadas: riesgo, heatmap, drawdown,
+//  insights.js — Métricas derivadas: riesgo, heatmap,
 //  milestones, stats de gym y perfil de gustos (media).
 //  Solo lectura sobre D — no escribe ni sincroniza nada.
 // ============================================================
 import { D } from './state.js';
-import { F, ttOpts, gradFill, toast, monthlyTWR } from './utils.js';
+import { F, toast, monthlyTWR } from './utils.js';
 import { valEur } from './portfolio.js';
 import { buildDataObj } from './storage.js';
-
-const CH = {};
 
 // ── Serie mensual desde D.history ─────────────────────────────
 // TWR: retornos reales de mercado, con aportaciones neutralizadas
@@ -28,7 +26,6 @@ export function renderInsights() {
   const monthly = _monthlySeries();
   _renderRiskGrid(monthly);
   _renderHeatmap(monthly);
-  _renderDrawdown(monthly);
   _renderMilestones(monthly);
 }
 
@@ -109,71 +106,6 @@ function _renderHeatmap(monthly) {
     html += '</div>';
   });
   el.innerHTML = html;
-}
-
-// ── Drawdown desde máximos (underwater chart) ────────────────
-function _renderDrawdown(monthly) {
-  const canvas = document.getElementById('cDrawdown');
-  if (!canvas) return;
-  if (monthly.length < 2) {
-    if (CH.dd) { CH.dd.destroy(); CH.dd = null; }
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (canvas.width > 50) {
-      ctx.save();
-      ctx.font = "500 12px 'IBM Plex Mono', monospace";
-      ctx.fillStyle = '#7070a0';
-      ctx.textAlign = 'center';
-      ctx.fillText('Needs two months of history — almost there.', canvas.width / 2, canvas.height / 2);
-      ctx.restore();
-    }
-    return;
-  }
-  let level = 1, peak = 1;
-  const labels = monthly.map(m => _monthName(m.key));
-  const data = monthly.map(m => {
-    level *= (1 + m.ret / 100);
-    peak = Math.max(peak, level);
-    return parseFloat(((level / peak - 1) * 100).toFixed(2));
-  });
-
-  if (CH.dd) CH.dd.destroy();
-  CH.dd = new Chart(canvas.getContext('2d'), {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Drawdown',
-        data,
-        borderColor: '#ff4466',
-        backgroundColor: gradFill('#ff4466', '00', '55'),
-        fill: { target: { value: 0 } },
-        tension: .35, borderWidth: 2,
-        pointRadius: 0, pointHoverRadius: 5,
-        pointBackgroundColor: '#ff4466', pointBorderColor: '#0d0d1a'
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      animation: { duration: 700, easing: 'easeOutQuart' },
-      plugins: {
-        legend: { display: false },
-        tooltip: { ...ttOpts, callbacks: { label: c => ` ${F(c.parsed.y, 2)}% from peak` } }
-      },
-      scales: {
-        x: {
-          grid: { display: false }, border: { color: 'rgba(255,255,255,.06)' },
-          ticks: { color: '#7070a0', font: { family: 'IBM Plex Mono', size: 10 }, maxTicksLimit: 12, padding: 8 }
-        },
-        y: {
-          max: 0,
-          grid: { color: 'rgba(255,255,255,.04)', drawTicks: false }, border: { display: false },
-          ticks: { color: '#a0a0b8', font: { family: 'IBM Plex Mono', size: 10 }, callback: v => F(v, 1) + '%', padding: 10 }
-        }
-      }
-    }
-  });
 }
 
 // ── Road to €1M ───────────────────────────────────────────────
