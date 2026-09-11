@@ -6,6 +6,7 @@
 //  sin necesidad de importar este módulo en el HTML.
 // ============================================================
 import { D } from './state.js';
+import { openGameModal } from './games.js';
 import { _authed } from './state.js';
 import { saveAndSync } from './cloud.js';
 import { renderPortfolio, renderHistory, getPriceData } from './portfolio.js';
@@ -162,6 +163,7 @@ window.closeModal = closeModal;
 
 // ── Abrir modal de edición ───────────────────────────────────
 export function openEditModal(type, idx) {
+  if (type === 'game') return openGameModal(idx);
   if (!_authed) return;
   const m = document.getElementById('mod');
   let f = '';
@@ -239,7 +241,7 @@ export function openEditModal(type, idx) {
       <div class="fg"><label>Currency</label><select id="eHCur">
         <option ${h.currency === 'USD' ? 'selected' : ''}>USD</option>
         <option ${h.currency === 'CAD' ? 'selected' : ''}>CAD</option>
-        <option ${h.currency === 'GBP' ? 'selected' : ''}>GBP</option>
+        <option ${h.currency === 'GBP' ? 'selected' : ''}>GBP</option><option ${h.currency === 'JPY' ? 'selected' : ''}>JPY</option>
         <option ${h.currency === 'EUR' ? 'selected' : ''}>EUR</option>
       </select></div>
       <div class="fg"><label>Exchange</label><input id="eHExch" value="${(h.exchange || '').replace(/"/g, '&quot;')}"></div>
@@ -264,7 +266,7 @@ export function openEditModal(type, idx) {
         <option ${t.currency === 'EUR' ? 'selected' : ''}>EUR</option>
         <option ${t.currency === 'USD' ? 'selected' : ''}>USD</option>
         <option ${t.currency === 'CAD' ? 'selected' : ''}>CAD</option>
-        <option ${t.currency === 'GBP' ? 'selected' : ''}>GBP</option>
+        <option ${t.currency === 'GBP' ? 'selected' : ''}>GBP</option><option ${t.currency === 'JPY' ? 'selected' : ''}>JPY</option>
       </select></div>
       <div class="fg"><label>Total shares</label><input type="number" id="eTShares" value="${t.totalShares || ''}"></div>
       <div class="fg"><label>Avg buy price</label><input type="number" id="eTBuy" step="0.0001" value="${t.avgBuy || ''}"></div>
@@ -457,7 +459,7 @@ export function openAddModal(type) {
     f = `<h2>Add Closed Trade</h2>
       <div class="fg"><label>Ticker *</label><input id="aTicker" autofocus placeholder="AAPL"></div>
       <div class="fg"><label>Name</label><input id="aName"></div>
-      <div class="fg"><label>Currency</label><select id="aCur"><option>EUR</option><option>USD</option><option>CAD</option><option>GBP</option></select></div>
+      <div class="fg"><label>Currency</label><select id="aCur"><option>EUR</option><option>USD</option><option>CAD</option><option>GBP</option><option>JPY</option></select></div>
       <div class="fg"><label>Total shares *</label><input type="number" id="aShares" min="1"></div>
       <div class="fg"><label>Avg buy price *</label><input type="number" id="aAvgBuy" step="0.0001" min="0.0001"></div>
       <div class="fg"><label>Buy date</label><input type="date" id="aBuyDate"></div>
@@ -476,7 +478,7 @@ export function openAddModal(type) {
         <button type="button" class="btn btn-sm" id="btnFetchTicker" style="height:36px;white-space:nowrap;flex-shrink:0">🔍 Fetch</button>
       </div>
       <div class="fg"><label>Name</label><input id="aHName"></div>
-      <div class="fg"><label>Currency</label><select id="aHCur"><option>USD</option><option>CAD</option><option>GBP</option><option>EUR</option></select></div>
+      <div class="fg"><label>Currency</label><select id="aHCur"><option>USD</option><option>CAD</option><option>GBP</option><option>JPY</option><option>EUR</option></select></div>
       <div class="fg"><label>Exchange</label><input id="aHExch" placeholder="NYSE / LSE / TSX"></div>
       <div class="fg"><label>Shares *</label><input type="number" id="aHShares" min="1"></div>
       <div class="fg"><label>Entry price *</label><input type="number" id="aHEntry" step="0.0001" min="0.0001"></div>

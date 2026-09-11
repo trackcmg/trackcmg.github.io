@@ -55,8 +55,17 @@
 <button class="tab-btn" data-tab="books">Books</button>
 <button class="tab-btn" data-tab="movies">Movies</button>
 <button class="tab-btn" data-tab="series">Series</button>
+<button class="tab-btn" data-tab="games">Games</button>
 </div>
 
+<div class="tab-content" id="tab-games">
+<div class="sum-grid" id="gamesSummary"></div>
+<div class="filter-bar">
+<input id="gamesSearch" type="search" placeholder="Search title, developer, platform..." aria-label="Search games">
+<select id="gamesSort" aria-label="Sort games"><option value="default">Original order</option><option value="myRating">My rating (high)</option><option value="metacritic">Metacritic (high)</option><option value="playedYear">Played (newest)</option><option value="releaseYear">Release (newest)</option><option value="hours">Hours (most)</option><option value="title">Title A-Z</option></select>
+<select id="gamesFilter" aria-label="Game status"><option value="all">All</option><option>Playing</option><option>Completed</option><option>Paused</option><option>Dropped</option><option>Backlog</option></select>
+<button class="btn btn-sm btn-g add-section" id="btnAddGame">+ Add</button></div>
+<div class="media-grid" id="gamesGrid"></div></div>
 <div class="tab-content active" id="tab-portfolio">
 <div class="hero"><div class="hero-lbl">Portfolio Value</div><div class="hero-val" id="hVal">---,-- &euro;</div><div id="hRoi"></div></div>
 <div id="portfolioEditWrap" class="add-section" style="justify-content:flex-end;margin-bottom:16px;gap:8px"><button class="btn btn-sm btn-g" id="btnAddHolding">+ Add Position</button></div>
@@ -136,7 +145,7 @@
       <select id="wlCurrency" class="input">
         <option value="USD">USD</option>
         <option value="EUR">EUR</option>
-        <option value="GBP">GBP</option>
+        <option value="GBP">GBP</option><option value="JPY">JPY</option>
         <option value="CAD">CAD</option>
       </select>
     </div>

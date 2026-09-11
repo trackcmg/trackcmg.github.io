@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.3.0] — 2026-09-11 — JPY and Games
+
+- Added JPY to portfolio, closed-trade and watchlist forms, imports, FX loading
+  and currency exposure.
+- Added Games using the media card layout, with platform, developer, release
+  and played years, Metacritic, personal rating, hours, status and notes.
+- Added search, sorting, status filtering and add/edit/delete controls.
+- Games persist in local/cloud saves and backups; legacy backups preserve them.
+- Service worker v22 includes the new modules.
+- Browser checks cover CRUD, reload, import, validation, JPY FX and mobile width.
+
 All notable changes to this project are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 

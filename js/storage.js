@@ -54,6 +54,7 @@ export function loadDataFromObj(obj, merge) {
   D.books     = obj.books     || FALLBACK.books;
   D.movies    = obj.movies    || FALLBACK.movies;
   D.series    = obj.series    || FALLBACK.series;
+  D.games = obj.games ?? D.games ?? [];
   D.watchlist = obj.watchlist || FALLBACK.watchlist;
 }
 
@@ -69,6 +70,7 @@ export function buildDataObj() {
     books:        D.books,
     movies:       D.movies,
     series:       D.series,
+    games:        D.games || [],
     watchlist:    D.watchlist
   };
 }

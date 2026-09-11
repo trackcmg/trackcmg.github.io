@@ -122,7 +122,7 @@ function _openEditModal(idx) {
         <option value="USD" ${item.currency === 'USD' ? 'selected' : ''}>USD</option>
         <option value="EUR" ${item.currency === 'EUR' ? 'selected' : ''}>EUR</option>
         <option value="GBP" ${item.currency === 'GBP' ? 'selected' : ''}>GBP</option>
-        <option value="CAD" ${item.currency === 'CAD' ? 'selected' : ''}>CAD</option>
+        <option value="CAD" ${item.currency === 'CAD' ? 'selected' : ''}>CAD</option><option value="JPY" ${item.currency === 'JPY' ? 'selected' : ''}>JPY</option>
       </select>
     </div>
     <div style="display:flex;gap:10px;margin-top:20px">

@@ -14,7 +14,7 @@ export const PROXY_URL = 'https://script.google.com/macros/s/AKfycbyWUy-SpQFdJZn
 // ── Constantes estáticas ────────────────────────────────────
 
 // Tipos de cambio estáticos (fallback de emergencia si las APIs de FX fallan)
-export const TRADE_FX = { EUR: 1, USD: 0.8696, CAD: 0.6369, GBP: 1.1574 };
+export const TRADE_FX = { EUR: 1, USD: 0.8696, CAD: 0.6369, GBP: 1.1574, JPY: 0.006 /* emergency estimate */ };
 
 // Datos de arranque vacíos (FALLBACK)
 export const FALLBACK = {
@@ -27,5 +27,6 @@ export const FALLBACK = {
   books: [],
   movies: [],
   series: [],
+  games: [],
   watchlist: []
 };

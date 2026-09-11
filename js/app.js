@@ -14,12 +14,14 @@ import { renderAnalytics, renderBenchmark } from './analytics.js';
 import { renderCalculator, syncCalculatorCapital } from './calculator.js';
 import { initWatchlist, renderWatchlist, refreshWatchlist } from './watchlist.js';
 import { openImportModal } from './importer.js';
+import { renderGames, initGames } from './games.js';
 
 // ── Render completo de todas las secciones ───────────────────
 // Cada módulo se programa como una tarea independiente (setTimeout 0)
 // para ceder el hilo principal al navegador entre renders y reducir el TBT.
 function renderAll() {
   renderPortfolio();
+  renderGames();
   setTimeout(() => renderTrades(), 0);
   setTimeout(() => renderGym(), 0);
   setTimeout(() => renderBooks(), 0);
@@ -269,6 +271,7 @@ document.addEventListener('click', function (e) {  // En modo lectura no se proc
 async function init() {
   loadData();
   initWatchlist();
+  initGames();
   document.getElementById('gymDate').value = new Date().toISOString().slice(0, 10);
 
   // Icono del botón de tema al estado actual

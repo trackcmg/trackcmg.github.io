@@ -22,9 +22,11 @@ import { renderBooks, renderMovies, renderSeries } from './media.js';
 import { renderAnalytics } from './analytics.js';
 import { renderWatchlist } from './watchlist.js';
 
-const CURRENCIES = ['EUR', 'USD', 'CAD', 'GBP'];
+import { renderGames } from './games.js';
+import { validateGame } from './game-schema.js';
+const CURRENCIES = ['EUR', 'USD', 'CAD', 'GBP', 'JPY'];
 const KNOWN_KEYS = ['holdings', 'cash', 'totalInvested', 'closedTrades', 'history',
-  'gym', 'books', 'movies', 'series', 'watchlist'];
+  'gym', 'books', 'movies', 'series', 'watchlist', 'games'];
 
 // ── Validación de esquema (pura, testeable desde consola) ────
 export function validateImportObj(obj) {
@@ -67,6 +69,12 @@ export function validateImportObj(obj) {
     if (!CURRENCIES.includes(t.currency)) errors.push(`${id}: "currency" debe ser ${CURRENCIES.join('/')}`);
   });
 
+  if (obj.games != null && !Array.isArray(obj.games)) errors.push('games debe ser un array');
+  safe('games').forEach((g, i) => {
+    const error = validateGame(g);
+    if (error) errors.push('games[' + i + ']: ' + error);
+  });
+  if (obj.games == null && (D.games || []).length) warnings.push('Sin videojuegos en este backup: se conservarán los actuales');
   const seen = new Set();
   let dupes = 0, badDates = 0;
   safe('history').forEach(h => {
@@ -98,7 +106,7 @@ export function validateImportObj(obj) {
     closedTrades: obj.closedTrades || [],
     history: Object.values(map).sort((a, b) => a.date.localeCompare(b.date)),
     gym: obj.gym || [], books: obj.books || [], movies: obj.movies || [],
-    series: obj.series || [], watchlist: obj.watchlist || []
+    series: obj.series || [], watchlist: obj.watchlist || [], games: obj.games ?? structuredClone(D.games || [])
   };
   return { ok: true, errors, warnings, data };
 }
@@ -120,6 +128,7 @@ function _summaryRows(data) {
     ['Gym / Books / Movies / Series',
       `${cur.gym.length} / ${cur.books.length} / ${cur.movies.length} / ${cur.series.length}`,
       `${data.gym.length} / ${data.books.length} / ${data.movies.length} / ${data.series.length}`],
+    ['Games', (cur.games || []).length, data.games.length],
     ['Watchlist', (cur.watchlist || []).length, data.watchlist.length]
   ];
   return rows.map(([l, a, b]) => {
@@ -239,7 +248,7 @@ async function _apply() {
 
   closeModal();
   renderPortfolio(); renderHistory(); renderTrades(); renderGym();
-  renderBooks(); renderMovies(); renderSeries(); renderAnalytics(); renderWatchlist();
+  renderGames(); renderBooks(); renderMovies(); renderSeries(); renderAnalytics(); renderWatchlist();
 
   const ok = await saveAndSync();
   toast(ok ? 'Datos importados y sincronizados' : 'Importado en local — sync pendiente', ok ? 'ok' : 'err');

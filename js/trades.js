@@ -6,11 +6,12 @@ import { _authed } from './state.js';
 import { F, ttOpts, legOpts, gradFill } from './utils.js';
 
 // Tipos de cambio estáticos para el cálculo de rentabilidad histórica
-const TRADE_FX = { EUR: 1, USD: 0.8696, CAD: 0.6369, GBP: 1.1574 };
+import { TRADE_FX } from './config.js';
+import { fxR } from './portfolio.js';
 
 let CH = {};
 
-export function tradeFx(c) { return TRADE_FX[c] || 1; }
+export function tradeFx(c) { return c === 'JPY' ? fxR(c) : (TRADE_FX[c] || 1); }
 
 export function calcTrade(t) {
   const fx = tradeFx(t.currency);

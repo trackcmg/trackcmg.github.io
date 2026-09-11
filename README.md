@@ -27,6 +27,20 @@ working offline.
 
 ## Features
 
+JPY is supported in portfolio positions, closed trades and the watchlist.
+Live FX converts yen to EUR; cached rates are retained when services fail,
+with an approximate emergency fallback of EUR 0.006 per JPY.
+
+The **Games** tab tracks platform, developer, release year, year played,
+Metacritic (0–100), personal rating (0–10), hours, status and notes. All fields
+except title are optional. Ratings are entered manually. Games are included
+in cloud saves and JSON backups; older backups without `games` preserve the
+current games list. An explicit `games: []` clears it on confirmed import.
+
+Browser regression checks: install Playwright and an Edge browser, then run
+`node tests/games-jpy.cjs`. The test uses synthetic data and blocks external
+requests, including cloud writes.
+
 | Category | Details |
 |----------|---------|
 | **Portfolio** | Holdings with live prices (Yahoo Finance via GAS proxy), FX conversion, 52-week range, P/E & yield tags, per-holding detail accordion |

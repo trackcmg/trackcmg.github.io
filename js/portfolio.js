@@ -9,7 +9,7 @@ import { saveAndSync } from './cloud.js';
 
 // ── Precio y FX en memoria (persisten en localStorage) ──────
 let P = {};
-let FX = { USD: null, CAD: null, GBP: null };
+let FX = { USD: null, CAD: null, GBP: null, JPY: null };
 let CH = {};
 let _refreshing = false;
 let _monthlyPage = 1;
@@ -44,7 +44,7 @@ document.addEventListener('click', function (e) {
 });
 
 // ── Helpers de FX ───────────────────────────────────────────
-const _FX_FALLBACK = { USD: 0.92, CAD: 0.68, GBP: 1.17 };
+const _FX_FALLBACK = { USD: 0.92, CAD: 0.68, GBP: 1.17, JPY: 0.006 };
 export function fxR(c) { return c === 'EUR' ? 1 : (FX[c] || _FX_FALLBACK[c] || 1); }
 export function valEur(h) {
   const d = P[h.ticker];
@@ -105,26 +105,31 @@ async function fetchFundamentals(tickers) {
 export async function fetchFx() {
   // Primero: pares FX de Yahoo Finance via proxy (más actualizado)
   try {
-    const url = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=USDEUR%3DX,CADEUR%3DX,GBPEUR%3DX';
+    const url = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=USDEUR%3DX,CADEUR%3DX,GBPEUR%3DX,JPYEUR%3DX';
     const data = await pFetch(url);
     const found = {};
     (data.quoteResponse?.result || []).forEach(q => { found[q.symbol] = q.regularMarketPrice; });
-    if (found['USDEUR=X'] && found['CADEUR=X'] && found['GBPEUR=X']) {
+    if (['USDEUR=X', 'CADEUR=X', 'GBPEUR=X', 'JPYEUR=X'].every(k => Number.isFinite(found[k]) && found[k] > 0)) {
       FX.USD = found['USDEUR=X'];
       FX.CAD = found['CADEUR=X'];
       FX.GBP = found['GBPEUR=X'];
+      FX.JPY = found['JPYEUR=X'];
       return;
     }
   } catch (e) { /* si el proxy falla, usa fuentes alternativas */ }
   // Segundo: exchangerate-api.com (libre, sin clave)
   try {
     const d = await (await fetch('https://api.exchangerate-api.com/v4/latest/EUR')).json();
-    FX.USD = 1 / d.rates.USD; FX.CAD = 1 / d.rates.CAD; FX.GBP = 1 / d.rates.GBP; return;
+    if (!['USD','CAD','GBP','JPY'].every(c => Number.isFinite(d.rates?.[c]) && d.rates[c] > 0)) throw new Error('Incomplete FX rates');
+    for (const c of ['USD','CAD','GBP','JPY']) FX[c] = 1 / d.rates[c];
+    return;
   } catch (e) { /* fallback */ }
   // Tercero: open.er-api.com
   try {
     const d = await (await fetch('https://open.er-api.com/v6/latest/EUR')).json();
-    FX.USD = 1 / d.rates.USD; FX.CAD = 1 / d.rates.CAD; FX.GBP = 1 / d.rates.GBP; return;
+    if (!['USD','CAD','GBP','JPY'].every(c => Number.isFinite(d.rates?.[c]) && d.rates[c] > 0)) throw new Error('Incomplete FX rates');
+    for (const c of ['USD','CAD','GBP','JPY']) FX[c] = 1 / d.rates[c];
+    return;
   } catch (e) { /* noop */ }
   // Fallback estático (solo si todo lo anterior falla y no hay valor previo)
   if (!FX.USD) { FX.USD = 0.92; FX.CAD = 0.68; FX.GBP = 1.17; }

@@ -127,7 +127,7 @@ function _renderCurrencyChart() {
 
   const labels = Object.keys(cur);
   const data = Object.values(cur);
-  const bgColors = { EUR: '#22df8a', USD: '#5588ff', CAD: '#ffaa22', GBP: '#aa66ff' };
+  const bgColors = { EUR: '#22df8a', USD: '#5588ff', CAD: '#ffaa22', GBP: '#aa66ff', JPY: '#ff6688' };
   const colors = labels.map(l => bgColors[l] || '#667788');
 
   if (CH.currency) CH.currency.destroy();
