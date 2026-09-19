@@ -14,7 +14,7 @@
 //
 // ============================================================
 
-const CACHE_VERSION = 'v22';
+const CACHE_VERSION = 'v23';
 
 // Nombres de cada caché por tipo
 const CACHE_STATIC = 'dash-static-' + CACHE_VERSION;
@@ -36,6 +36,12 @@ const PRECACHE_URLS = [
   '/js/gym.js',
   '/js/media.js',
   '/js/games.js',
+  '/js/i18n.js',
+  '/js/settings.js',
+  '/js/life-schema.js',
+  '/js/training.js',
+  '/js/media-editor.js',
+  '/css/life.css',
   '/js/game-schema.js',
   '/js/modals.js',
   '/js/auth.js',
