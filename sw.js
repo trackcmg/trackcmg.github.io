@@ -1,10 +1,13 @@
+---
+layout: null
+---
 // ============================================================
 //  sw.js — Service Worker del Dashboard Personal
 //
 //  Estrategia de caché:
 //
 //  1. CACHE-FIRST   → assets estáticos (JS, CSS, HTML, fuentes)
-//     Si el recurso está en caché → sirve desde caché, actualiza en background.
+//     Una caché por publicación; no se modifica hasta el siguiente despliegue.
 //     Si NO está en caché → red → guarda en caché → responde.
 //
 //  2. NETWORK-FIRST → llamadas a la API (GAS / script.google.com)
@@ -14,7 +17,9 @@
 //
 // ============================================================
 
-const CACHE_VERSION = 'v24-gym-sets';
+// GitHub Pages/Jekyll injects the published commit on EVERY deployment.
+const CACHE_VERSION = '{{ site.github.build_revision }}';
+const APP_BASE = new URL('./', self.location.href);
 
 // Nombres de cada caché por tipo
 const CACHE_STATIC = 'dash-static-' + CACHE_VERSION;
@@ -22,37 +27,38 @@ const CACHE_API    = 'dash-api-'    + CACHE_VERSION;
 
 // Assets precargados en install (shell de la app)
 const PRECACHE_URLS = [
-  '/',
-  '/index.html',
-  '/css/styles.css',
-  '/js/app.js',
-  '/js/config.js',
-  '/js/state.js',
-  '/js/utils.js',
-  '/js/storage.js',
-  '/js/cloud.js',
-  '/js/portfolio.js',
-  '/js/trades.js',
-  '/js/gym.js',
-  '/js/media.js',
-  '/js/games.js',
-  '/js/i18n.js',
-  '/js/settings.js',
-  '/js/life-schema.js',
-  '/js/training.js',
-  '/js/media-editor.js',
-  '/css/life.css',
-  '/js/game-schema.js',
-  '/js/modals.js',
-  '/js/auth.js',
-  '/js/analytics.js',
-  '/js/calculator.js',
-  '/js/insights.js',
-  '/js/watchlist.js',
-  '/js/importer.js',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
+  new URL('', APP_BASE).href,
+  new URL('index.html', APP_BASE).href,
+  new URL('css/styles.css', APP_BASE).href,
+  new URL('js/app.js', APP_BASE).href,
+  new URL('js/app-update.js', APP_BASE).href,
+  new URL('js/config.js', APP_BASE).href,
+  new URL('js/state.js', APP_BASE).href,
+  new URL('js/utils.js', APP_BASE).href,
+  new URL('js/storage.js', APP_BASE).href,
+  new URL('js/cloud.js', APP_BASE).href,
+  new URL('js/portfolio.js', APP_BASE).href,
+  new URL('js/trades.js', APP_BASE).href,
+  new URL('js/gym.js', APP_BASE).href,
+  new URL('js/media.js', APP_BASE).href,
+  new URL('js/games.js', APP_BASE).href,
+  new URL('js/i18n.js', APP_BASE).href,
+  new URL('js/settings.js', APP_BASE).href,
+  new URL('js/life-schema.js', APP_BASE).href,
+  new URL('js/training.js', APP_BASE).href,
+  new URL('js/media-editor.js', APP_BASE).href,
+  new URL('css/life.css', APP_BASE).href,
+  new URL('js/game-schema.js', APP_BASE).href,
+  new URL('js/modals.js', APP_BASE).href,
+  new URL('js/auth.js', APP_BASE).href,
+  new URL('js/analytics.js', APP_BASE).href,
+  new URL('js/calculator.js', APP_BASE).href,
+  new URL('js/insights.js', APP_BASE).href,
+  new URL('js/watchlist.js', APP_BASE).href,
+  new URL('js/importer.js', APP_BASE).href,
+  new URL('manifest.json', APP_BASE).href,
+  new URL('icons/icon-192.png', APP_BASE).href,
+  new URL('icons/icon-512.png', APP_BASE).href,
   // Chart.js desde CDN (también cacheado)
   'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js',
 ];
@@ -66,39 +72,46 @@ const API_HOSTS = [
 
 // ── Install: precachear el shell de la app ──────────────────
 self.addEventListener('install', event => {
-  // Precaching resiliente: ignorar recursos que fallen (p. ej. iconos faltantes)
   event.waitUntil((async () => {
+    if (!/^[a-f0-9]{40}$/.test(CACHE_VERSION)) throw new Error('Missing deployment revision');
     const cache = await caches.open(CACHE_STATIC);
-    for (const url of PRECACHE_URLS) {
+    const results = await Promise.allSettled([...new Set(PRECACHE_URLS)].map(async url => {
+      const local = new URL(url).origin === APP_BASE.origin;
+      const fresh = new URL(url);
+      if (local) fresh.searchParams.set('release', CACHE_VERSION);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 20000);
       try {
-        const res = await fetch(url, { cache: 'no-cache' });
-        if (res && res.ok) {
-          await cache.put(url, res.clone());
-        } else {
-          console.warn('sw: precache failed for', url, res && res.status);
+        const res = await fetch(fresh.href, { cache: 'no-store', signal: controller.signal });
+        if (!res.ok) throw new Error('Incomplete release: ' + url);
+        if (local && (url === APP_BASE.href || url === new URL('index.html', APP_BASE).href)) {
+          const html = await res.clone().text();
+          if (!html.includes('content="' + CACHE_VERSION + '"')) throw new Error('Deployment not ready');
         }
+        await cache.put(url, res);
       } catch (e) {
-        console.warn('sw: precache error for', url, e && e.message);
-      }
+        if (local) throw e;
+      } finally { clearTimeout(timer); }
+    }));
+    if (results.some(r => r.status === 'rejected')) {
+      await caches.delete(CACHE_STATIC);
+      throw new Error('New app version is incomplete; retaining previous version');
     }
+    await self.skipWaiting();
   })());
-  // Activar inmediatamente sin esperar a que cierren pestañas anteriores
-  self.skipWaiting();
 });
 
 // ── Activate: eliminar cachés de versiones anteriores ───────
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys
-          .filter(k => k !== CACHE_STATIC && k !== CACHE_API)
-          .map(k => caches.delete(k))
-      )
-    )
-  );
-  // Tomar control de todas las pestañas abiertas
-  self.clients.claim();
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => (k.startsWith('dash-static-') || k.startsWith('dash-api-')) && k !== CACHE_STATIC && k !== CACHE_API).map(k => caches.delete(k)));
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener('message', event => {
+  if (event.data?.type === 'APP_VERSION') event.source?.postMessage({ type: 'APP_VERSION', version: CACHE_VERSION });
 });
 
 // ── Fetch: enrutador de estrategias ─────────────────────────
@@ -125,7 +138,7 @@ self.addEventListener('fetch', event => {
 // ── Estrategia Cache-First ───────────────────────────────────
 // Responde desde caché si existe; si no, va a red y cachea la respuesta.
 async function cacheFirst(request) {
-  const cached = await caches.match(request);
+  const cached = await (await caches.open(CACHE_STATIC)).match(request);
   if (cached) return cached;
 
   try {
@@ -138,7 +151,7 @@ async function cacheFirst(request) {
   } catch (e) {
     // Último recurso: devolver index.html cacheado para navegación offline
     if (request.destination === 'document') {
-      return caches.match('/index.html');
+      return (await caches.open(CACHE_STATIC)).match(new URL('index.html', APP_BASE).href);
     }
     throw e;
   }
@@ -155,7 +168,7 @@ async function networkFirst(request) {
     }
     return response;
   } catch (e) {
-    const cached = await caches.match(request);
+    const cached = await (await caches.open(CACHE_API)).match(request);
     if (cached) return cached;
     throw e;
   }
