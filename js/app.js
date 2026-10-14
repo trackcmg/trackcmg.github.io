@@ -16,6 +16,7 @@ import { renderCalculator, syncCalculatorCapital } from './calculator.js';
 import { initWatchlist, renderWatchlist, refreshWatchlist } from './watchlist.js';
 import { openImportModal } from './importer.js';
 import { renderGames, initGames } from './games.js';
+import { renderHealth, refreshHealth, clearHealth } from './health.js';
 
 // ── Render completo de todas las secciones ───────────────────
 // Cada módulo se programa como una tarea independiente (setTimeout 0)
@@ -24,6 +25,7 @@ function renderAll() {
   applyPreferences();
   renderPortfolio();
   renderGames();
+  renderHealth();
   setTimeout(() => renderTrades(), 0);
   setTimeout(() => renderGym(), 0);
   setTimeout(() => renderBooks(), 0);
@@ -127,6 +129,7 @@ async function _handleLogin(user, isNewLogin) {
 }
 
 function _handleLogout() {
+  clearHealth();
   _applyEditMode(false);
   const lb = document.getElementById('btnLogout');
   if (lb) lb.style.display = 'none';
@@ -155,6 +158,7 @@ document.getElementById('tabBar').addEventListener('click', e => {
   const tab = e.target.dataset.tab;
   _activeTab = tab;
   document.getElementById('tab-' + tab).classList.add('active');
+  if (tab === 'health') { renderHealth(); refreshHealth(); }
   _syncTradeBtn();
 
   // Re-render lazy: en el primer click sobre una pestaña, el canvas

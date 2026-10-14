@@ -30,6 +30,8 @@ const PRECACHE_URLS = [
   new URL('', APP_BASE).href,
   new URL('index.html', APP_BASE).href,
   new URL('css/styles.css', APP_BASE).href,
+  new URL('css/health.css', APP_BASE).href,
+  new URL('js/health.js', APP_BASE).href,
   new URL('js/app.js', APP_BASE).href,
   new URL('js/app-update.js', APP_BASE).href,
   new URL('js/config.js', APP_BASE).href,
