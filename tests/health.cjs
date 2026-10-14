@@ -1,6 +1,11 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),crypto=require('node:crypto');
 const root=path.resolve(__dirname,'..');
-new vm.Script(fs.readFileSync(path.join(root,'js','health.js'),'utf8').replace(/^import .*;\r?\n/gm,'').replace(/^export /gm,''));
+const healthUI=fs.readFileSync(path.join(root,'js','health.js'),'utf8');
+new vm.Script(healthUI.replace(/^import .*;\r?\n/gm,'').replace(/^export /gm,''));
+assert.match(healthUI,/<div class="card health-connection add-section">/,'phone setup follows the shared edit-only visibility contract');
+const styles=fs.readFileSync(path.join(root,'css','styles.css'),'utf8');
+assert.match(styles,/\.add-section,[^{]+\{display:none !important\}/,'setup is hidden outside edit mode');
+assert.match(styles,/body\.edit-mode \.add-section,[^{]+\{display:block !important;/,'setup becomes visible in edit mode');
 const context=vm.createContext({console,Intl,Date,Set,Map,Number,JSON});
 const model=fs.readFileSync(path.join(root,'js','health-model.js'),'utf8').replace(/^export /gm,'');
 vm.runInContext(model+'\nthis.HealthModel={validateHealthSnapshot,normalizeHealth,mergeHealth};',context);
