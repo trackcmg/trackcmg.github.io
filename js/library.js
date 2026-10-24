@@ -28,7 +28,7 @@ export function libraryInfo(kind,item) {
     facts=[['Years',item.years],['Platform',item.platform],['Seasons',item.seasons],['Episodes per season',item.epsPerSeason],['Ep length',item.epLength],['Watched',t(item.watched||'Unknown')],['Want to finish?',t(item.wantFinish||'Unknown')],['IMDB rating',item.imdbRating!=null?item.imdbRating+'/10':null]];
   }else{
     status=item.status||'Backlog';creator=item.developer;subtitle=[item.platform,item.releaseYear];
-    facts=[['Platform',item.platform],['Developer',item.developer],['Release year',item.releaseYear],['Year played',item.playedYear],['Hours played',item.hours!=null?F(item.hours,1)+'h':null],['Metacritic',item.metacritic!=null?item.metacritic+'/100':null]];
+    facts=[['Platform',item.platform],['Developer',item.developer],['Release year',item.releaseYear],['Year played',item.playedYear],[item.hoursEstimated?'Estimated hours played':'Hours played',item.hours!=null?(item.hoursEstimated?'≈ ':'')+F(item.hours,1)+'h':null],['Metacritic',item.metacritic!=null?item.metacritic+'/100':null]];
   }
   return {max,rating,status,creator,subtitle:subtitle.filter(v=>v!=null&&v!==''&&v!==0).join(' · '),facts:facts.filter(([,v])=>v!=null&&v!=='')};
 }

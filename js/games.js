@@ -23,7 +23,7 @@ export function renderGames() {
   else if (sort !== 'default') list.sort((a, b) => (b[sort] ?? -1) - (a[sort] ?? -1));
   const rated = games.filter(g => g.myRating != null);
   const stats = [['Games', games.length], ['Completed', games.filter(g => g.status === 'Completed').length],
-    ['Hours played', F(games.reduce((s, g) => s + (g.hours || 0), 0), 1) + 'h'],
+    ['Hours played', (games.some(g=>g.hoursEstimated&&g.hours!=null)?'≈ ':'') + F(games.reduce((s, g) => s + (g.hours || 0), 0), 1) + 'h'],
     ['Avg mine', rated.length ? F(rated.reduce((s, g) => s + g.myRating, 0) / rated.length, 1) + '/10' : '—']];
   el('gamesSummary').innerHTML = stats.map(([label, value]) => `<div class="sum-card"><div class="sum-lbl">${label}</div><div class="sum-val">${value}</div></div>`).join('');
   renderLibrary(el('gamesGrid'),'game',list);
@@ -62,6 +62,7 @@ export function openGameModal(idx = null) {
     next.translations={...g.translations,es:{...g.translations?.es,title:next.title},en:{...g.translations?.en,title:next.titleEn}};
     delete next.titleEn;
     next.status = values.get('status'); next.opinion = values.get('opinion');
+    if(next.hours!==g.hours){delete next.hoursEstimated;delete next.hoursEstimate;}
     saveArtwork(next);
     const error = validateGame(next);
     if (error) { el('gameError').textContent = error; return; }
