@@ -1,4 +1,5 @@
 import { initSettings, applyPreferences } from './settings.js';
+import {initLayout,authLayoutChanged} from './layout-bridge.js';
 // ============================================================
 //  app.js — Punto de entrada. Orquesta todos los módulos.
 // ============================================================
@@ -25,6 +26,7 @@ function renderAll() {
   applyPreferences();
   renderPortfolio();
   renderGames();
+  document.dispatchEvent(new Event('dashboard-data-updated'));
   renderHealth();
   setTimeout(() => renderTrades(), 0);
   setTimeout(() => renderGym(), 0);
@@ -125,10 +127,12 @@ async function _postAuthInit() {
 async function _handleLogin(user, isNewLogin) {
   _hideLoginOverlay();
   _applyAuthUI(user);
+  authLayoutChanged();
   await _postAuthInit();
 }
 
 function _handleLogout() {
+  authLayoutChanged();
   clearHealth();
   _applyEditMode(false);
   const lb = document.getElementById('btnLogout');
@@ -259,6 +263,7 @@ document.addEventListener('click', function (e) {  // En modo lectura no se proc
 async function init() {
   loadData();
   initSettings();
+  initLayout();
   initWatchlist();
   initGames();
   document.getElementById('gymDate').value = new Date().toISOString().slice(0, 10);
@@ -291,5 +296,7 @@ async function init() {
 }
 
 document.addEventListener('preferences-changed', () => { renderAll(); renderCalculator(); if (_benchmarkLoaded) renderBenchmark(); });
+document.addEventListener('layout-changed',()=>{renderAll();renderCalculator();if(_benchmarkLoaded)renderBenchmark();});
+
 document.addEventListener('brokers-updated', () => renderAnalytics());
 init();

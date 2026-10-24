@@ -5,6 +5,16 @@ import { language } from './i18n.js';
 // Health is deliberately outside D, buildDataObj, finance backups and service-worker API caches.
 let data=null,device=null,busy=false,code=null,source='',period=30;
 let authGeneration=0;
+// Read-only view for the alternative layout. Health stays outside finance JSON.
+export function getHealthSnapshot(){
+  const days=data?.days||[],sources=[...new Set(days.map(d=>d.source))];
+  const selected=sources.find(s=>/xiaomi|wearable|mifit/i.test(s))||sources[0]||'';
+  const value=(row,key)=>row.metrics?.[key]?.value??null;
+  return {supported:true,source:selected==='com.xiaomi.wearable'?'Mi Fitness':selected,lastUpload:data?.updatedAt||null,
+    rows:days.filter(r=>r.source===selected).sort((a,b)=>a.date.localeCompare(b.date)).map(r=>({date:r.date,
+      steps:value(r,'steps'),calories:value(r,'activeCalories'),heartRate:value(r,'heartRate'),oxygen:value(r,'oxygenSaturation'),sleep:value(r,'sleep'),
+      distance:value(r,'distance')==null?null:value(r,'distance')/1000,exercise:value(r,'exercise'),restingHeartRate:value(r,'restingHeartRate')}))};
+}
 const pending=new Set();
 const charts=[];
 const text=(es,en)=>language()==='es'?es:en;
@@ -37,7 +47,7 @@ function status(message){const element=document.getElementById('healthStatus');i
 export function clearHealth(){authGeneration++;for(const controller of pending)controller.abort();pending.clear();busy=false;data=null;device=null;code=null;source='';for(const c of charts.splice(0))c.destroy();renderHealth();}
 export async function refreshHealth(){
   if(busy)return;busy=true;status(text('Consultando tu archivo privado…','Loading your private health file…'));
-  try{const result=await request('healthGet');data=result.data;device=result.device;renderHealth();}
+  try{const result=await request('healthGet');data=result.data;device=result.device;renderHealth();document.dispatchEvent(new Event('health-updated'));}
   catch(error){status(error.name==='AbortError'?text('El servidor está tardando. Puedes volver a intentar actualizar.','The server is taking too long. Try refreshing again.'):error.message);}
   finally{busy=false;}
 }
