@@ -720,6 +720,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
 .broker-table small{display:block;font-size:10px;line-height:1.8;color:var(--text-dim);font-weight:400}
 .broker-note{font-size:11px;line-height:1.6;color:var(--text-dim);margin:10px 0}
 .broker-controls{margin:14px 0;gap:8px;flex-wrap:wrap}
+.broker-positions-only .broker-balances{display:none}
 body.edit-mode .broker-controls.add-section{display:flex !important}
 #brokerForm{margin-top:16px;border-top:1px solid var(--border);padding-top:16px}
 #brokerForm h3{font-size:13px;margin:16px 0 8px}

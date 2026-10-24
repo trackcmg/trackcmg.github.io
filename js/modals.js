@@ -14,6 +14,7 @@ import { saveAndSync } from './cloud.js';
 import { renderPortfolio, renderHistory, getPriceData, fxR } from './portfolio.js';
 import { brokerName, holdingAllocations, editBrokerPosition, buyAtBroker, sellAtBroker } from './broker-model.js';
 import { esc } from './life-schema.js';
+import { brokerCashFields, initBrokerCashFields, saveBrokerCashFields, brokerError } from './brokers.js';
 const brokerText=(es,en)=>language()==='es'?es:en;
 import { renderTrades } from './trades.js';
 import { renderGym } from './gym.js';
@@ -230,7 +231,7 @@ export function openEditModal(type, idx) {
         <button class="btn btn-g" onclick="window.modalSave('serie',${idx})">Save</button>
       </div>`;
   } else if (type === 'cash') {
-    f = `<h2>Edit Cash & Totals</h2>
+    f = (D.brokers||[]).length?`${brokerCashFields()}<div id="formErr" class="form-err"></div><div class="m-btns"><button class="btn" onclick="window.closeModal()">Cancel</button><button class="btn btn-g" onclick="window.modalSave('cash',0)">Save</button></div>`:`<h2>Edit Cash & Totals</h2>
       <div class="fg"><label>Cash (EUR)</label><input type="number" id="eCash" step="0.01" value="${D.cash}"></div>
       <div class="fg"><label>Total invested (EUR)</label><input type="number" id="eInvested" step="1" value="${D.totalInvested}"></div>
       <div class="m-btns">
@@ -306,6 +307,7 @@ export function openEditModal(type, idx) {
   }
 
   m.innerHTML = f;
+  if(type==='cash' && (D.brokers||[]).length)initBrokerCashFields();
   document.getElementById('ov').classList.add('open');
 }
 window.openEditModal = openEditModal;
@@ -352,6 +354,10 @@ window.modalSave = function (type, idx) {
     };
     closeModal(); renderSeries(); saveAndSync();
   } else if (type === 'cash') {
+    if((D.brokers||[]).length){
+      try{saveBrokerCashFields();}catch(error){_showErr(brokerError(error));return;}
+      closeModal();renderPortfolio();renderHistory();renderAnalytics();saveAndSync();return;
+    }
     const c = parseFloat(g('eCash').value);
     const t = parseFloat(g('eInvested').value);
     if (!isNaN(c) && c >= 0) D.cash = c;

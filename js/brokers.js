@@ -1,22 +1,22 @@
 import { D, _authed } from './state.js';
 import { language, locale } from './i18n.js';
-import { esc } from './life-schema.js';
+import { esc, today } from './life-schema.js';
 import { F, toast, ttOpts, legOpts } from './utils.js';
 import { getPriceData, valEur, renderPortfolio, renderHistory } from './portfolio.js';
 import { buildDataObj } from './storage.js';
 import { saveAndSync } from './cloud.js';
-import { brokerName, holdingAllocations, brokerSummary, prepareBrokerSetup } from './broker-model.js';
+import { brokerName, holdingAllocations, brokerSummary, prepareBrokerSetup, prepareBrokerMovement, prepareBrokerCashEdit, brokerSnapshotPatch } from './broker-model.js';
 
 const text=(es,en)=>language()==='es'?es:en;
 const euros=n=>Number.isFinite(n)?F(n,0)+' €':'—';
 let chart, editorOpen=false;
 function editable(){return _authed && document.body.classList.contains('edit-mode');}
-function backup(){
+function backup(download=true){
   const json=JSON.stringify(buildDataObj(),null,2);
   // If neither backup can be saved, refuse to overwrite data.
   let backed=false;
   try{localStorage.setItem('db_data_prebroker_backup',json);backed=true;}catch{}
-  try{const url=URL.createObjectURL(new Blob([json],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='trackcmg-pre-brokers-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);backed=true;}catch{}
+  if(download)try{const url=URL.createObjectURL(new Blob([json],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='trackcmg-pre-brokers-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);backed=true;}catch{}
   if(!backed)throw new Error(text('No se pudo guardar una copia de seguridad.','A backup could not be saved.'));
 }
 async function apply(setup){
@@ -31,8 +31,11 @@ async function apply(setup){
 export function renderBrokers(){
   const root=document.getElementById('brokerDashboard');if(!root)return;
   if(!root.querySelector('#brokerOverview')){
-    root.innerHTML='<div id="brokerOverview"></div><div class="add-section broker-controls"><button class="btn" id="editBrokers"></button><button class="btn" id="importBrokers"></button><input type="file" id="brokerFile" accept=".json,application/json" hidden></div><div id="brokerEditor" class="add-section"></div>';
-    root.querySelector('#editBrokers').onclick=openEditor;
+    root.innerHTML='<div id="brokerOverview"></div><div class="add-section broker-controls"><button class="btn btn-g" id="brokerMovement"></button><button class="btn" id="brokerPositions"></button><button class="btn" id="brokerAddPosition"></button><button class="btn" id="editBrokers"></button><button class="btn" id="importBrokers"></button><input type="file" id="brokerFile" accept=".json,application/json" hidden></div><div id="brokerEditor" class="add-section"></div>';
+    root.querySelector('#editBrokers').onclick=()=>openEditor();
+    root.querySelector('#brokerMovement').onclick=openBrokerMovement;
+    root.querySelector('#brokerPositions').onclick=()=>openEditor('positions');
+    root.querySelector('#brokerAddPosition').onclick=()=>{if(editable())window.openAddModal('holding');};
     root.querySelector('#importBrokers').onclick=()=>{if(editable())root.querySelector('#brokerFile').click();};
     root.querySelector('#brokerFile').onchange=async e=>{
       const file=e.target.files[0];if(!file||!editable())return;
@@ -42,6 +45,9 @@ export function renderBrokers(){
   }
   if(!document.body.classList.contains('edit-mode')){editorOpen=false;root.querySelector('#brokerEditor').replaceChildren();}
   root.querySelector('#editBrokers').textContent=text('Editar brokers','Edit brokers');
+  root.querySelector('#brokerMovement').textContent=text('+ Movimiento','+ Cash movement');
+  root.querySelector('#brokerPositions').textContent=text('Posiciones','Positions');
+  root.querySelector('#brokerAddPosition').textContent=text('+ Acción','+ Stock');
   root.querySelector('#importBrokers').textContent=text('Importar configuración','Import setup');
   const rows=brokerSummary(D.holdings||[],D.brokers||[],h=>Number.isFinite(getPriceData(h.ticker)?.price)?valEur(h):null,D.cash||0);
   if(chart){chart.destroy();chart=null;}
@@ -71,17 +77,18 @@ export function renderBrokers(){
     }
   });
 }
-function openEditor(){
+function openEditor(mode='all'){
   if(!editable())return;
   editorOpen=true;
   const root=document.getElementById('brokerEditor');
+  root.classList.toggle('broker-positions-only',mode==='positions');
   const known=[...new Set([...(D.brokers||[]).map(b=>brokerName(b.name)),...(D.holdings||[]).flatMap(h=>holdingAllocations(h).map(a=>a.broker))])];
   const accounts=known.length?known:['IBKR','Trading212','Degiro','XTB'];
   const fields=(name,value,attributes='')=>`<input ${attributes} aria-label="${esc(name)}" value="${esc(value??'')}" required>`;
-  root.innerHTML=`<form id="brokerForm"><h3>${text('Movimientos acumulados y efectivo · EUR','Cumulative flows and cash · EUR')}</h3>
+  root.innerHTML=`<form id="brokerForm"><div class="broker-balances"><h3>${text('Movimientos acumulados y efectivo · EUR','Cumulative flows and cash · EUR')}</h3>
     <p class="broker-note">${text('Incluye los traspasos entre brokers en ingresado/retirado. No cambian tus aportaciones globales. Reparte el efectivo actual sin volver a sumarlo.','Include transfers between brokers in deposits/withdrawals. These do not change your global contributions. Allocate existing cash without adding it again.')}</p>
     <div class="broker-table-wrap"><table><thead><tr>${[text('Broker','Broker'),text('Ingresado','Deposited'),text('Retirado','Withdrawn'),text('Efectivo','Cash')].map(s=>`<th>${s}</th>`).join('')}<th></th></tr></thead><tbody id="brokerAccountRows"></tbody></table></div>
-    <button type="button" class="btn btn-sm" id="addBrokerAccount">${text('Añadir broker','Add broker')}</button>
+    <button type="button" class="btn btn-sm" id="addBrokerAccount">${text('Añadir broker','Add broker')}</button></div>
     <h3>${text('Acciones por broker','Shares by broker')}</h3><p class="broker-note">${text('El total de cada posición será la suma de su reparto. Cambiarlo aquí corrige cantidades; no registra compras o ventas.','Each position total is the sum of its allocations. Changes here correct quantities; they do not record purchases or sales.')}</p>
     ${(D.holdings||[]).map((h,i)=>`<fieldset class="broker-holding" data-holding="${i}"><legend>${esc(h.ticker)}</legend><div class="broker-lots"></div><button type="button" class="btn btn-sm broker-add-lot">${text('Añadir reparto','Add allocation')}</button></fieldset>`).join('')}
     <p class="broker-note">${text('Efectivo total que debes repartir: ','Total cash to allocate: ')+euros(D.cash||0)}</p><p id="brokerFormError" class="form-err" role="alert"></p>
@@ -115,3 +122,77 @@ function openEditor(){
   };
 }
 document.addEventListener('portfolio-updated',renderBrokers);
+
+export function brokerError(error){
+  const messages={
+    'Invalid broker movement':'Introduce un movimiento válido.',
+    'Enter at least 0.01 EUR':'Introduce al menos 0,01 €.',
+    'Select a broker':'Selecciona un broker.',
+    'Not enough broker cash':'No hay suficiente efectivo en ese broker.',
+    'Select a different destination broker':'Elige otro broker de destino.',
+    'Withdrawal exceeds total invested':'La retirada supera el total aportado. Revisa el importe.',
+    'Invalid cash balances':'Revisa los importes de efectivo e invertido.',
+    'Invalid broker cash allocation':'Revisa el reparto de efectivo.',
+    'Allocate cash for every broker':'Indica el efectivo de cada broker.',
+    'Select the broker for the invested-capital change':'Selecciona a qué broker asignar el cambio de invertido.'
+  };
+  return language()==='es'?(messages[error.message]||error.message):error.message;
+}
+function applyCashPatch(next){
+  backup(false);
+  const changed=next.cash!==D.cash || next.totalInvested!==D.totalInvested;
+  const snapshot=changed?brokerSnapshotPatch({...D,...next},h=>Number.isFinite(getPriceData(h.ticker)?.price)?valEur(h):null,today()):{};
+  Object.assign(D,next,snapshot);
+}
+export function brokerCashFields(){
+  const unassigned=Math.max(0,(D.cash||0)-(D.brokers||[]).reduce((n,b)=>n+b.cash,0));
+  return `<div data-no-i18n><h2>${text('Efectivo e invertido','Cash and invested capital')}</h2>
+    ${(D.brokers||[]).map((b,i)=>`<div class="fg"><label>${esc(b.name)} · ${text('efectivo (€)','cash (€)')}</label><input class="broker-cash-input" type="number" min="0" step="0.01" id="eBrokerCash${i}" value="${b.cash}"></div>`).join('')}
+    <div class="fg"><label>${text('Efectivo sin asignar (€)','Unassigned cash (€)')}</label><input class="broker-cash-input" type="number" min="0" step="0.01" id="eUnassignedCash" value="${unassigned.toFixed(2)}"></div>
+    <div class="fg"><label>${text('Efectivo total (€)','Total cash (€)')}</label><input type="number" id="eCash" readonly value="${D.cash}"></div>
+    <div class="fg"><label>${text('Total invertido en la cartera (€)','Total portfolio contributions (€)')}</label><input type="number" min="0" step="0.01" id="eInvested" value="${D.totalInvested}"></div>
+    <div class="fg"><label>${text('Broker del cambio de invertido','Broker for the contribution adjustment')}</label><select id="eInvestedBroker"><option value="">${text('Elige si cambias el invertido','Choose when changing contributions')}</option>${(D.brokers||[]).map(b=>`<option value="${esc(b.name)}">${esc(b.name)}</option>`).join('')}</select></div>
+    <p class="broker-note">${text('Esto corrige saldos. Para añadir dinero nuevo, usa «Movimiento» en Brokers.','This corrects balances. To record new money, use Cash movement in Brokers.')}</p></div>`;
+}
+export function initBrokerCashFields(){
+  const update=()=>{
+    const values=[...document.querySelectorAll('.broker-cash-input')].map(e=>Number(e.value));
+    document.getElementById('eCash').value=values.every(Number.isFinite)?values.reduce((a,b)=>a+b,0).toFixed(2):'';
+  };
+  document.querySelectorAll('.broker-cash-input').forEach(input=>input.addEventListener('input',update));
+}
+export function saveBrokerCashFields(){
+  const read=id=>{const value=document.getElementById(id)?.value;return value?.trim()?Number(value):NaN;};
+  const next=prepareBrokerCashEdit(D,{allocations:D.brokers.map((b,i)=>({name:b.name,cash:read('eBrokerCash'+i)})),unassignedCash:read('eUnassignedCash'),totalInvested:read('eInvested'),investmentBroker:document.getElementById('eInvestedBroker').value});
+  applyCashPatch(next);
+}
+export function openBrokerMovement(){
+  if(!editable())return;
+  if(!(D.brokers||[]).length){toast(text('Añade primero tus brokers.','Add your brokers first.'),'err');return;}
+  const root=document.getElementById('mod');
+  const options=D.brokers.map(b=>`<option value="${esc(b.name)}">${esc(b.name)} · ${euros(b.cash)}</option>`).join('');
+  root.innerHTML=`<form id="brokerMovementForm" data-no-i18n><h2>${text('Registrar movimiento','Record cash movement')}</h2>
+    <div class="fg"><label for="brokerMovementKind">${text('Tipo','Type')}</label><select id="brokerMovementKind"><option value="deposit">${text('Ingreso','Deposit')}</option><option value="withdrawal">${text('Retirada','Withdrawal')}</option><option value="transfer">${text('Traspaso entre brokers','Transfer between brokers')}</option></select></div>
+    <div class="fg"><label for="brokerMovementSource">Broker</label><select id="brokerMovementSource">${options}</select></div>
+    <div class="fg" id="brokerMovementTargetWrap" hidden><label for="brokerMovementTarget">${text('Broker de destino','Destination broker')}</label><select id="brokerMovementTarget">${options}</select></div>
+    <div class="fg"><label for="brokerMovementAmount">${text('Importe (€)','Amount (€)')}</label><input type="number" id="brokerMovementAmount" min="0.01" step="0.01" required></div>
+    <p class="broker-note" id="brokerMovementHelp"></p><p class="form-err" id="brokerMovementError" role="alert"></p>
+    <div class="m-btns"><button type="button" class="btn" id="cancelBrokerMovement">${text('Cancelar','Cancel')}</button><button type="submit" class="btn btn-g" id="saveBrokerMovement">${text('Guardar movimiento','Save movement')}</button></div></form>`;
+  const kind=root.querySelector('#brokerMovementKind');
+  kind.onchange=()=>{
+    root.querySelector('#brokerMovementTargetWrap').hidden=kind.value!=='transfer';
+    root.querySelector('#brokerMovementHelp').textContent=kind.value==='transfer'?text('Mueve efectivo entre brokers sin cambiar lo aportado a la cartera.','Moves cash between brokers without changing portfolio contributions.'):text('Actualiza el efectivo del broker y las aportaciones de la cartera. Se registra hoy.','Updates broker cash and portfolio contributions. Recorded today.');
+  };kind.onchange();
+  root.querySelector('#cancelBrokerMovement').onclick=()=>document.getElementById('ov').classList.remove('open');
+  root.querySelector('#brokerMovementForm').onsubmit=async e=>{
+    e.preventDefault();if(!editable())return;
+    const button=root.querySelector('#saveBrokerMovement');if(button.disabled)return;button.disabled=true;
+    try{
+      const next=prepareBrokerMovement(D,{kind:kind.value,broker:root.querySelector('#brokerMovementSource').value,toBroker:root.querySelector('#brokerMovementTarget').value,amount:Number(root.querySelector('#brokerMovementAmount').value)});
+      applyCashPatch(next);document.getElementById('ov').classList.remove('open');
+      renderPortfolio();renderHistory();renderBrokers();document.dispatchEvent(new Event('brokers-updated'));
+      await saveAndSync();
+    }catch(error){root.querySelector('#brokerMovementError').textContent=brokerError(error);}finally{button.disabled=false;}
+  };
+  document.getElementById('ov').classList.add('open');
+}

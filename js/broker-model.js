@@ -119,3 +119,63 @@ export function prepareBrokerSetup(state, setup) {
   if(sum>(state.cash||0)+0.01) throw new Error('Broker cash exceeds portfolio cash. This file never changes your total cash.');
   return {brokers,holdings};
 }
+
+// Pure, atomic cash operations. A transfer is not a new portfolio contribution.
+export function prepareBrokerMovement(state, movement) {
+  if(!movement || !['deposit','withdrawal','transfer'].includes(movement.kind) || !nonNegative(movement.amount) || movement.amount===0) throw new Error('Invalid broker movement');
+  const brokers=structuredClone(state.brokers||[]);
+  if(validateBrokers(brokers).length || !nonNegative(state.cash) || !nonNegative(state.totalInvested)) throw new Error('Invalid portfolio balances');
+  const amount=money(movement.amount);
+  if(amount<=0)throw new Error('Enter at least 0.01 EUR');
+  const account=brokers.find(b=>brokerName(b.name)===brokerName(movement.broker));
+  if(!account)throw new Error('Select a broker');
+  let cash=state.cash,totalInvested=state.totalInvested;
+  if(movement.kind==='deposit') {
+    account.deposits=money(account.deposits+amount);account.cash=money(account.cash+amount);
+    cash=money(cash+amount);totalInvested=money(totalInvested+amount);
+  } else {
+    if(account.cash+0.005<amount || cash+0.005<amount)throw new Error('Not enough broker cash');
+    if(movement.kind==='transfer') {
+      const target=brokers.find(b=>brokerName(b.name)===brokerName(movement.toBroker));
+      if(!target || target===account)throw new Error('Select a different destination broker');
+      target.deposits=money(target.deposits+amount);target.cash=money(target.cash+amount);
+    } else {
+      if(totalInvested+0.005<amount)throw new Error('Withdrawal exceeds total invested');
+      cash=money(cash-amount);totalInvested=money(totalInvested-amount);
+    }
+    account.withdrawals=money(account.withdrawals+amount);account.cash=money(account.cash-amount);
+  }
+  return {brokers,cash,totalInvested};
+}
+
+export function prepareBrokerCashEdit(state, edit) {
+  if(!edit || !Array.isArray(edit.allocations) || !nonNegative(edit.unassignedCash) || !nonNegative(edit.totalInvested))throw new Error('Invalid cash balances');
+  const brokers=structuredClone(state.brokers||[]),seen=new Set();
+  if(validateBrokers(brokers).length || !nonNegative(state.totalInvested))throw new Error('Invalid broker balances');
+  let cash=edit.unassignedCash;
+  for(const row of edit.allocations) {
+    const name=brokerName(row.name),account=brokers.find(b=>brokerName(b.name)===name);
+    if(!account || seen.has(name) || !nonNegative(row.cash))throw new Error('Invalid broker cash allocation');
+    seen.add(name);account.cash=money(row.cash);cash+=account.cash;
+  }
+  if(seen.size!==brokers.length)throw new Error('Allocate cash for every broker');
+  const delta=money(edit.totalInvested-state.totalInvested);
+  if(delta!==0) {
+    const account=brokers.find(b=>brokerName(b.name)===brokerName(edit.investmentBroker));
+    if(!account)throw new Error('Select the broker for the invested-capital change');
+    if(delta>0)account.deposits=money(account.deposits+delta);
+    else account.withdrawals=money(account.withdrawals-delta);
+  }
+  return {brokers,cash:money(cash),totalInvested:money(edit.totalInvested)};
+}
+
+export function brokerSnapshotPatch(state,valueFor,date) {
+  let total=state.cash||0;
+  for(const h of state.holdings||[]) {
+    const value=valueFor(h);
+    if(!Number.isFinite(value))return {};
+    total+=value;
+  }
+  const entry={date,totalValue:money(total),totalInvested:state.totalInvested};
+  return {history:[...(state.history||[]).filter(h=>h.date!==date),entry].sort((a,b)=>a.date.localeCompare(b.date))};
+}
