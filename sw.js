@@ -56,6 +56,7 @@ const PRECACHE_URLS = [
   new URL('js/media-editor.js', APP_BASE).href,
   new URL('css/life.css', APP_BASE).href,
   new URL('css/library.css', APP_BASE).href,
+  new URL('icons/covers/the-little-book-of-valuation.jpg', APP_BASE).href,
   new URL('js/library.js', APP_BASE).href,
   new URL('js/artwork.js', APP_BASE).href,
   new URL('js/artwork-model.js', APP_BASE).href,

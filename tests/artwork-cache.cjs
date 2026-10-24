@@ -7,7 +7,7 @@ function fixture(fetcher){
   const ctx=vm.createContext({URL,URLSearchParams,AbortController,console,setTimeout,clearTimeout,
     Date:{now:()=>time+=2000},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},
     esc:x=>x,t:x=>x,fetch:async(url,options)=>{calls.push({url,options});return fetcher(url,options);}});
-  vm.runInContext(read('artwork-model.js')+'\n'+read('artwork.js')+'\nthis.M={resolveArtwork,cachedArtwork,searchArtwork};',ctx);
+  vm.runInContext(read('artwork-model.js')+'\n'+read('artwork.js')+'\nthis.M={resolveArtwork,cachedArtwork,searchArtwork,coverMarkup,artworkKey};',ctx);
   return {M:ctx.M,storage,calls};
 }
 const page={title:'Example (2020 film)',fullurl:'https://en.wikipedia.org/wiki/Example',description:'2020 film',thumbnail:{source:'https://upload.wikimedia.org/wikipedia/en/a/ab/Example.jpg?utm_source=api',width:300,height:450}};
@@ -25,6 +25,14 @@ const page={title:'Example (2020 film)',fullurl:'https://en.wikipedia.org/wiki/E
   const off={...item,artwork:false};assert.equal(await f.M.resolveArtwork('movie',off),null);assert.equal(f.calls.length,1);
   const manual={provider:'wikipedia',title:'Pinned',url:page.thumbnail.source,sourceUrl:page.fullurl,year:2020};
   assert.equal((await f.M.resolveArtwork('movie',{...item,artwork:manual})).title,'Pinned');assert.equal(f.calls.length,1);
+  const reviewed=fixture(()=>{throw new Error('Bundled cover needs no lookup');});
+  const book={title:'The little book of valuation',author:'Aswath Damodaran',year:2011,myRating:4.3,opinion:'Keep this note'};
+  const bookBefore=JSON.stringify(book),selected=await reviewed.M.resolveArtwork('book',book);
+  assert.ok(reviewed.M.coverMarkup('book',{...book,artwork:selected}).includes('icons/covers/the-little-book-of-valuation.jpg'));
+  assert.equal(reviewed.calls.length,0);assert.equal(JSON.stringify(book),bookBefore);
+  assert.equal(reviewed.M.cachedArtwork('book',{...book,author:'Different author'}),undefined);
+  assert.equal(reviewed.M.cachedArtwork('book',{...book,artwork:false}),null);
+  assert.equal(reviewed.M.cachedArtwork('book',{...book,artwork:manual}).title,'Pinned');
   const empty=fixture(()=>({ok:true,json:async()=>({query:{pages:[]}})}));
   assert.equal(await empty.M.resolveArtwork('movie',item),null);const n=empty.calls.length;
   assert.equal(await empty.M.resolveArtwork('movie',item),null);assert.equal(empty.calls.length,n,'cache missing artwork for one day');
