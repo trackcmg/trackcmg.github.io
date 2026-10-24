@@ -159,6 +159,7 @@ document.getElementById('tabBar').addEventListener('click', e => {
   _activeTab = tab;
   document.getElementById('tab-' + tab).classList.add('active');
   if (tab === 'health') { renderHealth(); refreshHealth(); }
+  if (tab === 'analytics') renderAnalytics();
   _syncTradeBtn();
 
   // Re-render lazy: en el primer click sobre una pestaña, el canvas
@@ -290,4 +291,5 @@ async function init() {
 }
 
 document.addEventListener('preferences-changed', () => { renderAll(); renderCalculator(); if (_benchmarkLoaded) renderBenchmark(); });
+document.addEventListener('brokers-updated', () => renderAnalytics());
 init();

@@ -57,6 +57,7 @@ export function loadDataFromObj(obj, merge) {
   D.series    = obj.series    || FALLBACK.series;
   D.games = obj.games ?? D.games ?? [];
   D.watchlist = obj.watchlist || FALLBACK.watchlist;
+  D.brokers = obj.brokers ?? D.brokers ?? [];
   Object.assign(D, lifeDefaults(obj, D));
   document.dispatchEvent(new Event('data-loaded'));
 }
@@ -75,6 +76,7 @@ export function buildDataObj() {
     movies:       D.movies,
     series:       D.series,
     games:        D.games || [],
+    brokers:      D.brokers || [],
     watchlist:    D.watchlist
   };
 }

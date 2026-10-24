@@ -8,6 +8,7 @@ import { F, ttOpts, legOpts, gradFill, centerTextPlugin, crosshairPlugin } from 
 import { fxR, valEur, fetchStock } from './portfolio.js';
 import { PROXY_URL } from './config.js';
 import { renderInsights } from './insights.js';
+import { renderBrokers } from './brokers.js';
 
 // Caché de charts para destruir antes de re-render
 const CH = {};
@@ -24,6 +25,7 @@ const SECTOR_COLORS = {
 
 // ── Render principal de la pestaña Analytics ─────────────────
 export function renderAnalytics() {
+  renderBrokers();
   _renderSummaryCards();
   _renderSectorChart();
   _renderCurrencyChart();

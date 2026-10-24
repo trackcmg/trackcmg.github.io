@@ -25,9 +25,10 @@ import { renderWatchlist } from './watchlist.js';
 
 import { renderGames } from './games.js';
 import { validateGame } from './game-schema.js';
+import { validateBrokers } from './broker-model.js';
 const CURRENCIES = ['EUR', 'USD', 'CAD', 'GBP', 'JPY'];
 const KNOWN_KEYS = ['holdings', 'cash', 'totalInvested', 'closedTrades', 'history',
-  'gym', 'books', 'movies', 'series', 'watchlist', 'games', 'schemaVersion', 'preferences', 'workouts', 'activities', 'trainingInitialized'];
+  'gym', 'books', 'movies', 'series', 'watchlist', 'games', 'schemaVersion', 'preferences', 'workouts', 'activities', 'trainingInitialized', 'brokers'];
 
 // ── Validación de esquema (pura, testeable desde consola) ────
 export function validateImportObj(obj) {
@@ -61,6 +62,8 @@ export function validateImportObj(obj) {
     if (!isNum(h.entryPrice) || h.entryPrice <= 0) errors.push(`${id}: "entryPrice" debe ser > 0`);
     if (!CURRENCIES.includes(h.currency)) errors.push(`${id}: "currency" debe ser ${CURRENCIES.join('/')}`);
   });
+  errors.push(...validateBrokers(obj.brokers ?? D.brokers ?? [],safe('holdings')));
+  if(obj.brokers==null && (D.brokers||[]).length) warnings.push('Sin brokers en este backup: se conservarán los actuales');
 
   safe('closedTrades').forEach((t, i) => {
     const id = `closedTrades[${i}]${t && t.ticker ? ' (' + t.ticker + ')' : ''}`;
@@ -107,6 +110,7 @@ export function validateImportObj(obj) {
   const data = {
     ...lifeDefaults(obj, structuredClone(D)),
     holdings: obj.holdings || [], cash: obj.cash ?? 0, totalInvested: obj.totalInvested ?? 0,
+    brokers: obj.brokers ?? structuredClone(D.brokers || []),
     closedTrades: obj.closedTrades || [],
     history: Object.values(map).sort((a, b) => a.date.localeCompare(b.date)),
     gym: obj.gym || [], books: obj.books || [], movies: obj.movies || [],

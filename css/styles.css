@@ -711,6 +711,25 @@ tr:hover td{background:rgba(255,255,255,.025)}
 .edit-mode #btnAdmin{animation:adminPulse 2.2s infinite}
 @keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 .add-section,#add-holding-container,#add-media-container{display:none !important}
+.broker-dashboard{margin-bottom:18px}
+.broker-chart{height:260px;margin-bottom:14px;position:relative}
+.broker-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.broker-table{width:100%;border-collapse:collapse}
+.broker-table th,.broker-table td{padding:12px 9px;text-align:right;white-space:nowrap}
+.broker-table th:first-child,.broker-table td:first-child{text-align:left;white-space:normal;min-width:160px}
+.broker-table small{display:block;font-size:10px;line-height:1.8;color:var(--text-dim);font-weight:400}
+.broker-note{font-size:11px;line-height:1.6;color:var(--text-dim);margin:10px 0}
+.broker-controls{margin:14px 0;gap:8px;flex-wrap:wrap}
+body.edit-mode .broker-controls.add-section{display:flex !important}
+#brokerForm{margin-top:16px;border-top:1px solid var(--border);padding-top:16px}
+#brokerForm h3{font-size:13px;margin:16px 0 8px}
+#brokerForm input{width:100%;min-width:90px;box-sizing:border-box}
+#brokerForm .broker-name{min-width:130px}
+.broker-holding{border:1px solid var(--border);border-radius:10px;padding:10px;margin:10px 0;min-width:0}
+.broker-holding legend{font-size:12px;padding:0 5px}
+.broker-lot{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;margin-bottom:8px}
+.broker-lot input{min-width:0 !important}
+@media(max-width:600px){.broker-chart{height:230px}.broker-table,.broker-table tbody{display:block}.broker-table thead{display:none}.broker-table tr{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:8px 0;border-bottom:1px solid var(--border)}.broker-table td{padding:5px 2px;font-size:11px;text-align:left;border:0;white-space:nowrap}.broker-table td:first-child{grid-column:1/-1;min-width:0;white-space:normal}.broker-table td[data-label]::before{content:attr(data-label);display:block;font-size:9px;color:var(--text-dim);margin-bottom:4px}.broker-table small{font-size:10px}.broker-dashboard{padding:15px}.broker-controls{display:flex}}
 body.edit-mode .add-section,body.edit-mode #add-holding-container{display:block !important;animation:fadeIn .3s}
 body.edit-mode #portfolioEditWrap.add-section{display:flex !important;justify-content:flex-end;gap:8px;margin-bottom:16px}
 body.edit-mode .gym-form.add-section{display:flex !important}

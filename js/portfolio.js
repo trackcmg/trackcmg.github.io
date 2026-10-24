@@ -222,7 +222,7 @@ export async function refreshPortfolio() {
 }
 
 // ── Render completo del portfolio ───────────────────────────
-export function renderPortfolio() { rHero(); rStocks(); rDonut(); rBar(); }
+export function renderPortfolio() { rHero(); rStocks(); rDonut(); rBar(); document.dispatchEvent(new Event('portfolio-updated')); }
 
 // ── Skeleton loaders (mientras la API responde) ──────────────
 function rSkeletons() {

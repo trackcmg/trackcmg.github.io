@@ -1,4 +1,4 @@
-import { locale } from './i18n.js';
+import { locale, language } from './i18n.js';
 import { openMediaModal } from './media-editor.js';
 // ============================================================
 //  modals.js — Modales de edición y alta
@@ -11,7 +11,10 @@ import { D } from './state.js';
 import { openGameModal } from './games.js';
 import { _authed } from './state.js';
 import { saveAndSync } from './cloud.js';
-import { renderPortfolio, renderHistory, getPriceData } from './portfolio.js';
+import { renderPortfolio, renderHistory, getPriceData, fxR } from './portfolio.js';
+import { brokerName, holdingAllocations, editBrokerPosition, buyAtBroker, sellAtBroker } from './broker-model.js';
+import { esc } from './life-schema.js';
+const brokerText=(es,en)=>language()==='es'?es:en;
 import { renderTrades } from './trades.js';
 import { renderGym } from './gym.js';
 import { renderBooks, renderMovies, renderSeries } from './media.js';
@@ -63,8 +66,8 @@ function _sectorCombo(id, current) {
 // ── Helper: campo Broker ─────────────────────────────────────
 function _brokerField(id, current) {
   return `<div class="fg"><label>Broker <small style="color:var(--text-muted)">(optional)</small></label>
-    <input id="${id}" list="brokerDl" value="${current || ''}" placeholder="IBKR, Degiro…" autocomplete="off">
-    <datalist id="brokerDl"><option value="IBKR"><option value="Degiro"><option value="Revolut"><option value="Trading212"><option value="eToro"></datalist>
+    <input id="${id}" list="brokerDl" value="${esc(current || '')}" placeholder="IBKR, Degiro…" autocomplete="off">
+    <datalist id="brokerDl">${[...new Set(['IBKR','Degiro','Trading212','XTB',...(D.brokers||[]).map(b=>b.name)])].map(name=>`<option value="${esc(name)}">`).join('')}</datalist>
   </div>`;
 }
 
@@ -239,7 +242,7 @@ export function openEditModal(type, idx) {
     f = `<h2>Edit Position</h2>
       <div class="fg"><label>Ticker</label><input id="eHTicker" value="${(h.ticker || '').replace(/"/g, '&quot;')}"></div>
       <div class="fg"><label>Name</label><input id="eHName" value="${(h.name || '').replace(/"/g, '&quot;')}"></div>
-      <div class="fg"><label>Shares</label><input type="number" id="eHShares" value="${h.shares || ''}"></div>
+      <div class="fg"><label>Shares</label><input type="number" id="eHShares" ${holdingAllocations(h).length>1?'readonly':''} value="${h.shares || ''}"></div>
       <div class="fg"><label>Avg entry price (${h.currency})</label><input type="number" id="eHEntry" step="0.0001" value="${h.entryPrice || ''}"></div>
       <div class="fg"><label>Currency</label><select id="eHCur">
         <option ${h.currency === 'USD' ? 'selected' : ''}>USD</option>
@@ -252,7 +255,7 @@ export function openEditModal(type, idx) {
       ${_colorPicker('eHColor', h.color || '#5588ff')}
       <div class="fg"><label>Dividends received (total, ${h.currency})</label><input type="number" id="eHDiv" step="0.01" value="${h.dividends || ''}"></div>
       ${_sectorCombo('eHSector', h.sector || TICKER_SECTOR_MAP[h.ticker] || '')}
-      ${_brokerField('eHBroker', h.broker || '')}
+      ${holdingAllocations(h).length>1?`<p>${esc(brokerText('Reparto por broker: edítalo en Análisis → Brokers.','Edit the broker allocation in Analytics → Brokers.'))}</p>`:_brokerField('eHBroker', h.broker || '')}
       <div id="formErr" class="form-err"></div>
       <div class="m-btns" style="flex-wrap:wrap">
         <button class="btn btn-r" onclick="window.modalDelete('holding',${idx})">Delete</button>
@@ -355,11 +358,16 @@ window.modalSave = function (type, idx) {
     if (!isNaN(t) && t >= 0) D.totalInvested = t;
     closeModal(); renderPortfolio(); saveAndSync();
   } else if (type === 'holding') {
+    let brokerHolding;
+    const editedShares=parseFloat(g('eHShares').value);
+    if(!Number.isFinite(editedShares)||editedShares<=0){_showErr('Shares must be positive');return;}
+    try{brokerHolding=editBrokerPosition(D.holdings[idx],editedShares,g('eHBroker')?.value || '');}
+    catch(error){_showErr(error.message);return;}
     D.holdings[idx] = {
-      ...D.holdings[idx],
+      ...brokerHolding,
       ticker: g('eHTicker').value.toUpperCase(),
       name: g('eHName').value,
-      shares: parseInt(g('eHShares').value) || 0,
+      shares: editedShares,
       entryPrice: parseFloat(g('eHEntry').value) || 0,
       currency: g('eHCur').value,
       exchange: g('eHExch').value,
@@ -367,9 +375,9 @@ window.modalSave = function (type, idx) {
       color: g('eHColor').value,
       dividends: parseFloat(g('eHDiv').value) || 0,
       sector: g('eHSector')?.value || TICKER_SECTOR_MAP[g('eHTicker').value.toUpperCase()] || D.holdings[idx].sector || '',
-      broker: g('eHBroker')?.value || D.holdings[idx].broker || ''
+      broker: brokerHolding.broker
     };
-    closeModal(); renderPortfolio(); renderHistory(); saveAndSync();
+    closeModal(); renderPortfolio(); renderHistory(); renderAnalytics(); saveAndSync();
   } else if (type === 'trade') {
     D.closedTrades[idx] = {
       ...D.closedTrades[idx],
@@ -491,6 +499,7 @@ export function openAddModal(type) {
       <div class="fg"><label>Dividends received (total, in selected currency)</label><input type="number" id="aHDiv" step="0.01"></div>
       ${_sectorCombo('aHSector', '')}
       ${_brokerField('aHBroker', '')}
+      ${(D.brokers||[]).length?`<label data-no-i18n style="display:flex;gap:8px;align-items:center;margin:12px 0"><input id="aHUseCash" type="checkbox" checked style="width:auto">${brokerText('Pagar con el efectivo del broker','Pay from broker cash')}</label>`:''}
       <div id="formErr" class="form-err"></div>
       <div class="m-btns"><button class="btn" onclick="window.closeModal()">Cancel</button><button class="btn btn-g" onclick="window.saveAdd('holding')">Add</button></div>`;
   }
@@ -554,16 +563,24 @@ window.saveAdd = function (type) {
     if (!ep || ep <= 0) { _showErr('Entry price must be a positive number'); return; }
     const tkUpper = tk.toUpperCase();
     const existIdx = D.holdings.findIndex(h => h.ticker === tkUpper);
+    const purchaseBroker=brokerName(gv('aHBroker'));
+    const purchaseEur=sh*ep*fxR(gvRaw('aHCur'));
+    const payFromCash=!!document.getElementById('aHUseCash')?.checked;
     if (existIdx >= 0) {
       // Ticker ya existe: promediar precio de entrada
       const ex = D.holdings[existIdx];
+      if(ex.currency!==gvRaw('aHCur')){_showErr('The new purchase must use the existing position currency.');return;}
       const newShares = ex.shares + sh;
       const newAvg = Math.round(((ex.entryPrice * ex.shares) + (ep * sh)) / newShares * 10000) / 10000;
       const confirmMsg = `"${tkUpper}" already exists (${ex.shares} shares @ ${ex.entryPrice} ${ex.currency}).\n\nAverage into position?\nNew avg price: ${newAvg} ${ex.currency} | Total shares: ${newShares}`;
       if (!confirm(confirmMsg)) return;
-      D.holdings[existIdx] = { ...ex, shares: newShares, entryPrice: newAvg };
+      try{D.holdings[existIdx] = {...buyAtBroker(D,ex,sh,purchaseEur,purchaseBroker,payFromCash),entryPrice:newAvg};}
+      catch(error){_showErr(error.message);return;}
     } else {
-      D.holdings.push({ ticker: tkUpper, name: gv('aHName'), currency: gvRaw('aHCur'), exchange: gv('aHExch'), shares: sh, entryPrice: ep, buyDate: gvRaw('aHBuyDate') || '', color: gvRaw('aHColor') || '#5588ff', dividends: parseFloat(gvRaw('aHDiv')) || 0, sector: gvRaw('aHSector') || TICKER_SECTOR_MAP[tkUpper] || '', broker: gv('aHBroker') || '' });
+      let purchased;
+      try{purchased=buyAtBroker(D,{shares:0,brokerAllocations:[]},sh,purchaseEur,purchaseBroker,payFromCash);}
+      catch(error){_showErr(error.message);return;}
+      D.holdings.push({ ...purchased, ticker: tkUpper, name: gv('aHName'), currency: gvRaw('aHCur'), exchange: gv('aHExch'), shares: sh, entryPrice: ep, buyDate: gvRaw('aHBuyDate') || '', color: gvRaw('aHColor') || '#5588ff', dividends: parseFloat(gvRaw('aHDiv')) || 0, sector: gvRaw('aHSector') || TICKER_SECTOR_MAP[tkUpper] || '' });
     }
     renderPortfolio();
     renderHistory();
@@ -576,6 +593,7 @@ window.saveAdd = function (type) {
 window.openClosePositionModal = function (holdingIdx) {
   const h = D.holdings[holdingIdx];
   if (!h) return;
+  const allocations=holdingAllocations(h);
   const todayStr = new Date().toISOString().slice(0, 10);
   const m = document.getElementById('mod');
   m.innerHTML = `<h2>Close Position — ${h.ticker}</h2>
@@ -592,7 +610,8 @@ window.openClosePositionModal = function (holdingIdx) {
     <div class="fg"><label>Lots (optional)</label>
       <input id="cLots" placeholder="200@12.50">
     </div>
-    ${ _brokerField('cBroker', h.broker || '') }
+    ${allocations.length?`<div class="fg" data-no-i18n><label>${brokerText('Broker de la venta','Selling broker')}<select id="cBroker">${allocations.length>1?`<option value="">${brokerText('Selecciona broker','Select broker')}</option>`:''}${allocations.map(a=>`<option value="${esc(a.broker)}">${esc(a.broker)} · ${a.shares.toLocaleString(locale())} ${brokerText('acciones','shares')}</option>`).join('')}</select></label></div>`:_brokerField('cBroker', h.broker || '')}
+    <p data-no-i18n class="broker-note">${brokerText('El importe vendido pasará a efectivo del broker. Retirar dinero se registra aparte.','Sale proceeds become broker cash. Withdrawals are recorded separately.')}</p>
     <div id="cPnl" style="background:var(--bg-hover);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;font-family:'IBM Plex Mono',monospace;display:none">
       <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Estimated P&amp;L (sold shares)</div>
       <div id="cPnlVal" style="font-size:18px;font-weight:600"></div>
@@ -614,7 +633,7 @@ window.openClosePositionModal = function (holdingIdx) {
   const pnlType     = m.querySelector('#cPnlType');
   function _updatePnl() {
     const sp = parseFloat(sellInput.value);
-    const ss = parseInt(sharesInput.value) || h.shares;
+    const ss = parseFloat(sharesInput.value) || h.shares;
     if (!isFinite(sp) || sp <= 0) { pnlBox.style.display = 'none'; return; }
     const pnl = (sp - h.entryPrice) * ss;
     const pct = ((sp - h.entryPrice) / h.entryPrice) * 100;
@@ -628,6 +647,12 @@ window.openClosePositionModal = function (holdingIdx) {
   }
   sellInput.addEventListener('input', _updatePnl);
   sharesInput.addEventListener('input', _updatePnl);
+  if(allocations.length)document.getElementById('cBroker').onchange=e=>{
+    const available=allocations.find(a=>a.broker===e.target.value)?.shares;
+    sharesInput.max=available||h.shares;
+    if(available)sharesInput.value=available;
+    _updatePnl();
+  };
 };
 
 // ── Confirmar cierre: total o parcial ────────────────────────
@@ -642,14 +667,11 @@ window.saveClosePosition = async function (holdingIdx) {
   const h = D.holdings[holdingIdx];
   if (!h) return;
 
-  const sellSharesRaw = parseInt(document.getElementById('cSellShares')?.value);
-  const sellShares = isFinite(sellSharesRaw) && sellSharesRaw > 0 ? Math.min(sellSharesRaw, h.shares) : h.shares;
-  if (sellShares <= 0) { _showErr('Shares to sell must be greater than 0'); return; }
-
-  _setBtnLoading('btnClosePos', true);
+  const sellShares = Number(document.getElementById('cSellShares')?.value);
+  if (!Number.isFinite(sellShares) || sellShares <= 0 || sellShares>h.shares) { _showErr('Invalid shares to sell'); return; }
 
   const sellDate    = document.getElementById('cDate')?.value || new Date().toISOString().slice(0, 10);
-  const broker      = document.getElementById('cBroker')?.value || h.broker || '';
+  const broker      = brokerName(document.getElementById('cBroker')?.value || h.broker || '');
   const realizedPnl = Math.round((sell - h.entryPrice) * sellShares * 100) / 100;
 
   const trade = {
@@ -669,12 +691,16 @@ window.saveClosePosition = async function (holdingIdx) {
     broker
   };
 
+  let remaining;
+  try{remaining=sellAtBroker(D,h,sellShares,broker,sell*sellShares*fxR(h.currency));}
+  catch(error){_showErr(error.message);return;}
+  _setBtnLoading('btnClosePos', true);
   const isFullClose = sellShares >= h.shares;
   if (isFullClose) {
     D.holdings.splice(holdingIdx, 1);
   } else {
     // Venta parcial: reducir shares del holding
-    D.holdings[holdingIdx] = { ...h, shares: h.shares - sellShares };
+    D.holdings[holdingIdx] = remaining;
   }
   D.closedTrades.push(trade);
 
