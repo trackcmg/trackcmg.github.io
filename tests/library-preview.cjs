@@ -6,7 +6,7 @@ const server=http.createServer((req,res)=>{
   const pathname=new URL(req.url,'http://localhost').pathname;
   res.setHeader('Cache-Control','no-store');
   res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' https://en.wikipedia.org https://es.wikipedia.org https://openlibrary.org https://api.tvmaze.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https://upload.wikimedia.org https://thumb.wikimedia.org https://covers.openlibrary.org https://static.tvmaze.com https://*.archive.org");
-  if(pathname==='/js/cloud.js'){res.setHeader('Content-Type','text/javascript');return res.end("export function saveAndSync(){document.getElementById('qaStatus').textContent='Saved (isolated)';return Promise.resolve(true)} export function updateSyncStatus(){} export function hasPendingCloudChanges(){return false}");}
+  if(pathname==='/js/cloud.js'){res.setHeader('Content-Type','text/javascript');return res.end("export const _cloudReady=true; export function saveAndSync(){document.getElementById('qaStatus').textContent='Saved (isolated)';return Promise.resolve(true)} export function updateSyncStatus(){} export function hasPendingCloudChanges(){return false}");}
   if(pathname==='/cover-check'){
     res.setHeader('Content-Type','text/html');return res.end('<h1>Public cover provider check</h1><p>Open Library</p><img width="190" src="https://covers.openlibrary.org/b/id/11481354-L.jpg?default=false"><p>Wikipedia</p><img width="190" src="https://upload.wikimedia.org/wikipedia/en/8/8e/Dune_%282021_film%29.jpg">');
   }

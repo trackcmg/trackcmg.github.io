@@ -1,11 +1,16 @@
 import { D, _authed } from './state.js';
 import { esc } from './life-schema.js';
-import { t, mediaTitle } from './i18n.js';
+import { t, mediaTitle, language } from './i18n.js';
 import { F, ratingColor } from './utils.js';
 import { coverMarkup, hydrateArtwork, loadArtwork } from './artwork.js';
 import { safeArtworkUrl } from './artwork-model.js';
 
 const keys={book:'books',movie:'movies',serie:'series',game:'games'};
+export function libraryStatus(kind,status){
+  if(kind==='movie')return language()==='es'?(status==='Watched'?'Vista':'Pendiente'):(status==='Watched'?'Watched':'Pending');
+  if(kind==='book')return language()==='es'?(status==='Read'?'Leído':'Pendiente'):(status==='Read'?'Read':'Pending');
+  return t(status);
+}
 export function libraryInfo(kind,item) {
   const max=kind==='book'?5:10, rating=item.myRating;
   let status,creator,subtitle,facts;
@@ -36,25 +41,20 @@ export function renderLibrary(grid,kind,list) {
     return `<article class="m-card library-card" ${_authed?`data-edit-type="${kind}" data-edit-idx="${idx}"`:''}>
       <button type="button" class="library-poster" data-artwork data-library-kind="${kind}" data-library-index="${idx}" aria-label="${esc(t('View details')+': '+mediaTitle(item))}">
         ${coverMarkup(kind,item)}<span class="library-rating" style="--rating-color:${info.rating==null?'var(--text-dim)':ratingColor(info.rating*10/info.max)}"><small>${t('My rating')}</small><b>${info.rating==null?'—':F(info.rating,1)}${info.rating==null?'':`<small>/${info.max}</small>`}</b></span>
-      </button><div class="library-body"><span class="library-status ${['Read','Watched','Finished','Completed'].includes(info.status)?'is-done':['Playing','In progress','Up to date'].includes(info.status)?'is-active':''}">${esc(t(info.status))}</span>
+      </button><div class="library-body"><span class="library-status ${['Read','Watched','Finished','Completed'].includes(info.status)?'is-done':['Playing','In progress','Up to date'].includes(info.status)?'is-active':''}">${esc(libraryStatus(kind,info.status))}</span>
       <h3 class="m-card-title">${esc(mediaTitle(item))}</h3>
       ${info.creator?`<p class="library-creator" data-no-i18n>${esc(info.creator)}</p>`:''}<p class="library-meta" data-no-i18n>${esc(info.subtitle)}</p>
       ${item.opinion?`<p class="m-card-opinion library-excerpt">${esc(item.opinion)}</p>`:''}
       <button type="button" class="library-more" data-library-kind="${kind}" data-library-index="${idx}">${t('View details')} <span aria-hidden="true">↗</span></button></div></article>`;
   }).join('')||`<div class="library-empty"><span aria-hidden="true">${kind==='game'?'✥':'◇'}</span><h3>${t((D[keys[kind]]||[]).length?'No results':'Nothing here yet')}</h3><p>${t((D[keys[kind]]||[]).length?'Try a different search or filter.':'Use Edit to add your first title.')}</p></div>`;
   hydrateArtwork(grid,kind,items);
-  const section=grid.closest('.media-section');
-  if(section){
-    const count=section.querySelector('.library-count');
-    if(count)count.textContent=`${list.length} / ${(D[keys[kind]]||[]).length}`;
-  }
 }
 export function openLibraryDetail(kind,idx,trigger) {
   const item=D[keys[kind]]?.[idx];if(!item)return;
   const info=libraryInfo(kind,item),mod=document.getElementById('mod'),ov=document.getElementById('ov');
   mod.classList.add('library-detail');
   mod.setAttribute('role','dialog');mod.setAttribute('aria-modal','true');mod.setAttribute('aria-labelledby','libraryDetailTitle');
-  mod.innerHTML=`<div class="library-detail-top"><span class="library-status">${esc(t(info.status))}</span><button class="btn" type="button" id="libraryClose" aria-label="${t('Close')}">✕</button></div>
+  mod.innerHTML=`<div class="library-detail-top"><span class="library-status">${esc(libraryStatus(kind,info.status))}</span><button class="btn" type="button" id="libraryClose" aria-label="${t('Close')}">✕</button></div>
     <div class="library-detail-layout"><div><div class="library-poster detail-poster">${coverMarkup(kind,item)}</div><p class="library-source"></p></div><div><h2 id="libraryDetailTitle" class="m-card-title">${esc(mediaTitle(item))}</h2>
     <div class="detail-rating" style="color:${info.rating==null?'var(--text-dim)':ratingColor(info.rating*10/info.max)}">${info.rating==null?'—':F(info.rating,1)}<small>/${info.max} · ${t('My rating')}</small></div>
     <dl class="library-facts">${info.facts.map(([label,value])=>`<div><dt>${esc(t(label))}</dt><dd data-no-i18n>${esc(value)}</dd></div>`).join('')}</dl></div></div>

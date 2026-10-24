@@ -7,7 +7,7 @@ const server=http.createServer((req,res)=>{
   res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self'; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data:");
   if(pathname==='/js/cloud.js'){
     res.setHeader('Content-Type','text/javascript');
-    return res.end("export function saveAndSync(){return Promise.resolve(true)} export function updateSyncStatus(){} export function hasPendingCloudChanges(){return false}");
+    return res.end("export const _cloudReady=true; export function saveAndSync(){return Promise.resolve(true)} export function updateSyncStatus(){} export function hasPendingCloudChanges(){return false}");
   }
   if(pathname==='/'){
     const quote=price=>({price,chg:0,chgPct:0,open:price,high:price,low:price,prev:price,ts:[],hist:[]});

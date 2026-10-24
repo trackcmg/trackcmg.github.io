@@ -55,22 +55,30 @@ API key is required. Cover copyright remains with the respective owners;
 each detail sheet links to the source record. Only title/author/release-year
 queries go to providers, never ratings, opinions, financial data or tokens.
 
-Requests are serialized (at most one per 1.1 seconds), timed out after 9s,
-and made only for shelves entering the viewport. Matching checks title,
+Requests are serialized per provider (Open Library: 1.1s; Wikipedia: 300ms;
+TVmaze: 500ms), timed out after 9s, and only run for the open shelf. Matching checks title,
 year and book author; ambiguous results stay blank. Local metadata cache:
 500 entries maximum, successful matches 30 days, no-match results 1 day.
-Provider outages do not block rendering or Drive synchronization. Images
-use normal browser HTTP caching, not the service-worker app-shell cache.
+Provider outages do not block rendering or Drive synchronization. A failed
+provider does not prevent fallback searches. Metadata for the rest of the open
+shelf is warmed in the background; this pauses when hidden or with data saver.
+Images have a separate, bounded 240-thumbnail service-worker cache which
+survives deployments. Only successful CORS image responses are saved (opaque
+responses are deliberately excluded because of their inflated storage cost).
 
 In **Edit**, search/select another cover, choose **Automatic** to retry or
 **No cover** to disable lookup. Save commits the choice; Cancel changes
 nothing. Optional per-item `artwork` metadata (`provider`, `url`, `sourceUrl`,
 `title`, `year`, optional `alias`/`creator`) is preserved in cloud JSON and
 validated on import. `artwork: false` disables it; an absent field enables
-automatic lookup. Old JSON files require no migration. Automatic cache
-matches never write to Drive on their own.
+automatic lookup. Old JSON files require no migration. Once an automatic image
+actually loads, its metadata is saved locally and in the private Drive JSON
+(`automatic: true`, `lookupKey`). Cloud writes are batched, deferred while editing
+or syncing, and require the authenticated cloud load to have finished. Original
+opinions, ratings, financial data and manual cover choices are not changed.
 
-Offline model checks: `node tests/artwork.cjs`. Optional read-only API smoke
+Offline model checks: `node tests/artwork.cjs`, `node tests/artwork-cache.cjs`,
+`node tests/artwork-store.cjs`. Optional read-only API smoke
 test: `node tests/artwork-network.cjs`. Start `node tests/library-preview.cjs`
 for browser QA at `http://127.0.0.1:51571/` with synthetic data and a cloud
 double; it cannot write to Drive. Browser interactions are performed with

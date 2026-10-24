@@ -19,9 +19,14 @@ assert.equal(M.chooseArtwork('movie',item,[poster,{...poster,url:poster.url+'?ot
 assert.equal(M.chooseArtwork('movie',item,[{...poster,title:'Another film'}]),null);
 assert.equal(M.titleSimilarity('El padrino II','Padrino 2 (película)'),1);
 assert.notEqual(M.artworkKey('movie',item),M.artworkKey('book',item));
+assert.equal(M.titleSimilarity('TaxiDriver','Taxi Driver'),.99);
+assert.ok(M.titleSimilarity('Succesion','Succession')>=.88);
+assert.equal(M.titleSimilarity('Dune Parte Dos','Dune Part Two'),1);
+assert.equal(M.chooseArtwork('movie',{title:'Salvar al soldado Ryan',year:1998},[{...poster,title:'Saving Private Ryan',aliases:['Salvar al soldado Ryan'],year:1998}]).title,'Saving Private Ryan');
 const book={title:'Dune',author:'Frank Herbert',year:1965};
 const cover={provider:'openlibrary',title:'Dune',creator:'Frank Herbert',year:1965,url:'https://covers.openlibrary.org/b/id/123-L.jpg?default=false',sourceUrl:'https://openlibrary.org/works/OL123W'};
 assert.ok(M.chooseArtwork('book',book,[cover]));
+assert.ok(M.chooseArtwork('book',book,[cover,{...cover,url:cover.url.replace('123','456')}]),'different editions of the same book can use either real cover');
 assert.equal(M.chooseArtwork('book',book,[{...cover,creator:'Someone Else'}]),null);
 for(const kind of ['books','movies','series','games']){
   assert.deepEqual(clean(M.validateLife({[kind]:[{...item,artwork:poster}]})),[]);

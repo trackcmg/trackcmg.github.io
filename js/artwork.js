@@ -1,12 +1,13 @@
 import { esc } from './life-schema.js';
 import { t } from './i18n.js';
 import { safeArtworkUrl, validArtwork, artworkTitles, artworkYear, artworkKey, chooseArtwork, scoreArtwork, titleSimilarity } from './artwork-model.js';
+import { persistArtwork } from './artwork-store.js';
 
-const CACHE_KEY = 'track_artwork_v2';
+const CACHE_KEY = 'track_artwork_v3';
 const DAY = 86400000;
 let cache;
 const pending = new Map();
-let networkTail = Promise.resolve(), lastRequest = 0;
+const networkQueues=new Map();
 function readCache() {
   if (cache) return cache;
   try { cache = JSON.parse(localStorage.getItem(CACHE_KEY)) || {}; } catch { cache = {}; }
@@ -21,16 +22,19 @@ function remember(key, value) {
 }
 export function cachedArtwork(kind, item) {
   if (item.artwork === false) return null;
-  if (item.artwork && validArtwork(item.artwork)) return item.artwork;
+  if (item.artwork && validArtwork(item.artwork) && (!item.artwork.automatic || item.artwork.lookupKey===artworkKey(kind,item))) return item.artwork;
   const entry = readCache()[artworkKey(kind,item)];
   return entry && Date.now()-entry.at < (entry.value ? 30 : 1)*DAY && validArtwork(entry.value) ? entry.value : undefined;
 }
-// One bounded request at a time, <= 1/sec. Independent from Drive and quote updates.
+// Serialize each provider independently: a slow book lookup cannot block a film.
 function getJSON(url) {
-  const job = networkTail.catch(() => {}).then(async () => {
-    const delay = Math.max(0, 1100-(Date.now()-lastRequest));
+  const host=new URL(url).hostname,key=host.endsWith('wikipedia.org')?'wikipedia':host;
+  const lane=networkQueues.get(key)||{tail:Promise.resolve(),last:0};networkQueues.set(key,lane);
+  const interval=host==='openlibrary.org'?1100:host==='api.tvmaze.com'?500:300;
+  const job = lane.tail.catch(() => {}).then(async () => {
+    const delay = Math.max(0, interval-(Date.now()-lane.last));
     if (delay) await new Promise(r => setTimeout(r, delay));
-    lastRequest = Date.now();
+    lane.last = Date.now();
     const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 9000);
     try {
       const res = await fetch(url, {signal:controller.signal, credentials:'omit', referrerPolicy:'no-referrer'});
@@ -40,43 +44,57 @@ function getJSON(url) {
       return json;
     } finally { clearTimeout(timeout); }
   });
-  networkTail = job;
+  lane.tail = job;
   return job;
 }
 function wikiURL(lang, params) {
   const u = new URL(`https://${lang}.wikipedia.org/w/api.php`);
   u.search = new URLSearchParams({action:'query', format:'json', formatversion:'2', origin:'*',
-    prop:'pageimages|description|info|langlinks', piprop:'thumbnail', pithumbsize:'420', pilicense:'any',
+    prop:'pageimages|description|info|langlinks|pageterms', wbptterms:'label|alias', piprop:'thumbnail', pithumbsize:'420', pilicense:'any',
     inprop:'url', lllang:'en', lllimit:'max', ...params});
   return u.href;
 }
 const kindPattern = {book:/\bbook\b|novel|novela|libro|ensayo|treatise/i, movie:/\bfilm\b|pel[ií]cula/i, serie:/television|TV series|miniseries|serie de|serie televisiva/i, game:/video ?game|videojuego/i};
-function wikiCandidate(page, alias = '') {
+function wikiCandidate(page, aliases = []) {
   if (!safeArtworkUrl(page.thumbnail?.source)) return null;
   // Prefer a genuine poster/box over cast photographs and wide banners.
   if (page.thumbnail.width / page.thumbnail.height > 1.12) return null;
   const url = new URL(page.thumbnail.source); url.search = '';
-  return {provider:'wikipedia', title:page.title, alias, url:url.href, sourceUrl:page.fullurl,
+  if(typeof aliases==='string')aliases=[aliases];
+  return {provider:'wikipedia', title:page.title, aliases:[...new Set([...aliases,...(page.terms?.label||[]),...(page.terms?.alias||[])])].slice(0,30), url:url.href, sourceUrl:page.fullurl,
     year:Number(page.description?.match(/\b(1[5-9]\d{2}|20\d{2})\b/)?.[1] || page.title?.match(/\b(1[5-9]\d{2}|20\d{2})\b/)?.[1]) || null};
 }
 async function searchWiki(kind, item, query, lang) {
   const hint = {en:{book:'book',movie:'film',serie:'television series',game:'video game'},es:{book:'libro',movie:'película',serie:'serie de televisión',game:'videojuego'}}[lang][kind];
   const year = artworkYear(kind,item);
   const json = await getJSON(wikiURL(lang, {generator:'search', gsrsearch:`${query} ${year || ''} ${hint}`, gsrnamespace:'0', gsrlimit:'5'}));
-  const pages = (json.query?.pages || []).filter(p => !/^(List of|Anexo:|Lista de)/i.test(p.title) && (kindPattern[kind].test(p.description || '') || kindPattern[kind].test(p.title || '')));
+  const pages = (json.query?.pages || []).filter(p => !/^(List of|Anexo:|Lista de)/i.test(p.title) && !/soundtrack|banda sonora|\(.*(?:album|song|canción|tema)\)|\b(?:actor|actress|actriz|compositor)\b/i.test(p.title+' '+p.description) && (kindPattern[kind].test(p.description || '') || kindPattern[kind].test(p.title || '')));
   if (lang === 'en') return pages.map(p => wikiCandidate(p)).filter(Boolean);
   // Spanish Wikipedia often has no poster. Follow its English interwiki, not a cast photo.
   const linked = pages.map(p => ({p, en:p.langlinks?.find(l => l.lang==='en')?.title})).filter(x => x.en);
   if (!linked.length) return [];
   if(kind==='serie'){
-    const best=linked.sort((a,b)=>scoreArtwork(kind,item,{title:b.p.title})-scoreArtwork(kind,item,{title:a.p.title}))[0];
-    if(scoreArtwork(kind,item,{title:best.p.title})>=.65){
+    const asCandidate=p=>({title:p.title,aliases:[...(p.terms?.label||[]),...(p.terms?.alias||[])]});
+    const best=linked.sort((a,b)=>scoreArtwork(kind,item,asCandidate(b.p))-scoreArtwork(kind,item,asCandidate(a.p)))[0];
+    if(scoreArtwork(kind,item,asCandidate(best.p))>=.65){
       const posters=await searchTV(best.en.replace(/\s*\([^)]*\)/g,''));
-      if(posters.length)return posters.map(p=>({...p,alias:titleSimilarity(p.title,best.en)>=.8?best.p.title:''}));
+      if(posters.length)return posters.map(p=>({...p,aliases:titleSimilarity(p.title,best.en)>=.8?[best.p.title,...(best.p.terms?.label||[]),...(best.p.terms?.alias||[])]:[]}));
     }
   }
   const en = await getJSON(wikiURL('en', {titles:linked.map(x => x.en).join('|'), redirects:'1'}));
-  return (en.query?.pages || []).map(p => wikiCandidate(p, linked.find(x => x.en === p.title)?.p.title || '')).filter(Boolean);
+  const canonical=title=>{for(let i=0;i<4;i++){const next=[...(en.query?.normalized||[]),...(en.query?.redirects||[])].find(r=>r.from===title)?.to;if(!next)break;title=next;}return title;};
+  return (en.query?.pages || []).map(p => {
+    const source=linked.find(x=>canonical(x.en)===p.title)?.p;
+    const aliases=source?[source.title,...(source.terms?.label||[]),...(source.terms?.alias||[])]:[];
+    // Original-language article titles can hide the Spanish release title.
+    // Only accept the search term as an alias when year AND creator verify it.
+    if(source&&kind==='movie'&&source.index===1&&year&&String(source.description).includes(String(year))&&item.director){
+      const desc=String(source.description).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+      const names=String(item.director).split(',').map(n=>n.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().split(/\s+/).pop()).filter(n=>n.length>=4);
+      if(names.some(n=>new RegExp('\\b'+n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b').test(desc)))aliases.push(query);
+    }
+    return wikiCandidate(p,aliases);
+  }).filter(Boolean);
 }
 async function searchTV(query) {
   const json=await getJSON('https://api.tvmaze.com/search/shows?'+new URLSearchParams({q:query}));
@@ -84,7 +102,7 @@ async function searchTV(query) {
 }
 async function searchBooks(item, query) {
   const u = new URL('https://openlibrary.org/search.json');
-  u.search = new URLSearchParams({title:query, ...(item.author ? {author:item.author} : {}),
+  u.search = new URLSearchParams({title:query.split(':')[0].trim(), ...(item.author ? {author:item.author.split(/,| & | and | y /)[0].trim()} : {}),
     fields:'key,title,author_name,cover_i,first_publish_year', limit:'8'});
   const json = await getJSON(u.href);
   return (json.docs || []).filter(b => Number.isInteger(b.cover_i) && b.cover_i > 0).map(b => ({provider:'openlibrary', title:b.title,
@@ -94,36 +112,48 @@ async function searchBooks(item, query) {
 export async function searchArtwork(kind, item, query = '', manual = false) {
   const titles = query.trim() ? [query.trim().slice(0,300)] : artworkTitles(item);
   if (!titles.length) return [];
-  let results = [];
+  let results = [],failed=false;
+  const attempt=async fn=>{try{return await fn();}catch{failed=true;return [];}};
   if (kind === 'book') {
-    results = await searchBooks(item,titles[0]);
-    if (!chooseArtwork(kind,item,results) && titles[1]) results.push(...await searchBooks(item,titles[1]));
-    if (!chooseArtwork(kind,item,results)) results.push(...await searchWiki(kind,item,titles[0],'es'));
+    results = await attempt(()=>searchBooks(item,titles[0]));
+    if (!chooseArtwork(kind,item,results) && titles[1]) results.push(...await attempt(()=>searchBooks(item,titles[1])));
+    if (!chooseArtwork(kind,item,results)) results.push(...await attempt(()=>searchWiki(kind,item,titles[0],'es')));
+    if (!chooseArtwork(kind,item,results)) results.push(...await attempt(()=>searchWiki(kind,item,titles.find(x=>x!==titles[0])||titles[0],'en')));
   } else {
     // English has box art; Spanish resolves localized titles through official interwiki links.
-    results = kind==='serie'?await searchTV(titles[0]):await searchWiki(kind,item,titles[0],'en');
-    if (manual || !chooseArtwork(kind,item,results)) results.push(...await searchWiki(kind,item,titles[0],'es'));
-    if (!results.length && titles[1]) results.push(...await searchWiki(kind,item,titles[1],'en'));
+    results = await attempt(()=>kind==='serie'?searchTV(titles[0]):searchWiki(kind,item,titles[0],'en'));
+    if (manual || !chooseArtwork(kind,item,results)) results.push(...await attempt(()=>searchWiki(kind,item,titles[0],'es')));
+    if (!chooseArtwork(kind,item,results) && titles[1]) results.push(...await attempt(()=>searchWiki(kind,item,titles[1],'en')));
   }
-  return [...new Map(results.filter(validArtwork).map(c => [c.url,c])).values()].sort((a,b) => scoreArtwork(kind,item,b)-scoreArtwork(kind,item,a));
+  const unique=new Map();
+  for(const candidate of results.filter(validArtwork)){
+    const previous=unique.get(candidate.url);
+    unique.set(candidate.url,previous?{...candidate,aliases:[...new Set([...(previous.aliases||[]),previous.alias,...(candidate.aliases||[]),candidate.alias].filter(Boolean))].slice(0,30)}:candidate);
+  }
+  const found=[...unique.values()].sort((a,b) => scoreArtwork(kind,item,b)-scoreArtwork(kind,item,a));
+  if(!found.length&&failed)throw new Error('Cover service unavailable');
+  found.incomplete=failed;
+  return found;
 }
 export function resolveArtwork(kind,item) {
   const stored = cachedArtwork(kind,item);
   if (stored !== undefined) return Promise.resolve(stored);
   const key = artworkKey(kind,item);
   if (!pending.has(key)) pending.set(key, searchArtwork(kind,item).then(results => {
-    const chosen = chooseArtwork(kind,item,results); remember(key,chosen); return chosen;
+    const chosen = chooseArtwork(kind,item,results);
+    if(!chosen&&results.incomplete)throw new Error('Cover service unavailable');
+    remember(key,chosen); return chosen;
   }).finally(() => pending.delete(key)));
   return pending.get(key);
 }
 export function coverMarkup(kind, item) {
   const art = cachedArtwork(kind,item);
   const initials = artworkTitles(item)[0]?.split(/\s+/).slice(0,2).map(x => x[0]).join('') || '—';
-  return `<span class="cover-placeholder" aria-hidden="true"><span>${esc(initials)}</span><small>${esc(t('No cover'))}</small></span>${art ? `<img class="library-cover" src="${esc(art.url)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : ''}`;
+  return `<span class="cover-placeholder" aria-hidden="true"><span>${esc(initials)}</span><small>${esc(t(art===null?'No cover':'Cover'))}</small></span>${art ? `<img class="library-cover" src="${esc(art.url)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : ''}`;
 }
 const imageFallbacks=new Map();
 function imageFallback(kind,item) {
-  if(kind!=='book'||item.artwork!=null)return Promise.resolve(null);
+  if(kind!=='book'||(item.artwork!=null&&!item.artwork.automatic))return Promise.resolve(null);
   const key=artworkKey(kind,item);
   if(!imageFallbacks.has(key))imageFallbacks.set(key,searchWiki(kind,item,artworkTitles(item)[0],'es').then(found=>{
     const art=chooseArtwork(kind,item,found);if(art)remember(key,art);return art;
@@ -142,19 +172,21 @@ function paintArtwork(node,kind,item,art,onChange) {
     const alternative=await imageFallback(kind,item);
     if(alternative&&node.isConnected)paintArtwork(node,kind,item,alternative,onChange);
   };
-  img.onerror=failed;img.onload=()=>{node.dataset.coverState='ready';};
+  const loaded=()=>{node.dataset.coverState='ready';persistArtwork(kind,item,art);};
+  img.onerror=failed;img.onload=loaded;
   if(added){img.src=art.url;node.append(img);}
-  else if(img.complete&&!img.naturalWidth)failed();
+  else if(img.complete&&img.naturalWidth)loaded();
   onChange?.(art);
 }
 export function loadArtwork(node,kind,item,onChange) {
   return resolveArtwork(kind,item).then(art=>{
     if(art)paintArtwork(node,kind,item,art,onChange);
-    else node.dataset.coverState='no-match';
+    else {node.dataset.coverState='no-match';const label=node.querySelector('.cover-placeholder small');if(label)label.textContent=t('No cover');}
   }).catch(()=>{if(node.isConnected){node.dataset.coverState='unavailable';node.classList.add('cover-unavailable');}});
 }
 export function hydrateArtwork(root, kind, items) {
   root._artObserver?.disconnect();
+  const generation=(root._artGeneration||0)+1;root._artGeneration=generation;
   const observer = new IntersectionObserver(entries => {
     for (const entry of entries) {
       entry.target.dataset.coverState=entry.isIntersecting?'visible':'waiting';
@@ -165,7 +197,7 @@ export function hydrateArtwork(root, kind, items) {
       node.dataset.coverState='loading';
       loadArtwork(node,kind,item);
     }
-  }, {rootMargin:'250px',threshold:.01});
+  }, {rootMargin:'1200px',threshold:.01});
   root._artObserver=observer;
   root.querySelectorAll('[data-artwork]').forEach(node => {
     if(node.querySelector('img')){
@@ -173,6 +205,15 @@ export function hydrateArtwork(root, kind, items) {
       if(art)paintArtwork(node,kind,item,art);
     }else observer.observe(node);
   });
+  // Warm metadata for the rest of the open shelf, not the image files.
+  // First viewport wins; stop when hidden, rerendered or data saver is enabled.
+  setTimeout(async()=>{
+    for(const item of items.values()){
+      if(!root.isConnected||root._artGeneration!==generation||!root.closest('.tab-content.active')||document.visibilityState==='hidden'||navigator.connection?.saveData)return;
+      if(cachedArtwork(kind,item)===undefined)try{await resolveArtwork(kind,item);}catch{}
+      await new Promise(r=>setTimeout(r,150));
+    }
+  },1800);
 }
 // Changes are only committed by the surrounding form's Save button.
 export function artworkEditor(form, kind, old, getItem) {
@@ -197,7 +238,7 @@ export function artworkEditor(form, kind, old, getItem) {
       if(id!==request || !section.isConnected)return;
       message.textContent=t(found.length?'Choose a cover':'No matching cover. Try another title.');
       results.innerHTML=found.map((a,i)=>`<button type="button" class="artwork-option" data-cover-result="${i}"><img src="${esc(a.url)}" alt="" loading="lazy" referrerpolicy="no-referrer"><span>${esc(a.title)}${a.year?' · '+a.year:''}</span></button>`).join('');
-      results.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{selection=found[Number(btn.dataset.coverResult)];showSelection();});
+      results.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{selection={...found[Number(btn.dataset.coverResult)]};delete selection.automatic;delete selection.lookupKey;showSelection();});
     } catch {if(id===request && section.isConnected)message.textContent=t('Cover service unavailable. Your data is safe; try again later.');}
   }
   section.querySelector('[data-art-search]').onclick=search;

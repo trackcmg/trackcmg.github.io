@@ -2,11 +2,8 @@
 .media-section{--library-accent:var(--amber)}
 #tab-books{--library-accent:#ceaa7b}#tab-series{--library-accent:var(--purple)}#tab-games{--library-accent:var(--cyan)}
 .library-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:10px 0 26px}
-.library-kicker{display:flex;align-items:center;gap:8px;color:var(--library-accent);font:10px var(--ff-mono);letter-spacing:2px;text-transform:uppercase;margin-bottom:9px}
-.library-kicker::before{content:'';width:20px;height:1px;background:currentColor}
 .library-heading h2{font-size:clamp(25px,4vw,36px);font-weight:600;letter-spacing:-1.5px;line-height:1.15}
 .library-heading p{font-size:12px;color:var(--text-dim);margin-top:9px;line-height:1.7}
-.library-count{font:12px var(--ff-mono);color:var(--text-muted);white-space:nowrap;padding-bottom:5px}
 .media-section .sum-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:22px}
 .media-section .sum-card{border:0;border-radius:0;background:var(--bg-card);text-align:left;padding:18px 20px}
 .media-section .sum-card::before{display:none}.media-section .sum-card:hover{transform:none}
@@ -73,7 +70,7 @@ header{box-shadow:0 8px 30px rgba(0,0,0,.16)}
 .scanline{opacity:.008}body::before{opacity:.45}
 @media(min-width:1000px){.media-section{padding:8px 8px 0}}
 @media(max-width:760px){
- .library-heading{margin:6px 0 20px}.library-heading h2{letter-spacing:-1px}.library-heading p{font-size:11px;max-width:280px}.library-count{font-size:10px}
+ .library-heading{margin:6px 0 20px}.library-heading h2{letter-spacing:-1px}.library-heading p{font-size:11px;max-width:280px}
  .media-section .sum-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.media-section .sum-card{padding:14px}.media-section .sum-val{font-size:21px}
  .media-section .filter-bar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.media-section .filter-bar input{grid-column:1/-1;min-width:0;width:100%;font-size:16px}.media-section .filter-bar select{min-width:0;width:100%;font-size:10px}
  .library-grid.media-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 12px}.library-body .m-card-title{font-size:13px}.library-creator{font-size:10px}.library-meta{font-size:9px}.library-rating{left:10px;bottom:10px}.library-rating b{font-size:23px}
