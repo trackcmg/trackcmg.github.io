@@ -75,7 +75,7 @@ export function openLibraryDetail(kind,idx,trigger) {
   ov.classList.add('open');document.getElementById('libraryClose').focus();
   const poster=mod.querySelector('.detail-poster');
   loadArtwork(poster,kind,item,art=>{
-    if(safeArtworkUrl(art.sourceUrl,false))mod.querySelector('.library-source').innerHTML=`<a href="${esc(art.sourceUrl)}" target="_blank" rel="noopener noreferrer">${t('Cover')}: ${{openlibrary:'Open Library',wikipedia:'Wikipedia',tvmaze:'TVmaze'}[art.provider]} ↗</a>`;
+    if(safeArtworkUrl(art.sourceUrl,false))mod.querySelector('.library-source').innerHTML=`<a href="${esc(art.sourceUrl)}" target="_blank" rel="noopener noreferrer">${t('Cover')}: ${{openlibrary:'Open Library',wikipedia:'Wikipedia',tvmaze:'TVmaze',manual:t('Verified edition')}[art.provider]} ↗</a>`;
   });
 }
 document.addEventListener('click',e=>{

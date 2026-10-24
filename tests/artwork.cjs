@@ -7,6 +7,10 @@ vm.runInContext(read('artwork-model.js')+'\n'+read('life-schema.js')+'\n'+read('
 const M=ctx.M,clean=x=>JSON.parse(JSON.stringify(x));
 const poster={provider:'wikipedia',title:'Dune (2021 film)',url:'https://upload.wikimedia.org/wikipedia/en/8/8e/Dune.jpg',sourceUrl:'https://en.wikipedia.org/wiki/Dune_(2021_film)',year:2021};
 assert.ok(M.validArtwork(poster));
+assert.ok(M.validArtwork({...poster,provider:'manual',url:'https://ik.imagekit.io/panmac/tr:f-jpg,w-350/edition/9781804091418.jpg',sourceUrl:'https://www.panmacmillan.com/authors/alex-w-morris/buffett-and-munger-unscripted/9781804091418'}));
+assert.ok(M.safeArtworkUrl('https://dynamic.indigoimages.ca/v1/books/books/1118004779/1.jpg'));
+assert.equal(M.safeArtworkUrl('https://ik.imagekit.io/other-tenant/edition/9781804091418.jpg'),'');
+assert.equal(M.safeArtworkUrl('https://dynamic.indigoimages.ca/track/private-id'),'');
 for(const x of [null,undefined,false])assert.ok(M.validArtwork(x));
 for(const url of ['javascript:alert(1)','data:image/svg+xml,<svg onload=alert(1)>','http://upload.wikimedia.org/x','https://upload.wikimedia.org.evil.test/x','https://user:secret@upload.wikimedia.org/x','https://upload.wikimedia.org:8443/x','https://evil.test/tracker']){
   assert.equal(M.safeArtworkUrl(url),'');assert.equal(M.validArtwork({...poster,url}),false);

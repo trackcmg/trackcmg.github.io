@@ -26,7 +26,7 @@ const CACHE_STATIC = 'dash-static-' + CACHE_VERSION;
 const CACHE_API    = 'dash-api-'    + CACHE_VERSION;
 // Public thumbnails only. Intentionally survives app deployments; bounded FIFO.
 const CACHE_ARTWORK = 'dash-artwork-v1';
-const ARTWORK_HOSTS=['covers.openlibrary.org','upload.wikimedia.org','thumb.wikimedia.org','static.tvmaze.com'];
+const ARTWORK_HOSTS=['covers.openlibrary.org','upload.wikimedia.org','thumb.wikimedia.org','static.tvmaze.com','ik.imagekit.io','dynamic.indigoimages.ca'];
 
 // Assets precargados en install (shell de la app)
 const PRECACHE_URLS = [

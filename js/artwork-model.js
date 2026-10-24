@@ -1,12 +1,15 @@
 // Optional artwork metadata. No keys, account identifiers or private API proxy.
-export const ARTWORK_PROVIDERS = ['wikipedia', 'openlibrary', 'tvmaze'];
+export const ARTWORK_PROVIDERS = ['wikipedia', 'openlibrary', 'tvmaze', 'manual'];
 const IMAGE_HOSTS = ['upload.wikimedia.org', 'thumb.wikimedia.org', 'covers.openlibrary.org', 'static.tvmaze.com'];
 export function safeArtworkUrl(value, image = true) {
   if (typeof value !== 'string' || value.length > 2048) return '';
   try {
     const u = new URL(value);
     if (u.protocol !== 'https:' || u.username || u.password || u.port) return '';
-    const allowed = image ? IMAGE_HOSTS.includes(u.hostname) : ['en.wikipedia.org', 'es.wikipedia.org', 'openlibrary.org', 'www.tvmaze.com', 'tvmaze.com'].includes(u.hostname);
+    // Verified edition covers only; do not allow arbitrary ImageKit tenants or trackers.
+    const editionImage=(u.hostname==='ik.imagekit.io'&&u.pathname.startsWith('/panmac/')&&/\/edition\/\d{13}\.jpg$/.test(u.pathname))||
+      (u.hostname==='dynamic.indigoimages.ca'&&/^\/v1\/books\/books\/(?:\d{9}[\dX]|\d{13})\/1\.jpg$/.test(u.pathname));
+    const allowed = image ? IMAGE_HOSTS.includes(u.hostname)||editionImage : ['en.wikipedia.org', 'es.wikipedia.org', 'openlibrary.org', 'www.tvmaze.com', 'tvmaze.com', 'www.panmacmillan.com', 'www.indigo.ca'].includes(u.hostname);
     return allowed ? u.href : '';
   } catch { return ''; }
 }
