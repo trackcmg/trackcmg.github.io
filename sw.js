@@ -52,6 +52,10 @@ const PRECACHE_URLS = [
   new URL('js/training.js', APP_BASE).href,
   new URL('js/media-editor.js', APP_BASE).href,
   new URL('css/life.css', APP_BASE).href,
+  new URL('css/library.css', APP_BASE).href,
+  new URL('js/library.js', APP_BASE).href,
+  new URL('js/artwork.js', APP_BASE).href,
+  new URL('js/artwork-model.js', APP_BASE).href,
   new URL('js/game-schema.js', APP_BASE).href,
   new URL('js/modals.js', APP_BASE).href,
   new URL('js/auth.js', APP_BASE).href,
@@ -128,6 +132,10 @@ self.addEventListener('fetch', event => {
 
   // Ignorar peticiones chrome-extension o no-http
   if (!request.url.startsWith('http')) return;
+
+  // Public artwork has its own bounded metadata cache + normal HTTP image cache.
+  // Never keep third-party searches or hundreds of posters in the app-shell cache.
+  if (['en.wikipedia.org','es.wikipedia.org','openlibrary.org','covers.openlibrary.org','upload.wikimedia.org','thumb.wikimedia.org','api.tvmaze.com','static.tvmaze.com'].includes(url.hostname)) return;
 
   // ── Network-First para APIs (GAS, fuentes de Google)
   if (API_HOSTS.some(h => url.hostname.includes(h))) {

@@ -41,6 +41,41 @@ Browser regression checks: install Playwright and an Edge browser, then run
 `node tests/games-jpy.cjs`. The test uses synthetic data and blocks external
 requests, including cloud writes.
 
+### Visual media library
+
+Books, films, series and games have lazy-loaded cover cards and a read-only
+detail sheet (full original opinion and metadata). Taste Profile remains
+available in a collapsible panel. Both languages, both themes and mobile
+two-column shelves are supported.
+
+Free public sources: [Open Library Search/Covers](https://openlibrary.org/developers/api),
+[Wikipedia PageImages](https://www.mediawiki.org/wiki/Extension:PageImages#API),
+and [TVmaze](https://www.tvmaze.com/api) (attributed CC BY-SA). No account or
+API key is required. Cover copyright remains with the respective owners;
+each detail sheet links to the source record. Only title/author/release-year
+queries go to providers, never ratings, opinions, financial data or tokens.
+
+Requests are serialized (at most one per 1.1 seconds), timed out after 9s,
+and made only for shelves entering the viewport. Matching checks title,
+year and book author; ambiguous results stay blank. Local metadata cache:
+500 entries maximum, successful matches 30 days, no-match results 1 day.
+Provider outages do not block rendering or Drive synchronization. Images
+use normal browser HTTP caching, not the service-worker app-shell cache.
+
+In **Edit**, search/select another cover, choose **Automatic** to retry or
+**No cover** to disable lookup. Save commits the choice; Cancel changes
+nothing. Optional per-item `artwork` metadata (`provider`, `url`, `sourceUrl`,
+`title`, `year`, optional `alias`/`creator`) is preserved in cloud JSON and
+validated on import. `artwork: false` disables it; an absent field enables
+automatic lookup. Old JSON files require no migration. Automatic cache
+matches never write to Drive on their own.
+
+Offline model checks: `node tests/artwork.cjs`. Optional read-only API smoke
+test: `node tests/artwork-network.cjs`. Start `node tests/library-preview.cjs`
+for browser QA at `http://127.0.0.1:51571/` with synthetic data and a cloud
+double; it cannot write to Drive. Browser interactions are performed with
+the development environment's supported browser tools.
+
 | Category | Details |
 |----------|---------|
 | **Portfolio** | Holdings with live prices (Yahoo Finance via GAS proxy), FX conversion, 52-week range, P/E & yield tags, per-holding detail accordion |

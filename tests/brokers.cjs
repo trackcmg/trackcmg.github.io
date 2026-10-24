@@ -1,7 +1,8 @@
 // Isolated regression tests: synthetic data only, no browser or cloud writes.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const root=path.resolve(__dirname,'..'),source=file=>fs.readFileSync(path.join(root,'js',file),'utf8').replace(/^import .*;\r?\n/gm,'').replace(/^export /gm,'');
-const context=vm.createContext({console,structuredClone,Event,Intl});
+const context=vm.createContext({console,structuredClone,Event,Intl,URL});
+vm.runInContext(source('artwork-model.js'),context);
 vm.runInContext(source('broker-model.js')+'\nthis.model={brokerName,holdingAllocations,setHoldingAllocations,validateBrokers,brokerSummary,buyAtBroker,sellAtBroker,prepareBrokerSetup,editBrokerPosition,prepareBrokerMovement,prepareBrokerCashEdit,brokerSnapshotPatch};',context);
 const M=context.model,clean=v=>JSON.parse(JSON.stringify(v));
 const holding={ticker:'TEST',shares:100,entryPrice:8,currency:'GBP',brokerAllocations:[{broker:'Trading 212',shares:10},{broker:'Degiro',shares:90}]};
@@ -83,6 +84,12 @@ context.loadDataFromObj({...context.FALLBACK,...state,games:[],books:[{title:'Un
 const exported=clean(context.buildDataObj()),result=context.validateImportObj(exported);
 assert.equal(result.ok,true,JSON.stringify(result.errors));
 context.loadDataFromObj(result.data);assert.deepEqual(clean(context.buildDataObj()),exported);
+const art={provider:'wikipedia',title:'Example',year:2020,url:'https://upload.wikimedia.org/wikipedia/en/a/ab/Example.jpg',sourceUrl:'https://en.wikipedia.org/wiki/Example'};
+const mediaBackup={...exported,books:[{title:'Example',year:'401 B.C',myRating:0,opinion:'Opinión intacta',artwork:art}],games:[{title:'Example game',status:'Playing',artwork:false}]};
+const mediaResult=context.validateImportObj(mediaBackup);assert.equal(mediaResult.ok,true,JSON.stringify(mediaResult.errors));
+context.loadDataFromObj(mediaResult.data);const mediaRoundtrip=clean(context.buildDataObj());
+assert.deepEqual(mediaRoundtrip.books,mediaBackup.books);assert.deepEqual(mediaRoundtrip.games,mediaBackup.games);assert.deepEqual(mediaRoundtrip.brokers,exported.brokers);
+context.loadDataFromObj(result.data);
 const oldBackup=structuredClone(exported);delete oldBackup.brokers;
 assert.deepEqual(clean(context.validateImportObj(oldBackup).data.brokers),exported.brokers,'older backups preserve broker balances');
 assert.equal(context.validateImportObj({...exported,brokers:[{name:'XTB',cash:0,deposits:-1,withdrawals:0}]}).ok,false);
