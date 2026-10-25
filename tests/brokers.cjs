@@ -79,7 +79,7 @@ snap=M.brokerSnapshotPatch({...wallet,...move,history:snap.history},()=>400,'202
 assert.deepEqual(clean(M.brokerSnapshotPatch(wallet,()=>null,'2026-01-02')),{},'missing quotes must not create false history');
 context.D={};context.document={getElementById:()=>null,dispatchEvent(){},addEventListener(){}};
 context.FALLBACK={holdings:[],closedTrades:[],history:[],gym:[],books:[],movies:[],series:[],watchlist:[],cash:0,totalInvested:0};
-vm.runInContext(source('life-schema.js')+'\n'+source('storage.js')+'\n'+source('game-schema.js')+'\n'+source('importer.js'),context);
+vm.runInContext(source('life-schema.js')+'\n'+source('storage.js')+'\n'+source('game-schema.js')+'\n'+source('data-validation.js')+'\n'+source('importer.js'),context);
 context.loadDataFromObj({...context.FALLBACK,...state,games:[],books:[{title:'Unchanged'}],gym:[],closedTrades:[]});
 const exported=clean(context.buildDataObj()),result=context.validateImportObj(exported);
 assert.equal(result.ok,true,JSON.stringify(result.errors));

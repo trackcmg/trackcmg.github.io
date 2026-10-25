@@ -299,3 +299,5 @@ document.addEventListener('layout-changed',()=>{renderAll();renderCalculator();i
 
 document.addEventListener('brokers-updated', () => renderAnalytics());
 init();
+
+document.addEventListener('dashboard-finance-updated',()=>{renderAll();refreshPortfolio();});
