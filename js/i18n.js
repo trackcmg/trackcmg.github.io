@@ -1,5 +1,7 @@
 import { D } from './state.js';
 const PAIRS = [
+  ['Closed','Cerradas'],
+  ['Daily change','Cambio diario'],['Since purchase','Desde compra'],['No open positions','Sin posiciones abiertas'],['Portfolio overview','Resumen de cartera'],['Evolution','Evolución'],['Value and contributions','Valor y aportaciones'],['Prices versus the previous close, converted at the current exchange rate.','Precios frente al cierre anterior, convertidos al cambio actual.'],
   ['Verified edition','Edición verificada'],
   ['Estimated hours played','Horas jugadas (estimadas)'],
   ['My bookshelf','Mi biblioteca'],['My film collection','Mi videoteca'],['My series collection','Mis series'],['My game library','Mis videojuegos'],
